@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { Modal, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, View } from 'react-native';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
 import { Colors } from '@/constants/theme';
@@ -19,6 +19,7 @@ interface AddEventModalProps {
 export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddEventModalProps) {
   const theme = useColorScheme() ?? 'light';
   const colors = Colors[theme];
+  const { height: screenHeight } = useWindowDimensions();
 
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(selectedDate);
@@ -52,14 +53,17 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
       visible={isVisible}
       onRequestClose={onClose}
     >
-      <ThemedView style={styles.modalOverlay}>
-        <ThemedView style={styles.modalContent}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.modalOverlay}
+      >
+        <ThemedView style={[styles.modalContent, { maxHeight: screenHeight * 0.9, backgroundColor: colors.surface }]}>
           <ThemedText type="subtitle" style={styles.modalTitle}>Add New Event</ThemedText>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             <ThemedText style={styles.label}>Title</ThemedText>
             <TextInput
-              style={[styles.input, { color: colors.text, borderColor: colors.icon + '40' }]}
+              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
               value={title}
               onChangeText={setTitle}
               placeholder="Event Title"
@@ -68,7 +72,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
 
             <ThemedText style={styles.label}>Date (YYYY-MM-DD)</ThemedText>
             <TextInput
-              style={[styles.input, { color: colors.text, borderColor: colors.icon + '40' }]}
+              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
               value={date}
               onChangeText={setDate}
               placeholder="YYYY-MM-DD"
@@ -77,7 +81,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
 
             <ThemedText style={styles.label}>Start Time</ThemedText>
             <TextInput
-              style={[styles.input, { color: colors.text, borderColor: colors.icon + '40' }]}
+              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
               value={startTime}
               onChangeText={setStartTime}
               placeholder="e.g. 09:00 AM"
@@ -86,7 +90,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
 
             <ThemedText style={styles.label}>End Time</ThemedText>
             <TextInput
-              style={[styles.input, { color: colors.text, borderColor: colors.icon + '40' }]}
+              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
               value={endTime}
               onChangeText={setEndTime}
               placeholder="e.g. 10:00 AM"
@@ -159,25 +163,25 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
                 </TouchableOpacity>
               ))}
             </ThemedView>
-
-            <ThemedView style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton, { borderColor: colors.tint }]}
-                onPress={onClose}
-              >
-                <ThemedText style={{ color: colors.tint }}>Cancel</ThemedText>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.button, styles.saveButton, { backgroundColor: colors.tint }]}
-                onPress={handleSave}
-              >
-                <ThemedText style={styles.saveButtonText}>Save</ThemedText>
-              </TouchableOpacity>
-            </ThemedView>
           </ScrollView>
+
+          <ThemedView style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton]}
+              onPress={onClose}
+            >
+              <ThemedText style={{ color: colors.icon }}>Cancel</ThemedText>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.saveButton, { backgroundColor: colors.tint }]}
+              onPress={handleSave}
+            >
+              <ThemedText style={styles.saveButtonText}>Save Event</ThemedText>
+            </TouchableOpacity>
+          </ThemedView>
         </ThemedView>
-      </ThemedView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -191,7 +195,6 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '90%',
-    maxHeight: '80%',
     borderRadius: 20,
     padding: 24,
     ...Platform.select({
@@ -205,6 +208,9 @@ const styles = StyleSheet.create({
         elevation: 5,
       },
     }),
+  },
+  scrollContent: {
+    paddingBottom: 24,
   },
   modalTitle: {
     marginBottom: 20,
@@ -250,7 +256,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 32,
+    marginTop: 20,
     gap: 12,
     backgroundColor: 'transparent',
   },

@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Calendar as RNCalendar, WeekCalendar, LocaleConfig, CalendarProvider } from 'react-native-calendars';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { Colors } from '@/constants/theme';
+import { Colors, COLORS } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
+
+import { DailyTimeline } from './daily-timeline';
 
 // Configure calendar locale if needed (default is English)
 LocaleConfig.locales['en'] = {
@@ -37,35 +39,97 @@ interface CalendarProps {
   selectedDate: string;
   onDateSelect: (date: string) => void;
   events: Event[];
+  onViewChange?: (view: 'monthly' | 'weekly' | 'daily') => void;
 }
 
-export default function Calendar({ selectedDate, onDateSelect, events }: CalendarProps) {
+export default function Calendar({ selectedDate, onDateSelect, events, onViewChange }: CalendarProps) {
   const theme = useColorScheme() ?? 'light';
   const colors = Colors[theme];
   const today = new Date().toISOString().split('T')[0];
-  const [view, setView] = useState<'monthly' | 'weekly'>('monthly');
+  const [view, setView] = useState<'monthly' | 'weekly' | 'daily'>('monthly');
+
+  const handleViewChange = (newView: 'monthly' | 'weekly' | 'daily') => {
+    setView(newView);
+    onViewChange?.(newView);
+  };
 
   const commonTheme = {
-    backgroundColor: 'transparent',
-    calendarBackground: 'transparent',
+    backgroundColor: colors.background,
+    calendarBackground: colors.background,
     textSectionTitleColor: colors.icon,
-    selectedDayBackgroundColor: colors.tint,
-    selectedDayTextColor: theme === 'light' ? '#fff' : '#000',
-    todayTextColor: colors.tint,
-    dayTextColor: colors.text,
-    textDisabledColor: theme === 'light' ? '#d9e1e8' : '#333',
+    selectedDayBackgroundColor: theme === 'light' ? COLORS.selectedBg : colors.tint,
+    selectedDayTextColor: theme === 'light' ? COLORS.selectedText : (theme === 'light' ? '#fff' : '#000'),
+    todayTextColor: theme === 'light' ? COLORS.todayText : colors.tint,
+    dayTextColor: theme === 'light' ? COLORS.dayText : colors.text,
+    textDisabledColor: theme === 'light' ? COLORS.dayTextMuted : (theme === 'light' ? '#d9e1e8' : '#333'),
     dotColor: colors.tint,
-    selectedDotColor: '#ffffff',
+    selectedDotColor: theme === 'light' ? COLORS.selectedText : '#ffffff',
     arrowColor: colors.tint,
-    disabledArrowColor: '#d9e1e8',
+    disabledArrowColor: theme === 'light' ? COLORS.dayTextMuted : '#d9e1e8',
     monthTextColor: colors.text,
     indicatorColor: colors.tint,
-    textDayFontWeight: '400',
-    textMonthFontWeight: '600',
-    textDayHeaderFontWeight: '600',
+    textDayFontWeight: '700',
+    textMonthFontWeight: 'bold',
+    textDayHeaderFontWeight: '700',
     textDayFontSize: 16,
-    textMonthFontSize: 18,
-    textDayHeaderFontSize: 14,
+    textMonthFontSize: 20,
+    textDayHeaderFontSize: 15,
+    todayBackgroundColor: theme === 'light' ? COLORS.todayBg : colors.tint + '20',
+    'stylesheet.calendar.header': {
+      dayHeader: {
+        marginTop: 5,
+        marginBottom: 10,
+        width: 40,
+        textAlign: 'center',
+        fontSize: 15,
+        fontWeight: '700',
+        color: colors.icon
+      }
+    },
+    'stylesheet.calendar.main': {
+      dayContainer: {
+        borderWidth: 0.5,
+        borderColor: colors.border,
+        flex: 1,
+        alignItems: 'center'
+      },
+      week: {
+        marginTop: 0,
+        marginBottom: 0,
+        flexDirection: 'row',
+        justifyContent: 'space-around'
+      }
+    },
+    'stylesheet.day.basic': {
+      base: {
+        width: 44,
+        height: 44,
+        alignItems: 'center',
+        justifyContent: 'center'
+      },
+      text: {
+        marginTop: Platform.OS === 'android' ? 4 : 6,
+        fontSize: 16,
+        fontWeight: '700',
+        color: theme === 'light' ? COLORS.dayText : colors.text,
+        backgroundColor: 'rgba(255, 255, 255, 0)'
+      },
+      today: {
+        backgroundColor: theme === 'light' ? COLORS.todayBg : colors.tint + '20',
+        borderRadius: 22
+      },
+      todayText: {
+        color: theme === 'light' ? COLORS.todayText : colors.tint,
+        fontWeight: 'bold'
+      },
+      selected: {
+        backgroundColor: theme === 'light' ? COLORS.selectedBg : colors.tint,
+        borderRadius: 22
+      },
+      selectedText: {
+        color: theme === 'light' ? COLORS.selectedText : (theme === 'light' ? '#fff' : '#000'),
+      }
+    }
   };
 
   const markedDates = React.useMemo(() => {
@@ -145,10 +209,9 @@ export default function Calendar({ selectedDate, onDateSelect, events }: Calenda
 
     // Mark today
     if (!marks[today]) {
-      marks[today] = { today: true, textColor: colors.tint };
+      marks[today] = { today: true };
     } else {
       marks[today].today = true;
-      marks[today].textColor = colors.tint;
     }
 
     // Mark selected date
@@ -156,15 +219,13 @@ export default function Calendar({ selectedDate, onDateSelect, events }: Calenda
       marks[selectedDate] = {
         ...marks[selectedDate],
         selected: true,
-        selectedColor: colors.tint,
-        textColor: theme === 'light' ? '#fff' : '#000',
       };
-      
+
       // If selected date has dots, make them white for better contrast
       if (marks[selectedDate].dots) {
         marks[selectedDate].dots = marks[selectedDate].dots.map((d: any) => ({
           ...d,
-          selectedDotColor: '#ffffff'
+          selectedDotColor: theme === 'light' ? COLORS.selectedText : '#ffffff'
         }));
       }
     }
@@ -179,21 +240,29 @@ export default function Calendar({ selectedDate, onDateSelect, events }: Calenda
       theme={commonTheme}
     >
       <ThemedView style={styles.container}>
-        <ThemedView style={styles.toggleContainer}>
+        <ThemedView style={[styles.toggleContainer, { backgroundColor: colors.surface }]}>
           <TouchableOpacity
-            onPress={() => setView('monthly')}
-            style={[styles.toggleButton, view === 'monthly' && { backgroundColor: colors.tint + '20' }]}
+            onPress={() => handleViewChange('monthly')}
+            style={[styles.toggleButton, view === 'monthly' && { backgroundColor: colors.tint }]}
           >
-            <ThemedText style={[styles.toggleText, view === 'monthly' && { color: colors.tint, fontWeight: 'bold' }]}>
+            <ThemedText style={[styles.toggleText, { color: colors.text }, view === 'monthly' && { color: '#FFFFFF', fontWeight: 'bold' }]}>
               Monthly
             </ThemedText>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setView('weekly')}
-            style={[styles.toggleButton, view === 'weekly' && { backgroundColor: colors.tint + '20' }]}
+            onPress={() => handleViewChange('weekly')}
+            style={[styles.toggleButton, view === 'weekly' && { backgroundColor: colors.tint }]}
           >
-            <ThemedText style={[styles.toggleText, view === 'weekly' && { color: colors.tint, fontWeight: 'bold' }]}>
+            <ThemedText style={[styles.toggleText, { color: colors.text }, view === 'weekly' && { color: '#FFFFFF', fontWeight: 'bold' }]}>
               Weekly
+            </ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => handleViewChange('daily')}
+            style={[styles.toggleButton, view === 'daily' && { backgroundColor: colors.tint }]}
+          >
+            <ThemedText style={[styles.toggleText, { color: colors.text }, view === 'daily' && { color: '#FFFFFF', fontWeight: 'bold' }]}>
+              Daily
             </ThemedText>
           </TouchableOpacity>
         </ThemedView>
@@ -210,7 +279,7 @@ export default function Calendar({ selectedDate, onDateSelect, events }: Calenda
             style={styles.calendar}
             enableSwipeMonths={true}
           />
-        ) : (
+        ) : view === 'weekly' ? (
           <WeekCalendar
             current={today}
             onDayPress={day => {
@@ -220,6 +289,11 @@ export default function Calendar({ selectedDate, onDateSelect, events }: Calenda
             markedDates={markedDates}
             theme={commonTheme}
             style={styles.calendar}
+          />
+        ) : (
+          <DailyTimeline
+            selectedDate={selectedDate}
+            events={events}
           />
         )}
       </ThemedView>
@@ -236,13 +310,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 8,
     borderRadius: 8,
-    backgroundColor: 'transparent',
+    padding: 2,
   },
   toggleButton: {
     flex: 1,
     paddingVertical: 8,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 6,
   },
   toggleText: {
     fontSize: 14,

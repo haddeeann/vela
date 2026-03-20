@@ -89,6 +89,7 @@ export default function HomeScreen() {
   const theme = useColorScheme() ?? 'light';
   const colors = Colors[theme];
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [viewMode, setViewMode] = useState<'monthly' | 'weekly' | 'daily'>('monthly');
   const [events, setEvents] = useState(MOCK_EVENTS);
   const [isModalVisible, setIsModalVisible] = useState(false);
 
@@ -203,21 +204,24 @@ export default function HomeScreen() {
         selectedDate={selectedDate}
         onDateSelect={setSelectedDate}
         events={events}
+        onViewChange={setViewMode}
       />
-      <ThemedView style={styles.eventsContainer}>
-        <ThemedText type="subtitle" style={styles.eventsTitle}>Events</ThemedText>
-        {filteredEvents.length > 0 ? (
-          <FlatList
-            data={filteredEvents}
-            renderItem={renderEventItem}
-            keyExtractor={item => item.id}
-            contentContainerStyle={styles.eventsList}
-            showsVerticalScrollIndicator={false}
-          />
-        ) : (
-          <ThemedText style={styles.noEventsText}>No events</ThemedText>
-        )}
-      </ThemedView>
+      {viewMode !== 'daily' && (
+        <ThemedView style={styles.eventsContainer}>
+          <ThemedText type="subtitle" style={styles.eventsTitle}>Events</ThemedText>
+          {filteredEvents.length > 0 ? (
+            <FlatList
+              data={filteredEvents}
+              renderItem={renderEventItem}
+              keyExtractor={item => item.id}
+              contentContainerStyle={styles.eventsList}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <ThemedText style={styles.noEventsText}>No events</ThemedText>
+          )}
+        </ThemedView>
+      )}
 
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: colors.tint }]}
@@ -259,7 +263,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
-    backgroundColor: 'rgba(128, 128, 128, 0.1)',
+    backgroundColor: Colors.light.surface,
     borderLeftWidth: 4,
     flexDirection: 'row',
     alignItems: 'center',
@@ -267,14 +271,16 @@ const styles = StyleSheet.create({
   },
   eventInfo: {
     flex: 1,
+    backgroundColor: 'transparent',
   },
   eventTitle: {
     fontSize: 16,
     marginBottom: 4,
+    color: Colors.light.text,
   },
   eventTime: {
     fontSize: 14,
-    opacity: 0.7,
+    color: Colors.light.icon,
   },
   noEventsText: {
     textAlign: 'center',
