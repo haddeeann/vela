@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, TouchableOpacity, Platform, useWindowDimensions } from 'react-native';
-import { Calendar as RNCalendar, WeekCalendar, LocaleConfig, CalendarProvider } from 'react-native-calendars';
+import { Calendar as RNCalendar, LocaleConfig, CalendarProvider } from 'react-native-calendars';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
@@ -11,6 +11,7 @@ import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
 
 import { DailyTimeline } from './daily-timeline';
+import { WeeklyTimeGrid } from './weekly-time-grid';
 
 // Configure calendar locale if needed (default is English)
 LocaleConfig.locales['en'] = {
@@ -207,7 +208,8 @@ export default function Calendar({ selectedDate, onDateSelect, events, view, sty
       <ThemedView style={styles.container}>
         {view === 'monthly' ? (
           <RNCalendar
-            current={today}
+            key={view}
+            current={selectedDate || today}
             onDayPress={day => {
               onDateSelect(day.dateString);
             }}
@@ -218,15 +220,10 @@ export default function Calendar({ selectedDate, onDateSelect, events, view, sty
             enableSwipeMonths={true}
           />
         ) : view === 'weekly' ? (
-          <WeekCalendar
-            current={today}
-            onDayPress={day => {
-              onDateSelect(day.dateString);
-            }}
-            markingType={'multi-dot'}
-            markedDates={markedDates}
-            theme={commonTheme}
-            style={[styles.calendar, { height: calendarHeight }]}
+          <WeeklyTimeGrid
+            selectedDate={selectedDate}
+            events={events}
+            onDateSelect={onDateSelect}
           />
         ) : (
           <DailyTimeline
