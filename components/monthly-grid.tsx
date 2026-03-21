@@ -108,23 +108,30 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, availableHeigh
     return dayEvents;
   };
 
-  const renderEntryPill = (entry: Event) => {
+  const renderEntryPill = (entry: Event, isCurrentMonth: boolean) => {
     const category = CATEGORIES.find(c => c.id === entry.categoryId) || CATEGORIES[4];
     const color = category.color;
+    const opacity = isCurrentMonth ? 'FF' : '4D'; // 100% or 30%
 
     let icon: React.ReactNode;
     if (entry.entryType === 'task') {
-      icon = <View style={[styles.hollowDot, { borderColor: color }]} />;
+      icon = <View style={[styles.hollowDot, { borderColor: color + opacity }]} />;
     } else if (entry.entryType === 'anchor') {
-      icon = <ThemedText style={[styles.anchorIcon, { color }]}>∞</ThemedText>;
+      icon = <ThemedText style={[styles.anchorIcon, { color: color + opacity }]}>∞</ThemedText>;
     } else {
-      icon = <View style={[styles.solidDot, { backgroundColor: color }]} />;
+      icon = <View style={[styles.solidDot, { backgroundColor: color + opacity }]} />;
     }
 
     return (
       <View key={entry.id + entry.date} style={styles.pill}>
         {icon}
-        <ThemedText style={styles.pillText} numberOfLines={1}>
+        <ThemedText 
+          style={[
+            styles.pillText, 
+            !isCurrentMonth && { opacity: 0.3 }
+          ]} 
+          numberOfLines={1}
+        >
           {entry.title}
         </ThemedText>
       </View>
@@ -180,8 +187,10 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, availableHeigh
                 {
                   width: cellWidth,
                   height: cellHeight,
-                  borderColor: theme.border,
-                  backgroundColor: dayObj.isCurrentMonth ? 'transparent' : theme.surface + '40',
+                  borderColor: dayObj.isCurrentMonth ? theme.border : theme.border + '4D',
+                  backgroundColor: dayObj.isCurrentMonth 
+                    ? 'transparent' 
+                    : (colorScheme === 'dark' ? '#FFFFFF05' : '#00000005'),
                 },
               ]}
               onPress={() => onDateSelect(dateStr)}
@@ -196,7 +205,7 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, availableHeigh
                   <ThemedText
                     style={[
                       styles.dayNumber,
-                      { color: dayObj.isCurrentMonth ? theme.textPrimary : theme.dayTextMuted },
+                      { color: dayObj.isCurrentMonth ? theme.textPrimary : theme.textSecondary + '4D' },
                       isToday && { color: '#FFF' },
                     ]}
                   >
@@ -206,9 +215,9 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, availableHeigh
               </View>
 
               <View style={styles.pillContainer}>
-                {displayEvents.map(renderEntryPill)}
+                {displayEvents.map(ev => renderEntryPill(ev, dayObj.isCurrentMonth))}
                 {moreCount > 0 && (
-                  <ThemedText style={styles.moreText}>
+                  <ThemedText style={[styles.moreText, !dayObj.isCurrentMonth && { opacity: 0.3 }]}>
                     +{moreCount} more
                   </ThemedText>
                 )}

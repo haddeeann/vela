@@ -355,21 +355,29 @@ export default function HomeScreen() {
           >
             <Ionicons name="menu-outline" size={28} color={theme.textPrimary} />
           </TouchableOpacity>
-          {viewMode === 'monthly' ? (
-            <TouchableOpacity
-              style={styles.monthSelector}
-              onPress={() => setIsMonthPickerVisible(true)}
-              activeOpacity={0.7}
+          <TouchableOpacity
+            style={styles.monthSelector}
+            onPress={() => {
+              if (viewMode === 'daily') {
+                setIsModalVisible(true);
+              } else {
+                setIsMonthPickerVisible(true);
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <ThemedText
+              type={viewMode === 'monthly' ? "subtitle" : "default"}
+              style={viewMode === 'monthly' ? styles.monthSelectorText : styles.headerDateText}
             >
-              <ThemedText type="subtitle" style={styles.monthSelectorText}>
-                {getHeaderTitle()}
-              </ThemedText>
+              {getHeaderTitle()}
+            </ThemedText>
+            {viewMode === 'daily' ? (
+              <Ionicons name="add-outline" size={20} color={theme.textPrimary} style={styles.chevron} />
+            ) : (
               <Ionicons name="chevron-down-outline" size={16} color={theme.textPrimary} style={styles.chevron} />
-            </TouchableOpacity>
-          ) : (
-            <ThemedText style={styles.headerDateText}>{getHeaderTitle()}</ThemedText>
-          )}
-          <ThemedText type="title" style={styles.title}>Vela</ThemedText>
+            )}
+          </TouchableOpacity>
         </View>
         <ThemedView style={styles.headerIcons}>
           <TouchableOpacity
@@ -530,16 +538,17 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    height: 48,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   hamburgerButton: {
-    marginRight: 12,
+    marginRight: 8,
   },
   headerIcons: {
     flexDirection: 'row',
@@ -570,6 +579,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#9B98A8',
+    marginLeft: 0,
   },
   modalOverlay: {
     flex: 1,
