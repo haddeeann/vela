@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Calendar } from 'react-native-calendars';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerEvent, DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
 import { getTheme } from '@/constants/theme';
@@ -15,13 +15,13 @@ import { ReminderType, REMINDER_OPTIONS } from '@/constants/reminders';
 interface AddEventModalProps {
   isVisible: boolean;
   onClose: () => void;
-  onSave: (event: { 
-    title: string; 
-    date: string; 
-    startTime: string; 
-    endTime: string; 
-    categoryId: CategoryId; 
-    recurrence: RecurrenceType; 
+  onSave: (event: {
+    title: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    categoryId: CategoryId;
+    recurrence: RecurrenceType;
     reminder: ReminderType;
     entryType: 'event' | 'task' | 'anchor';
     priority?: 'low' | 'medium' | 'high';
@@ -37,7 +37,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
   const [entryType, setEntryType] = useState<'event' | 'task' | 'anchor'>('event');
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(selectedDate);
-  
+
   const getNextRoundHour = () => {
     const now = new Date();
     const nextHour = new Date(now);
@@ -48,10 +48,11 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
   const [startTimeDate, setStartTimeDate] = useState(getNextRoundHour());
   const [endTimeDate, setEndTimeDate] = useState(new Date(getNextRoundHour().getTime() + 60 * 60 * 1000));
   const [dueTimeDate, setDueTimeDate] = useState<Date | null>(null);
-  
+
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [showDueTimePicker, setShowDueTimePicker] = useState(false);
+  const [androidTimeField, setAndroidTimeField] = useState<null | 'start' | 'end' | 'due'>(null);
 
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [categoryId, setCategoryId] = useState<CategoryId>('personal');
@@ -122,13 +123,13 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
 
   const handleSave = () => {
     if (title.trim()) {
-      onSave({ 
-        title, 
-        date, 
-        startTime: entryType === 'task' ? (dueTimeDate ? formatTimeLabel(dueTimeDate) : '') : formatTimeLabel(startTimeDate), 
-        endTime: entryType === 'task' ? (dueTimeDate ? formatTimeLabel(dueTimeDate) : '') : formatTimeLabel(endTimeDate), 
-        categoryId, 
-        recurrence, 
+      onSave({
+        title,
+        date,
+        startTime: entryType === 'task' ? (dueTimeDate ? formatTimeLabel(dueTimeDate) : '') : formatTimeLabel(startTimeDate),
+        endTime: entryType === 'task' ? (dueTimeDate ? formatTimeLabel(dueTimeDate) : '') : formatTimeLabel(endTimeDate),
+        categoryId,
+        recurrence,
         reminder,
         entryType,
         priority: entryType === 'task' ? priority : undefined
@@ -210,9 +211,9 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
               animationType="fade"
               onRequestClose={() => setIsDatePickerVisible(false)}
             >
-              <TouchableOpacity 
-                style={styles.datePickerOverlay} 
-                activeOpacity={1} 
+              <TouchableOpacity
+                style={styles.datePickerOverlay}
+                activeOpacity={1}
                 onPress={() => setIsDatePickerVisible(false)}
               >
                 <ThemedView style={[styles.datePickerContent, { backgroundColor: theme.surface }]}>
@@ -243,9 +244,13 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
                 <TouchableOpacity
                   style={[styles.input, styles.dateButton, { borderColor: theme.border }]}
                   onPress={() => {
-                    setShowDueTimePicker(!showDueTimePicker);
-                    setShowStartTimePicker(false);
-                    setShowEndTimePicker(false);
+                    if (Platform.OS === 'android') {
+                      setAndroidTimeField('due');
+                    } else {
+                      setShowDueTimePicker(!showDueTimePicker);
+                      setShowStartTimePicker(false);
+                      setShowEndTimePicker(false);
+                    }
                   }}
                 >
                   <ThemedText style={{ color: dueTimeDate ? theme.textPrimary : theme.textSecondary }}>
@@ -254,14 +259,13 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
                   <Ionicons name="time-outline" size={20} color={theme.textSecondary} />
                 </TouchableOpacity>
 
-                {showDueTimePicker && (
+                {Platform.OS === 'ios' && showDueTimePicker && (
                   <DateTimePicker
                     value={dueTimeDate || new Date()}
                     mode="time"
                     is24Hour={false}
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    display="spinner"
                     onChange={(_event: DateTimePickerEvent, selectedDate?: Date) => {
-                      if (Platform.OS === 'android') setShowDueTimePicker(false);
                       if (selectedDate) setDueTimeDate(selectedDate);
                     }}
                   />
@@ -295,9 +299,13 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
                 <TouchableOpacity
                   style={[styles.input, styles.dateButton, { borderColor: theme.border }]}
                   onPress={() => {
-                    setShowStartTimePicker(!showStartTimePicker);
-                    setShowEndTimePicker(false);
-                    setShowDueTimePicker(false);
+                    if (Platform.OS === 'android') {
+                      setAndroidTimeField('start');
+                    } else {
+                      setShowStartTimePicker(!showStartTimePicker);
+                      setShowEndTimePicker(false);
+                      setShowDueTimePicker(false);
+                    }
                   }}
                 >
                   <ThemedText style={{ color: theme.textPrimary }}>
@@ -306,14 +314,13 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
                   <Ionicons name="time-outline" size={20} color={theme.textSecondary} />
                 </TouchableOpacity>
 
-                {showStartTimePicker && (
+                {Platform.OS === 'ios' && showStartTimePicker && (
                   <DateTimePicker
                     value={startTimeDate}
                     mode="time"
                     is24Hour={false}
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    display="spinner"
                     onChange={(_event: DateTimePickerEvent, selectedDate?: Date) => {
-                      if (Platform.OS === 'android') setShowStartTimePicker(false);
                       if (selectedDate) {
                         setStartTimeDate(selectedDate);
                         // If end time is before start time + 30 mins, nudge it
@@ -330,9 +337,13 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
                 <TouchableOpacity
                   style={[styles.input, styles.dateButton, { borderColor: theme.border }]}
                   onPress={() => {
-                    setShowEndTimePicker(!showEndTimePicker);
-                    setShowStartTimePicker(false);
-                    setShowDueTimePicker(false);
+                    if (Platform.OS === 'android') {
+                      setAndroidTimeField('end');
+                    } else {
+                      setShowEndTimePicker(!showEndTimePicker);
+                      setShowStartTimePicker(false);
+                      setShowDueTimePicker(false);
+                    }
                   }}
                 >
                   <ThemedText style={{ color: theme.textPrimary }}>
@@ -341,14 +352,13 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
                   <Ionicons name="time-outline" size={20} color={theme.textSecondary} />
                 </TouchableOpacity>
 
-                {showEndTimePicker && (
+                {Platform.OS === 'ios' && showEndTimePicker && (
                   <DateTimePicker
                     value={endTimeDate}
                     mode="time"
                     is24Hour={false}
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    display="spinner"
                     onChange={(_event: DateTimePickerEvent, selectedDate?: Date) => {
-                      if (Platform.OS === 'android') setShowEndTimePicker(false);
                       if (selectedDate) {
                         const minEndTime = new Date(startTimeDate.getTime());
                         if (selectedDate < minEndTime) {
@@ -453,6 +463,46 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
               <ThemedText style={styles.saveButtonText}>Save {entryType.charAt(0).toUpperCase() + entryType.slice(1)}</ThemedText>
             </TouchableOpacity>
           </ThemedView>
+
+          {Platform.OS === 'android' && androidTimeField && (
+            <DateTimePicker
+              value={
+                androidTimeField === 'start'
+                  ? startTimeDate
+                  : androidTimeField === 'end'
+                  ? endTimeDate
+                  : dueTimeDate || getNextRoundHour()
+              }
+              mode="time"
+              display="default"
+              is24Hour={false}
+              onChange={(_event, selectedDate) => {
+                const field = androidTimeField;
+                setAndroidTimeField(null);
+
+                if (!selectedDate) return;
+
+                if (field === 'due') {
+                  setDueTimeDate(selectedDate);
+                  return;
+                }
+
+                if (field === 'start') {
+                  setStartTimeDate(selectedDate);
+                  const minEndTime = new Date(selectedDate.getTime() + 30 * 60 * 1000);
+                  if (endTimeDate < minEndTime) {
+                    setEndTimeDate(minEndTime);
+                  }
+                  return;
+                }
+
+                if (field === 'end') {
+                  const minEndTime = new Date(startTimeDate.getTime() + 30 * 60 * 1000);
+                  setEndTimeDate(selectedDate < minEndTime ? minEndTime : selectedDate);
+                }
+              }}
+            />
+          )}
         </ThemedView>
       </KeyboardAvoidingView>
     </Modal>
