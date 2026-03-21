@@ -9,51 +9,66 @@ const tintColorLight = '#0a7ea4';
 const tintColorDark = '#fff';
 
 export const COLORS = {
-  // Core
-  primary: '#2D3B8E',        // Constellation Indigo — today circle, FAB, selected
-  accent: '#E8A23C',         // Star Gold — active toggle, highlights
-  background: '#FAFAF8',     // Warm white — main background
-  surface: '#F0EDE8',        // Warm gray — cards, modal background
-  border: '#E2DED6',         // Subtle border
-  textPrimary: '#1C1B18',    // Near black
-  textSecondary: '#6B6860',  // Muted
-
-  // Calendar grid
-  todayBg: '#2D3B8E',
-  todayText: '#FFFFFF',
-  selectedBg: '#F0EDE8',
-  selectedText: '#2D3B8E',
-  dayText: '#1C1B18',
-  dayTextMuted: '#B4B2A9',   // Days outside current month
-
-  // Event categories
-  work: '#3B6FD4',
-  personal: '#2BA888',
-  health: '#D94F3D',
-  social: '#7F50C4',
-  other: '#888780',
-};
-
-export const Colors = {
   light: {
-    text: COLORS.textPrimary,
-    background: COLORS.background,
-    tint: COLORS.primary,
-    icon: COLORS.textSecondary,
-    tabIconDefault: COLORS.textSecondary,
-    tabIconSelected: COLORS.primary,
-    surface: COLORS.surface,
-    border: COLORS.border,
+    primary: '#2D3B8E',
+    accent: '#E8A23C',
+    background: '#FAFAF8',
+    surface: '#F0EDE8',
+    border: '#E2DED6',
+    textPrimary: '#1C1B18',
+    textSecondary: '#6B6860',
+    // Calendar grid
+    todayBg: '#2D3B8E',
+    todayText: '#FFFFFF',
+    selectedBg: '#F0EDE8',
+    selectedText: '#2D3B8E',
+    dayText: '#1C1B18',
+    dayTextMuted: '#B4B2A9',
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: '#fff',
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: '#fff',
-    surface: '#252728',
-    border: '#333',
+    background: '#1A1A2E',
+    surface: '#16213E',
+    border: '#2A2A4A',
+    textPrimary: '#F0EDE8',
+    textSecondary: '#9B98A8',
+    primary: '#4A5FCC',
+    accent: '#E8A23C',
+    // Calendar grid (using standard dark mode values for consistent grid behavior)
+    todayBg: '#4A5FCC',
+    todayText: '#FFFFFF',
+    selectedBg: '#16213E',
+    selectedText: '#4A5FCC',
+    dayText: '#F0EDE8',
+    dayTextMuted: '#9B98A8',
+  }
+};
+
+export function getTheme(colorScheme: 'light' | 'dark' | null | undefined) {
+  const scheme = colorScheme === 'dark' ? 'dark' : 'light';
+  return COLORS[scheme];
+}
+
+// Keeping Colors for backward compatibility or direct access, but recommending getTheme()
+export const Colors = {
+  light: {
+    text: COLORS.light.textPrimary,
+    background: COLORS.light.background,
+    tint: COLORS.light.primary,
+    icon: COLORS.light.textSecondary,
+    tabIconDefault: COLORS.light.textSecondary,
+    tabIconSelected: COLORS.light.primary,
+    surface: COLORS.light.surface,
+    border: COLORS.light.border,
+  },
+  dark: {
+    text: COLORS.dark.textPrimary,
+    background: COLORS.dark.background,
+    tint: COLORS.dark.primary,
+    icon: COLORS.dark.textSecondary,
+    tabIconDefault: COLORS.dark.textSecondary,
+    tabIconSelected: COLORS.dark.primary,
+    surface: COLORS.dark.surface,
+    border: COLORS.dark.border,
   },
 };
 

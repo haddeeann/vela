@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Calendar } from 'react-native-calendars';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
-import { Colors } from '@/constants/theme';
+import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import { CATEGORIES, CategoryId } from '@/constants/categories';
@@ -27,24 +30,86 @@ interface AddEventModalProps {
 }
 
 export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddEventModalProps) {
-  const theme = useColorScheme() ?? 'light';
-  const colors = Colors[theme];
+  const colorScheme = useColorScheme();
+  const theme = getTheme(colorScheme);
   const { height: screenHeight } = useWindowDimensions();
 
   const [entryType, setEntryType] = useState<'event' | 'task' | 'anchor'>('event');
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(selectedDate);
-  const [startTime, setStartTime] = useState('09:00 AM');
-  const [endTime, setEndTime] = useState('10:00 AM');
-  const [dueTime, setDueTime] = useState('');
+  
+  const getNextRoundHour = () => {
+    const now = new Date();
+    const nextHour = new Date(now);
+    nextHour.setHours(now.getHours() + 1, 0, 0, 0);
+    return nextHour;
+  };
+
+  const [startTimeDate, setStartTimeDate] = useState(getNextRoundHour());
+  const [endTimeDate, setEndTimeDate] = useState(new Date(getNextRoundHour().getTime() + 60 * 60 * 1000));
+  const [dueTimeDate, setDueTimeDate] = useState<Date | null>(null);
+  
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [showDueTimePicker, setShowDueTimePicker] = useState(false);
+
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [categoryId, setCategoryId] = useState<CategoryId>('personal');
   const [recurrence, setRecurrence] = useState<RecurrenceType>('none');
   const [reminder, setReminder] = useState<ReminderType>('none');
+  const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
+
+  const formatDateLabel = (dateString: string) => {
+    try {
+      const d = new Date(dateString + 'T00:00:00'); // Ensure it's treated as local date
+      return d.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+      });
+    } catch (e) {
+      return dateString;
+    }
+  };
+
+  const formatTimeLabel = (date: Date) => {
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
+
+  const calendarTheme = useMemo(() => ({
+    backgroundColor: theme.surface,
+    calendarBackground: theme.surface,
+    textSectionTitleColor: theme.textSecondary,
+    selectedDayBackgroundColor: theme.accent,
+    selectedDayTextColor: '#FFFFFF',
+    todayTextColor: theme.primary,
+    dayTextColor: theme.textPrimary,
+    textDisabledColor: theme.textSecondary + '40',
+    dotColor: theme.primary,
+    selectedDotColor: '#ffffff',
+    arrowColor: theme.primary,
+    disabledArrowColor: theme.textSecondary + '40',
+    monthTextColor: theme.textPrimary,
+    indicatorColor: theme.primary,
+    textDayFontWeight: '600' as const,
+    textMonthFontWeight: 'bold' as const,
+    textDayHeaderFontWeight: '600' as const,
+    textDayFontSize: 16,
+    textMonthFontSize: 18,
+    textDayHeaderFontSize: 14,
+  }), [theme]);
 
   useEffect(() => {
     if (isVisible) {
       setDate(selectedDate);
+      setShowStartTimePicker(false);
+      setShowEndTimePicker(false);
+      setShowDueTimePicker(false);
+      setIsDatePickerVisible(false);
     }
   }, [isVisible, selectedDate]);
 
@@ -60,8 +125,8 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
       onSave({ 
         title, 
         date, 
-        startTime: entryType === 'task' ? dueTime : startTime, 
-        endTime: entryType === 'task' ? dueTime : endTime, 
+        startTime: entryType === 'task' ? (dueTimeDate ? formatTimeLabel(dueTimeDate) : '') : formatTimeLabel(startTimeDate), 
+        endTime: entryType === 'task' ? (dueTimeDate ? formatTimeLabel(dueTimeDate) : '') : formatTimeLabel(endTimeDate), 
         categoryId, 
         recurrence, 
         reminder,
@@ -70,7 +135,9 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
       });
       setTitle('');
       setEntryType('event');
-      setDueTime('');
+      setDueTimeDate(null);
+      setStartTimeDate(getNextRoundHour());
+      setEndTimeDate(new Date(getNextRoundHour().getTime() + 60 * 60 * 1000));
       setPriority('medium');
       setCategoryId('personal');
       setRecurrence('none');
@@ -90,14 +157,14 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.modalOverlay}
       >
-        <ThemedView style={[styles.modalContent, { maxHeight: screenHeight * 0.9, backgroundColor: colors.surface }]}>
+        <ThemedView style={[styles.modalContent, { maxHeight: screenHeight * 0.9, backgroundColor: theme.surface }]}>
           <ThemedView style={styles.entryTypeToggle}>
             {(['event', 'task', 'anchor'] as const).map((type) => (
               <TouchableOpacity
                 key={type}
                 style={[
                   styles.entryTypeButton,
-                  entryType === type && { backgroundColor: colors.tint }
+                  entryType === type && { backgroundColor: theme.primary }
                 ]}
                 onPress={() => setEntryType(type)}
               >
@@ -118,33 +185,87 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             <ThemedText style={styles.label}>Title</ThemedText>
             <TextInput
-              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+              style={[styles.input, { color: theme.textPrimary, borderColor: theme.border }]}
               value={title}
               onChangeText={setTitle}
               placeholder={`${entryType.charAt(0).toUpperCase() + entryType.slice(1)} Title`}
-              placeholderTextColor={colors.icon}
+              placeholderTextColor={theme.textSecondary}
             />
 
-            <ThemedText style={styles.label}>Date (YYYY-MM-DD)</ThemedText>
-            <TextInput
-              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-              value={date}
-              onChangeText={setDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={colors.icon}
-              editable={entryType !== 'anchor'}
-            />
+            <ThemedText style={styles.label}>Date</ThemedText>
+            <TouchableOpacity
+              style={[styles.input, styles.dateButton, { borderColor: theme.border }]}
+              onPress={() => setIsDatePickerVisible(true)}
+              disabled={entryType === 'anchor'}
+            >
+              <ThemedText style={{ color: theme.textPrimary }}>
+                {formatDateLabel(date)}
+              </ThemedText>
+              <Ionicons name="calendar-outline" size={20} color={theme.textSecondary} />
+            </TouchableOpacity>
+
+            <Modal
+              visible={isDatePickerVisible}
+              transparent={true}
+              animationType="fade"
+              onRequestClose={() => setIsDatePickerVisible(false)}
+            >
+              <TouchableOpacity 
+                style={styles.datePickerOverlay} 
+                activeOpacity={1} 
+                onPress={() => setIsDatePickerVisible(false)}
+              >
+                <ThemedView style={[styles.datePickerContent, { backgroundColor: theme.surface }]}>
+                  <Calendar
+                    current={date}
+                    onDayPress={(day) => {
+                      setDate(day.dateString);
+                      setIsDatePickerVisible(false);
+                    }}
+                    markedDates={{
+                      [date]: { selected: true, disableTouchEvent: true }
+                    }}
+                    theme={calendarTheme}
+                  />
+                  <TouchableOpacity
+                    style={[styles.closeDatePickerButton, { backgroundColor: theme.primary }]}
+                    onPress={() => setIsDatePickerVisible(false)}
+                  >
+                    <ThemedText style={styles.closeDatePickerText}>Close</ThemedText>
+                  </TouchableOpacity>
+                </ThemedView>
+              </TouchableOpacity>
+            </Modal>
 
             {entryType === 'task' ? (
               <>
                 <ThemedText style={styles.label}>Due Time (Optional)</ThemedText>
-                <TextInput
-                  style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-                  value={dueTime}
-                  onChangeText={setDueTime}
-                  placeholder="e.g. 05:00 PM"
-                  placeholderTextColor={colors.icon}
-                />
+                <TouchableOpacity
+                  style={[styles.input, styles.dateButton, { borderColor: theme.border }]}
+                  onPress={() => {
+                    setShowDueTimePicker(!showDueTimePicker);
+                    setShowStartTimePicker(false);
+                    setShowEndTimePicker(false);
+                  }}
+                >
+                  <ThemedText style={{ color: dueTimeDate ? theme.textPrimary : theme.textSecondary }}>
+                    {dueTimeDate ? formatTimeLabel(dueTimeDate) : 'Select Time'}
+                  </ThemedText>
+                  <Ionicons name="time-outline" size={20} color={theme.textSecondary} />
+                </TouchableOpacity>
+
+                {showDueTimePicker && (
+                  <DateTimePicker
+                    value={dueTimeDate || new Date()}
+                    mode="time"
+                    is24Hour={false}
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(event, selectedDate) => {
+                      if (Platform.OS === 'android') setShowDueTimePicker(false);
+                      if (selectedDate) setDueTimeDate(selectedDate);
+                    }}
+                  />
+                )}
 
                 <ThemedText style={styles.label}>Priority</ThemedText>
                 <ThemedView style={styles.categoryPicker}>
@@ -153,14 +274,14 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
                       key={p}
                       style={[
                         styles.categoryItem,
-                        { borderColor: colors.tint },
-                        priority === p && { backgroundColor: colors.tint + '20' }
+                        { borderColor: theme.primary },
+                        priority === p && { backgroundColor: theme.primary + '20' }
                       ]}
                       onPress={() => setPriority(p)}
                     >
                       <ThemedText style={[
                         styles.categoryText,
-                        priority === p && { fontWeight: 'bold', color: colors.tint }
+                        priority === p && { fontWeight: 'bold', color: theme.primary }
                       ]}>
                         {p.charAt(0).toUpperCase() + p.slice(1)}
                       </ThemedText>
@@ -171,22 +292,75 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
             ) : (
               <>
                 <ThemedText style={styles.label}>Start Time</ThemedText>
-                <TextInput
-                  style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-                  value={startTime}
-                  onChangeText={setStartTime}
-                  placeholder="e.g. 09:00 AM"
-                  placeholderTextColor={colors.icon}
-                />
+                <TouchableOpacity
+                  style={[styles.input, styles.dateButton, { borderColor: theme.border }]}
+                  onPress={() => {
+                    setShowStartTimePicker(!showStartTimePicker);
+                    setShowEndTimePicker(false);
+                    setShowDueTimePicker(false);
+                  }}
+                >
+                  <ThemedText style={{ color: theme.textPrimary }}>
+                    {formatTimeLabel(startTimeDate)}
+                  </ThemedText>
+                  <Ionicons name="time-outline" size={20} color={theme.textSecondary} />
+                </TouchableOpacity>
+
+                {showStartTimePicker && (
+                  <DateTimePicker
+                    value={startTimeDate}
+                    mode="time"
+                    is24Hour={false}
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(event, selectedDate) => {
+                      if (Platform.OS === 'android') setShowStartTimePicker(false);
+                      if (selectedDate) {
+                        setStartTimeDate(selectedDate);
+                        // If end time is before start time + 30 mins, nudge it
+                        const minEndTime = new Date(selectedDate.getTime() + 30 * 60 * 1000);
+                        if (endTimeDate < minEndTime) {
+                          setEndTimeDate(minEndTime);
+                        }
+                      }
+                    }}
+                  />
+                )}
 
                 <ThemedText style={styles.label}>End Time</ThemedText>
-                <TextInput
-                  style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-                  value={endTime}
-                  onChangeText={setEndTime}
-                  placeholder="e.g. 10:00 AM"
-                  placeholderTextColor={colors.icon}
-                />
+                <TouchableOpacity
+                  style={[styles.input, styles.dateButton, { borderColor: theme.border }]}
+                  onPress={() => {
+                    setShowEndTimePicker(!showEndTimePicker);
+                    setShowStartTimePicker(false);
+                    setShowDueTimePicker(false);
+                  }}
+                >
+                  <ThemedText style={{ color: theme.textPrimary }}>
+                    {formatTimeLabel(endTimeDate)}
+                  </ThemedText>
+                  <Ionicons name="time-outline" size={20} color={theme.textSecondary} />
+                </TouchableOpacity>
+
+                {showEndTimePicker && (
+                  <DateTimePicker
+                    value={endTimeDate}
+                    mode="time"
+                    is24Hour={false}
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(event, selectedDate) => {
+                      if (Platform.OS === 'android') setShowEndTimePicker(false);
+                      if (selectedDate) {
+                        const minEndTime = new Date(startTimeDate.getTime());
+                        if (selectedDate < minEndTime) {
+                          // Nudge it forward to start time + 30 minutes
+                          setEndTimeDate(new Date(startTimeDate.getTime() + 30 * 60 * 1000));
+                        } else {
+                          setEndTimeDate(selectedDate);
+                        }
+                      }
+                    }}
+                  />
+                )}
 
                 <ThemedText style={styles.label}>Category</ThemedText>
                 <ThemedView style={styles.categoryPicker}>
@@ -220,8 +394,8 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
                   key={option.id}
                   style={[
                     styles.categoryItem,
-                    { borderColor: colors.tint },
-                    recurrence === option.id && { backgroundColor: colors.tint + '20' },
+                    { borderColor: theme.primary },
+                    recurrence === option.id && { backgroundColor: theme.primary + '20' },
                     entryType === 'anchor' && { opacity: 0.5 }
                   ]}
                   onPress={() => entryType !== 'anchor' && setRecurrence(option.id)}
@@ -229,7 +403,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
                 >
                   <ThemedText style={[
                     styles.categoryText,
-                    recurrence === option.id && { fontWeight: 'bold', color: colors.tint }
+                    recurrence === option.id && { fontWeight: 'bold', color: theme.primary }
                   ]}>
                     {option.name}
                   </ThemedText>
@@ -246,14 +420,14 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
                       key={option.id}
                       style={[
                         styles.categoryItem,
-                        { borderColor: colors.tint },
-                        reminder === option.id && { backgroundColor: colors.tint + '20' }
+                        { borderColor: theme.primary },
+                        reminder === option.id && { backgroundColor: theme.primary + '20' }
                       ]}
                       onPress={() => setReminder(option.id)}
                     >
                       <ThemedText style={[
                         styles.categoryText,
-                        reminder === option.id && { fontWeight: 'bold', color: colors.tint }
+                        reminder === option.id && { fontWeight: 'bold', color: theme.primary }
                       ]}>
                         {option.name}
                       </ThemedText>
@@ -269,11 +443,11 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
               style={[styles.button, styles.cancelButton]}
               onPress={onClose}
             >
-              <ThemedText style={{ color: colors.icon }}>Cancel</ThemedText>
+              <ThemedText style={{ color: theme.textSecondary }}>Cancel</ThemedText>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.button, styles.saveButton, { backgroundColor: colors.tint }]}
+              style={[styles.button, styles.saveButton, { backgroundColor: theme.primary }]}
               onPress={handleSave}
             >
               <ThemedText style={styles.saveButtonText}>Save {entryType.charAt(0).toUpperCase() + entryType.slice(1)}</ThemedText>
@@ -344,6 +518,38 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
+  },
+  dateButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  datePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  datePickerContent: {
+    width: '85%',
+    borderRadius: 16,
+    padding: 16,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  closeDatePickerButton: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  closeDatePickerText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
   categoryPicker: {
     flexDirection: 'row',

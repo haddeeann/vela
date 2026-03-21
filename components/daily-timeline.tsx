@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { StyleSheet, ScrollView, TouchableOpacity, Alert, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
-import { Colors } from '@/constants/theme';
+import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
@@ -28,14 +28,33 @@ interface DailyTimelineProps {
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 6 AM to 10 PM
 
 export function DailyTimeline({ selectedDate, events }: DailyTimelineProps) {
-  const theme = useColorScheme() ?? 'light';
-  const colors = Colors[theme];
+  const colorScheme = useColorScheme();
+  const theme = getTheme(colorScheme);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const formattedDate = new Date(selectedDate).toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
   });
+
+  useEffect(() => {
+    const scrollToCurrentHour = () => {
+      const now = new Date();
+      const currentHour = now.getHours();
+      // Use current hour if it's within our range (6-22), otherwise default to 8 AM
+      const targetHour = (currentHour >= 6 && currentHour <= 22) ? currentHour : 8;
+      const scrollOffset = (targetHour - 6) * 60;
+
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ y: scrollOffset, animated: true });
+      }
+    };
+
+    // Small timeout to ensure layout is finished
+    const timer = setTimeout(scrollToCurrentHour, 100);
+    return () => clearTimeout(timer);
+  }, [selectedDate]);
 
   const filteredEvents = events.filter(event => {
     // Direct match
@@ -94,8 +113,8 @@ export function DailyTimeline({ selectedDate, events }: DailyTimelineProps) {
             style={[
               styles.eventBlock,
               {
-                backgroundColor: isTask ? colors.tint + '20' : (isAnchor ? category.color + '20' : category.color + '40'),
-                borderLeftColor: isTask ? colors.tint : category.color,
+                backgroundColor: isTask ? theme.primary + '20' : (isAnchor ? category.color + '20' : category.color + '40'),
+                borderLeftColor: isTask ? theme.primary : category.color,
                 top: (start - hour) * 60,
                 height: duration * 60,
               },
@@ -108,7 +127,7 @@ export function DailyTimeline({ selectedDate, events }: DailyTimelineProps) {
               <ThemedText
                 style={[
                   styles.eventTitle,
-                  { color: isTask ? colors.tint : category.color },
+                  { color: isTask ? theme.primary : category.color },
                   isCompleted && { textDecorationLine: 'line-through' },
                   isAnchor && { fontSize: 11, color: category.color + 'CC' }
                 ]}
@@ -122,7 +141,7 @@ export function DailyTimeline({ selectedDate, events }: DailyTimelineProps) {
             </ThemedView>
             <ThemedText style={[
               styles.eventTime,
-              { color: isTask ? colors.tint : category.color },
+              { color: isTask ? theme.primary : category.color },
               isAnchor && { fontSize: 9, color: category.color + 'AA' }
             ]} numberOfLines={1}>
               {event.startTime}
@@ -137,7 +156,11 @@ export function DailyTimeline({ selectedDate, events }: DailyTimelineProps) {
       <ThemedText type="subtitle" style={styles.dateHeading}>
         {formattedDate}
       </ThemedText>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        ref={scrollViewRef}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {HOURS.map(hour => (
           <View key={hour} style={styles.hourRow}>
             <View style={styles.timeLabelContainer}>
@@ -145,7 +168,7 @@ export function DailyTimeline({ selectedDate, events }: DailyTimelineProps) {
                 {hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
               </ThemedText>
             </View>
-            <View style={[styles.hourContent, { borderTopColor: colors.border }]}>
+            <View style={[styles.hourContent, { borderTopColor: theme.border }]}>
               {renderEventBlocks(hour)}
             </View>
           </View>

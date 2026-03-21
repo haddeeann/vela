@@ -13,88 +13,117 @@ const generateUUID = () => {
 };
 
 let db = null;
+let dbPromise = null;
 
 /**
  * Initialize the database and create tables if they do not exist.
  */
 export const initDB = async () => {
-  try {
-    if (!db) {
-      db = await SQLite.openDatabaseAsync('vela.db');
+  // If we already have a promise, wait for it.
+  if (dbPromise) {
+    try {
+      return await dbPromise;
+    } catch (e) {
+      // If it failed, we'll try to re-initialize below
     }
-
-    // Enable foreign keys
-    await db.execAsync('PRAGMA foreign_keys = ON;');
-
-    // Create entries table
-    await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS entries (
-        id TEXT PRIMARY KEY NOT NULL,
-        title TEXT NOT NULL,
-        entry_type TEXT CHECK(entry_type IN ('event', 'task', 'anchor', 'custom')) NOT NULL,
-        date TEXT NOT NULL,
-        start_time TEXT NOT NULL,
-        end_time TEXT NOT NULL,
-        category TEXT CHECK(category IN ('work', 'personal', 'health', 'social', 'other')) NOT NULL,
-        notes TEXT,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      );
-    `);
-
-    // Create entry_meta table
-    await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS entry_meta (
-        id TEXT PRIMARY KEY NOT NULL,
-        entry_id TEXT NOT NULL,
-        is_completable INTEGER DEFAULT 0,
-        completed_at INTEGER,
-        custom_type_name TEXT,
-        FOREIGN KEY (entry_id) REFERENCES entries(id) ON DELETE CASCADE
-      );
-    `);
-
-    // Create reminders table
-    await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS reminders (
-        id TEXT PRIMARY KEY NOT NULL,
-        entry_id TEXT NOT NULL,
-        remind_before_minutes INTEGER NOT NULL,
-        scheduled_at INTEGER NOT NULL,
-        is_fired INTEGER DEFAULT 0,
-        expo_notification_id TEXT,
-        FOREIGN KEY (entry_id) REFERENCES entries(id) ON DELETE CASCADE
-      );
-    `);
-
-    // Create recurrence_rules table
-    await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS recurrence_rules (
-        id TEXT PRIMARY KEY NOT NULL,
-        entry_id TEXT NOT NULL,
-        frequency TEXT CHECK(frequency IN ('daily', 'weekly', 'monthly')) NOT NULL,
-        end_date TEXT,
-        max_occurrences INTEGER,
-        FOREIGN KEY (entry_id) REFERENCES entries(id) ON DELETE CASCADE
-      );
-    `);
-
-    console.log('Database initialized successfully');
-    return db;
-  } catch (error) {
-    console.error('Failed to initialize database:', error);
-    throw error;
   }
+
+  dbPromise = (async () => {
+    try {
+      if (!db) {
+        // Handle potential Transient sqlite3_open_v2 errors on web
+        let lastError;
+        for (let i = 0; i < 3; i++) {
+          try {
+            db = await SQLite.openDatabaseAsync('vela.db');
+            break;
+          } catch (e) {
+            lastError = e;
+            if (e.message?.includes('sqlite3_open_v2')) {
+              console.warn(`Database open attempt ${i + 1} failed, retrying...`);
+              await new Promise(resolve => setTimeout(resolve, 100 * (i + 1)));
+              continue;
+            }
+            throw e;
+          }
+        }
+        if (!db) throw lastError;
+      }
+
+      // Enable foreign keys
+      await db.execAsync('PRAGMA foreign_keys = ON;');
+
+      // Create entries table
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS entries (
+          id TEXT PRIMARY KEY NOT NULL,
+          title TEXT NOT NULL,
+          entry_type TEXT CHECK(entry_type IN ('event', 'task', 'anchor', 'custom')) NOT NULL,
+          date TEXT NOT NULL,
+          start_time TEXT NOT NULL,
+          end_time TEXT NOT NULL,
+          category TEXT CHECK(category IN ('work', 'personal', 'health', 'social', 'other')) NOT NULL,
+          notes TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+      `);
+
+      // Create entry_meta table
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS entry_meta (
+          id TEXT PRIMARY KEY NOT NULL,
+          entry_id TEXT NOT NULL,
+          is_completable INTEGER DEFAULT 0,
+          completed_at INTEGER,
+          custom_type_name TEXT,
+          FOREIGN KEY (entry_id) REFERENCES entries(id) ON DELETE CASCADE
+        );
+      `);
+
+      // Create reminders table
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS reminders (
+          id TEXT PRIMARY KEY NOT NULL,
+          entry_id TEXT NOT NULL,
+          remind_before_minutes INTEGER NOT NULL,
+          scheduled_at INTEGER NOT NULL,
+          is_fired INTEGER DEFAULT 0,
+          expo_notification_id TEXT,
+          FOREIGN KEY (entry_id) REFERENCES entries(id) ON DELETE CASCADE
+        );
+      `);
+
+      // Create recurrence_rules table
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS recurrence_rules (
+          id TEXT PRIMARY KEY NOT NULL,
+          entry_id TEXT NOT NULL,
+          frequency TEXT CHECK(frequency IN ('daily', 'weekly', 'monthly')) NOT NULL,
+          end_date TEXT,
+          max_occurrences INTEGER,
+          FOREIGN KEY (entry_id) REFERENCES entries(id) ON DELETE CASCADE
+        );
+      `);
+
+      console.log('Database initialized successfully');
+      return db;
+    } catch (error) {
+      console.error('Failed to initialize database:', error);
+      dbPromise = null; // Reset promise so we can retry on next call
+      db = null; // Also reset db instance
+      throw error;
+    }
+  })();
+
+  return dbPromise;
 };
 
 /**
  * Ensures the database is initialized.
  */
 const getDB = async () => {
-  if (!db) {
-    await initDB();
-  }
-  return db;
+  return initDB();
 };
 
 // Entries
@@ -267,8 +296,27 @@ export const createReminder = async (entryId, remindBeforeMinutes) => {
 
   // Basic calculation for scheduled_at (unix timestamp)
   // Assuming date is YYYY-MM-DD and start_time is HH:MM AM/PM
-  const startDateTime = new Date(`${entry.date} ${entry.start_time}`);
-  const scheduledAt = Math.floor(startDateTime.getTime() / 1000) - (remindBeforeMinutes * 60);
+  let startDateTime;
+  if (entry.start_time && entry.start_time.trim() !== '') {
+    // Attempt to parse "YYYY-MM-DD HH:MM AM/PM"
+    const [time, period] = entry.start_time.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+
+    startDateTime = new Date(entry.date);
+    startDateTime.setHours(hours, minutes, 0, 0);
+  } else {
+    // Fallback to start of day if no time is provided
+    startDateTime = new Date(`${entry.date}T00:00:00`);
+  }
+
+  const timestamp = startDateTime.getTime();
+  if (isNaN(timestamp)) {
+    throw new Error(`Invalid date calculation for entry ${entryId}: ${entry.date} ${entry.start_time}`);
+  }
+
+  const scheduledAt = Math.floor(timestamp / 1000) - (remindBeforeMinutes * 60);
 
   await sqlite.runAsync(
     `INSERT INTO reminders (id, entry_id, remind_before_minutes, scheduled_at, is_fired) 

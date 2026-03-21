@@ -4,7 +4,7 @@ import { Calendar as RNCalendar, WeekCalendar, LocaleConfig, CalendarProvider } 
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { Colors, COLORS } from '@/constants/theme';
+import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import { CATEGORIES } from '@/constants/categories';
@@ -44,8 +44,8 @@ interface CalendarProps {
 }
 
 export default function Calendar({ selectedDate, onDateSelect, events, onViewChange }: CalendarProps) {
-  const theme = useColorScheme() ?? 'light';
-  const colors = Colors[theme];
+  const colorScheme = useColorScheme();
+  const theme = getTheme(colorScheme);
   const today = new Date().toISOString().split('T')[0];
   const [view, setView] = useState<'monthly' | 'weekly' | 'daily'>('monthly');
 
@@ -55,27 +55,27 @@ export default function Calendar({ selectedDate, onDateSelect, events, onViewCha
   };
 
   const commonTheme = {
-    backgroundColor: colors.background,
-    calendarBackground: colors.background,
-    textSectionTitleColor: colors.icon,
-    selectedDayBackgroundColor: theme === 'light' ? COLORS.selectedBg : colors.tint,
-    selectedDayTextColor: theme === 'light' ? COLORS.selectedText : (theme === 'light' ? '#fff' : '#000'),
-    todayTextColor: theme === 'light' ? COLORS.todayText : colors.tint,
-    dayTextColor: theme === 'light' ? COLORS.dayText : colors.text,
-    textDisabledColor: theme === 'light' ? COLORS.dayTextMuted : (theme === 'light' ? '#d9e1e8' : '#333'),
-    dotColor: colors.tint,
-    selectedDotColor: theme === 'light' ? COLORS.selectedText : '#ffffff',
-    arrowColor: colors.tint,
-    disabledArrowColor: theme === 'light' ? COLORS.dayTextMuted : '#d9e1e8',
-    monthTextColor: colors.text,
-    indicatorColor: colors.tint,
+    backgroundColor: theme.background,
+    calendarBackground: theme.background,
+    textSectionTitleColor: theme.textSecondary,
+    selectedDayBackgroundColor: theme.primary,
+    selectedDayTextColor: '#FFFFFF',
+    todayTextColor: theme.primary,
+    dayTextColor: theme.textPrimary,
+    textDisabledColor: theme.dayTextMuted,
+    dotColor: theme.primary,
+    selectedDotColor: '#ffffff',
+    arrowColor: theme.primary,
+    disabledArrowColor: theme.dayTextMuted,
+    monthTextColor: theme.textPrimary,
+    indicatorColor: theme.primary,
     textDayFontWeight: '700',
     textMonthFontWeight: 'bold',
     textDayHeaderFontWeight: '700',
     textDayFontSize: 16,
     textMonthFontSize: 20,
     textDayHeaderFontSize: 15,
-    todayBackgroundColor: theme === 'light' ? COLORS.todayBg : colors.tint + '20',
+    todayBackgroundColor: theme.primary + '20',
     'stylesheet.calendar.header': {
       dayHeader: {
         marginTop: 5,
@@ -84,13 +84,13 @@ export default function Calendar({ selectedDate, onDateSelect, events, onViewCha
         textAlign: 'center',
         fontSize: 15,
         fontWeight: '700',
-        color: colors.icon
+        color: theme.textSecondary
       }
     },
     'stylesheet.calendar.main': {
       dayContainer: {
         borderWidth: 0.5,
-        borderColor: colors.border,
+        borderColor: theme.border,
         flex: 1,
         alignItems: 'center'
       },
@@ -112,23 +112,23 @@ export default function Calendar({ selectedDate, onDateSelect, events, onViewCha
         marginTop: Platform.OS === 'android' ? 4 : 6,
         fontSize: 16,
         fontWeight: '700',
-        color: theme === 'light' ? COLORS.dayText : colors.text,
+        color: theme.textPrimary,
         backgroundColor: 'rgba(255, 255, 255, 0)'
       },
       today: {
-        backgroundColor: theme === 'light' ? COLORS.todayBg : colors.tint + '20',
+        backgroundColor: theme.primary + '20',
         borderRadius: 22
       },
       todayText: {
-        color: theme === 'light' ? COLORS.todayText : colors.tint,
+        color: theme.primary,
         fontWeight: 'bold'
       },
       selected: {
-        backgroundColor: theme === 'light' ? COLORS.selectedBg : colors.tint,
+        backgroundColor: theme.primary,
         borderRadius: 22
       },
       selectedText: {
-        color: theme === 'light' ? COLORS.selectedText : (theme === 'light' ? '#fff' : '#000'),
+        color: '#FFFFFF',
       }
     }
   };
@@ -139,7 +139,7 @@ export default function Calendar({ selectedDate, onDateSelect, events, onViewCha
     // Helper to add a dot to a specific date
     const addDot = (date: string, event: Event) => {
       const category = CATEGORIES.find(c => c.id === event.categoryId);
-      const dotColor = category ? category.color : colors.tint;
+      const dotColor = category ? category.color : theme.primary;
       const isAnchor = event.entryType === 'anchor';
 
       if (!marks[date]) {
@@ -243,7 +243,7 @@ export default function Calendar({ selectedDate, onDateSelect, events, onViewCha
       if (marks[selectedDate].dots) {
         marks[selectedDate].dots = marks[selectedDate].dots.map((d: any) => ({
           ...d,
-          selectedDotColor: theme === 'light' ? COLORS.selectedText : '#ffffff'
+          selectedDotColor: '#ffffff'
         }));
       }
     }
@@ -258,28 +258,40 @@ export default function Calendar({ selectedDate, onDateSelect, events, onViewCha
       theme={commonTheme}
     >
       <ThemedView style={styles.container}>
-        <ThemedView style={[styles.toggleContainer, { backgroundColor: colors.surface }]}>
+        <ThemedView style={[styles.toggleContainer, { backgroundColor: theme.surface }]}>
           <TouchableOpacity
             onPress={() => handleViewChange('monthly')}
-            style={[styles.toggleButton, view === 'monthly' && { backgroundColor: colors.tint }]}
+            style={[styles.toggleButton, view === 'monthly' && { backgroundColor: theme.accent }]}
           >
-            <ThemedText style={[styles.toggleText, { color: colors.text }, view === 'monthly' && { color: '#FFFFFF', fontWeight: 'bold' }]}>
+            <ThemedText style={[
+              styles.toggleText,
+              { color: theme.textPrimary },
+              view === 'monthly' && { color: '#FFFFFF', fontWeight: 'bold' }
+            ]}>
               Monthly
             </ThemedText>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleViewChange('weekly')}
-            style={[styles.toggleButton, view === 'weekly' && { backgroundColor: colors.tint }]}
+            style={[styles.toggleButton, view === 'weekly' && { backgroundColor: theme.accent }]}
           >
-            <ThemedText style={[styles.toggleText, { color: colors.text }, view === 'weekly' && { color: '#FFFFFF', fontWeight: 'bold' }]}>
+            <ThemedText style={[
+              styles.toggleText,
+              { color: theme.textPrimary },
+              view === 'weekly' && { color: '#FFFFFF', fontWeight: 'bold' }
+            ]}>
               Weekly
             </ThemedText>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => handleViewChange('daily')}
-            style={[styles.toggleButton, view === 'daily' && { backgroundColor: colors.tint }]}
+            style={[styles.toggleButton, view === 'daily' && { backgroundColor: theme.accent }]}
           >
-            <ThemedText style={[styles.toggleText, { color: colors.text }, view === 'daily' && { color: '#FFFFFF', fontWeight: 'bold' }]}>
+            <ThemedText style={[
+              styles.toggleText,
+              { color: theme.textPrimary },
+              view === 'daily' && { color: '#FFFFFF', fontWeight: 'bold' }
+            ]}>
               Daily
             </ThemedText>
           </TouchableOpacity>
@@ -321,6 +333,7 @@ export default function Calendar({ selectedDate, onDateSelect, events, onViewCha
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     borderRadius: 16,
     overflow: 'hidden',
   },

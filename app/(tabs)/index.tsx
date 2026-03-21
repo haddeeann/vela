@@ -7,7 +7,7 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import Calendar from '@/components/calendar';
 import { AddEventModal } from '@/components/add-event-modal';
-import { Colors } from '@/constants/theme';
+import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import { CATEGORIES, CategoryId } from '@/constants/categories';
@@ -24,8 +24,8 @@ Notifications.setNotificationHandler({
 });
 
 export default function HomeScreen() {
-  const theme = useColorScheme() ?? 'light';
-  const colors = Colors[theme];
+  const colorScheme = useColorScheme();
+  const theme = getTheme(colorScheme);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [viewMode, setViewMode] = useState<'monthly' | 'weekly' | 'daily'>('monthly');
   const [events, setEvents] = useState<any[]>([]);
@@ -161,14 +161,19 @@ export default function HomeScreen() {
     const reminderOption = REMINDER_OPTIONS.find(r => r.id === event.reminder);
     if (!reminderOption || reminderOption.minutesBefore === null) return;
 
-    // Parse time
-    const [time, period] = event.startTime.split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
-    if (period === 'PM' && hours < 12) hours += 12;
-    if (period === 'AM' && hours === 12) hours = 0;
-
     const triggerDate = new Date(event.date);
-    triggerDate.setHours(hours, minutes, 0, 0);
+    if (event.startTime && event.startTime.trim() !== '') {
+      // Parse time
+      const [time, period] = event.startTime.split(' ');
+      let [hours, minutes] = time.split(':').map(Number);
+      if (period === 'PM' && hours < 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+
+      triggerDate.setHours(hours, minutes, 0, 0);
+    } else {
+      // Fallback to start of day
+      triggerDate.setHours(0, 0, 0, 0);
+    }
     triggerDate.setMinutes(triggerDate.getMinutes() - reminderOption.minutesBefore);
 
     // If trigger date is in the past, don't schedule
@@ -216,12 +221,13 @@ export default function HomeScreen() {
       >
         <ThemedView style={[
           styles.eventCard,
+          { backgroundColor: theme.surface },
           !isTask && !isAnchor && { borderLeftColor: category.color },
           isTask && { borderLeftWidth: 0, paddingLeft: 12 },
           isAnchor && {
             borderLeftWidth: 2,
             borderLeftColor: category.color,
-            backgroundColor: theme === 'light' ? colors.surface + '80' : colors.surface + '40',
+            backgroundColor: colorScheme === 'dark' ? theme.surface + '40' : theme.surface + '80',
             opacity: 0.8
           }
         ]}>
@@ -233,7 +239,7 @@ export default function HomeScreen() {
               <Ionicons
                 name={isCompleted ? "checkmark-circle" : "ellipse-outline"}
                 size={24}
-                color={isCompleted ? colors.tint : colors.icon}
+                color={isCompleted ? theme.primary : theme.textSecondary}
               />
             </TouchableOpacity>
           )}
@@ -243,28 +249,30 @@ export default function HomeScreen() {
                 type="defaultSemiBold"
                 style={[
                   styles.eventTitle,
+                  { color: theme.textPrimary },
                   isCompleted && styles.completedText,
-                  isCompleted && { color: colors.icon },
-                  isAnchor && { fontSize: 15, color: colors.text + 'CC' }
+                  isCompleted && { color: theme.textSecondary },
+                  isAnchor && { fontSize: 15, color: theme.textPrimary + 'CC' }
                 ]}
               >
                 {item.title}
               </ThemedText>
               {isAnchor && (
-                <Ionicons name="repeat" size={14} color={colors.icon} style={{ marginLeft: 6, marginBottom: 4 }} />
+                <Ionicons name="repeat" size={14} color={theme.textSecondary} style={{ marginLeft: 6, marginBottom: 4 }} />
               )}
             </ThemedView>
             <ThemedText style={[
               styles.eventTime,
-              isCompleted && { color: colors.icon },
-              isAnchor && { fontSize: 13, color: colors.icon + 'AA' }
+              { color: theme.textSecondary },
+              isCompleted && { color: theme.textSecondary },
+              isAnchor && { fontSize: 13, color: theme.textSecondary + 'AA' }
             ]}>
               {item.startTime}{item.endTime && item.endTime !== item.startTime ? ` - ${item.endTime}` : ''}
               {isTask && item.priority && ` • ${item.priority.charAt(0).toUpperCase() + item.priority.slice(1)} Priority`}
             </ThemedText>
           </ThemedView>
           {item.reminder !== 'none' && !isAnchor && (
-            <Ionicons name="notifications-outline" size={20} color={colors.icon} />
+            <Ionicons name="notifications-outline" size={20} color={theme.textSecondary} />
           )}
         </ThemedView>
       </TouchableOpacity>
@@ -298,10 +306,10 @@ export default function HomeScreen() {
       )}
 
       <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.tint }]}
+        style={[styles.fab, { backgroundColor: theme.primary }]}
         onPress={() => setIsModalVisible(true)}
       >
-        <Ionicons name="add" size={32} color={theme === 'light' ? '#fff' : '#000'} />
+        <Ionicons name="add" size={32} color={colorScheme === 'dark' ? '#000' : '#fff'} />
       </TouchableOpacity>
 
       <AddEventModal
@@ -319,6 +327,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     paddingTop: 60,
+    position: 'relative',
   },
   title: {
     marginBottom: 8,
@@ -344,7 +353,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
-    backgroundColor: Colors.light.surface,
     borderLeftWidth: 4,
     flexDirection: 'row',
     alignItems: 'center',
@@ -357,11 +365,9 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 16,
     marginBottom: 4,
-    color: Colors.light.text,
   },
   eventTime: {
     fontSize: 14,
-    color: Colors.light.icon,
   },
   noEventsText: {
     textAlign: 'center',
