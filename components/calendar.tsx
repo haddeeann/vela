@@ -92,6 +92,7 @@ export default function Calendar({ selectedDate, onDateSelect, events, onViewCha
         borderWidth: 0.5,
         borderColor: theme.border,
         flex: 1,
+        height: 100,
         alignItems: 'center'
       },
       week: {
@@ -355,5 +356,6 @@ const styles = StyleSheet.create({
   calendar: {
     paddingLeft: 0,
     paddingRight: 0,
+    flex: 1,
   },
 });

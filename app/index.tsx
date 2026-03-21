@@ -15,8 +15,8 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES, CategoryId } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
 import { ReminderType, REMINDER_OPTIONS } from '@/constants/reminders';
-import { getEntriesForDate, createEntry, deleteEntry, updateEntry, createRecurrenceRule, createReminder, getAllEntries } from '../../db';
-import { EntryWithMeta } from '../../types';
+import { createEntry, deleteEntry, updateEntry, createRecurrenceRule, createReminder, getAllEntries } from '../db';
+import { EntryWithMeta } from '../types';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -35,21 +35,6 @@ export default function HomeScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [viewMode, setViewMode] = useState<'monthly' | 'weekly' | 'daily'>('monthly');
 
-  interface UIEvent {
-    id: string;
-    title: string;
-    startTime: string;
-    endTime: string;
-    date: string;
-    categoryId: CategoryId;
-    recurrence: RecurrenceType;
-    reminder: ReminderType;
-    entryType: 'event' | 'task' | 'anchor' | 'custom';
-    completedAt: number | null;
-    isCompletable: number;
-    priority?: 'low' | 'medium' | 'high';
-  }
-
   interface CalendarEvent {
     id: string;
     title: string;
@@ -61,42 +46,11 @@ export default function HomeScreen() {
     entryType?: 'event' | 'task' | 'anchor' | 'custom';
   }
 
-  const [events, setEvents] = useState<UIEvent[]>([]);
   const [allEvents, setAllEvents] = useState<CalendarEvent[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   const fetchEvents = useCallback(async () => {
     try {
-      const dbEntries = await getEntriesForDate(selectedDate);
-      const mappedEvents: UIEvent[] = dbEntries
-        .filter((entry: EntryWithMeta) => entry.entry_type !== 'task' && entry.entry_type !== 'event' && entry.entry_type !== 'anchor')
-        .map((entry: EntryWithMeta) => {
-          let priority: 'low' | 'medium' | 'high' | undefined;
-        if (entry.notes && entry.entry_type === 'task') {
-          try {
-            priority = JSON.parse(entry.notes).priority;
-          } catch (e) {
-            // ignore
-          }
-        }
-
-        return {
-          id: entry.id,
-          title: entry.title,
-          startTime: entry.start_time,
-          endTime: entry.end_time,
-          date: entry.date,
-          categoryId: entry.category,
-          recurrence: entry.frequency || 'none',
-          reminder: 'none',
-          entryType: entry.entry_type,
-          completedAt: entry.completed_at,
-          isCompletable: entry.is_completable,
-          priority
-        };
-      });
-      setEvents(mappedEvents);
-
       // Fetch all events for calendar dots
       const allDbEntries = await getAllEntries();
       const mappedAllEvents: CalendarEvent[] = allDbEntries.map((entry: EntryWithMeta) => ({
@@ -113,7 +67,7 @@ export default function HomeScreen() {
     } catch (error) {
       console.error('Error fetching events:', error);
     }
-  }, [selectedDate]);
+  }, []);
 
   useEffect(() => {
     requestPermissions();
@@ -256,111 +210,27 @@ export default function HomeScreen() {
     }
   };
 
-  const handleToggleTaskCompletion = async (item: UIEvent) => {
-    try {
-      const isCompleted = !!item.completedAt;
-      await updateEntry(item.id, {
-        completed_at: isCompleted ? null : Math.floor(Date.now() / 1000)
-      });
-      await fetchEvents();
-    } catch (error) {
-      console.error('Error toggling task completion:', error);
-    }
-  };
-
-  const renderEventItem = ({ item }: { item: UIEvent }) => {
-    const category = CATEGORIES.find(c => c.id === item.categoryId) || CATEGORIES[4]; // Default to 'Other'
-    const isTask = item.entryType === 'task';
-    const isAnchor = item.entryType === 'anchor';
-    const isCompleted = !!item.completedAt;
-
-    return (
-      <TouchableOpacity
-        onLongPress={() => handleDeleteEvent(item.id)}
-        onPress={() => isTask ? handleToggleTaskCompletion(item) : null}
-        activeOpacity={0.7}
-      >
-        <ThemedView style={[
-          styles.eventCard,
-          { backgroundColor: theme.surface },
-          !isTask && !isAnchor && { borderLeftColor: category.color },
-          isTask && { borderLeftWidth: 0, paddingLeft: 12 },
-          isAnchor && {
-            borderLeftWidth: 2,
-            borderLeftColor: category.color,
-            backgroundColor: colorScheme === 'dark' ? theme.surface + '40' : theme.surface + '80',
-            opacity: 0.8
-          }
-        ]}>
-          {isTask && (
-            <TouchableOpacity
-              style={styles.checkbox}
-              onPress={() => handleToggleTaskCompletion(item)}
-            >
-              <Ionicons
-                name={isCompleted ? "checkmark-circle" : "ellipse-outline"}
-                size={24}
-                color={isCompleted ? theme.primary : theme.textSecondary}
-              />
-            </TouchableOpacity>
-          )}
-          <ThemedView style={styles.eventInfo}>
-            <ThemedView style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <ThemedText
-                type="defaultSemiBold"
-                style={[
-                  styles.eventTitle,
-                  { color: theme.textPrimary },
-                  isCompleted && styles.completedText,
-                  isCompleted && { color: theme.textSecondary },
-                  isAnchor && { fontSize: 15, color: theme.textPrimary + 'CC' }
-                ]}
-              >
-                {item.title}
-              </ThemedText>
-              {isAnchor && (
-                <Ionicons name="repeat" size={14} color={theme.textSecondary} style={{ marginLeft: 6, marginBottom: 4 }} />
-              )}
-            </ThemedView>
-            <ThemedText style={[
-              styles.eventTime,
-              { color: theme.textSecondary },
-              isCompleted && { color: theme.textSecondary },
-              isAnchor && { fontSize: 13, color: theme.textSecondary + 'AA' }
-            ]}>
-              {item.startTime}{item.endTime && item.endTime !== item.startTime ? ` - ${item.endTime}` : ''}
-              {isTask && item.priority && ` • ${item.priority.charAt(0).toUpperCase() + item.priority.slice(1)} Priority`}
-            </ThemedText>
-          </ThemedView>
-          {item.reminder !== 'none' && !isAnchor && (
-            <Ionicons name="notifications-outline" size={20} color={theme.textSecondary} />
-          )}
-        </ThemedView>
-      </TouchableOpacity>
-    );
-  };
-
   return (
     <ThemedView style={styles.container}>
       <ThemedView style={styles.header}>
         <ThemedText type="title" style={styles.title}>Vela</ThemedText>
         <ThemedView style={styles.headerIcons}>
-          <TouchableOpacity 
-            style={styles.headerIconButton} 
+          <TouchableOpacity
+            style={styles.headerIconButton}
             onPress={() => router.push('/tasks')}
             activeOpacity={0.7}
           >
             <Ionicons name="checkbox-outline" size={24} color={theme.textSecondary} />
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.headerIconButton} 
+          <TouchableOpacity
+            style={styles.headerIconButton}
             onPress={() => router.push('/events')}
             activeOpacity={0.7}
           >
             <Ionicons name="calendar-outline" size={24} color={theme.textSecondary} />
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.headerIconButton} 
+          <TouchableOpacity
+            style={styles.headerIconButton}
             onPress={() => router.push('/anchors')}
             activeOpacity={0.7}
           >
@@ -374,22 +244,6 @@ export default function HomeScreen() {
         events={allEvents}
         onViewChange={setViewMode}
       />
-      {viewMode !== 'daily' && (
-        <ThemedView style={styles.eventsContainer}>
-          <ThemedText type="subtitle" style={styles.eventsTitle}>Events</ThemedText>
-          {events.length > 0 ? (
-            <FlatList
-              data={events}
-              renderItem={renderEventItem}
-              keyExtractor={item => item.id}
-              contentContainerStyle={styles.eventsList}
-              showsVerticalScrollIndicator={false}
-            />
-          ) : (
-            <ThemedText style={styles.noEventsText}>No events</ThemedText>
-          )}
-        </ThemedView>
-      )}
 
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: theme.primary }]}
@@ -430,48 +284,6 @@ const styles = StyleSheet.create({
   },
   title: {
     marginBottom: 0,
-  },
-  eventsContainer: {
-    marginTop: 24,
-    flex: 1,
-  },
-  eventsTitle: {
-    marginBottom: 12,
-  },
-  checkbox: {
-    marginRight: 12,
-  },
-  completedText: {
-    textDecorationLine: 'line-through',
-    opacity: 0.6,
-  },
-  eventsList: {
-    paddingBottom: 24,
-  },
-  eventCard: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  eventInfo: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-  eventTitle: {
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  eventTime: {
-    fontSize: 14,
-  },
-  noEventsText: {
-    textAlign: 'center',
-    marginTop: 40,
-    opacity: 0.6,
   },
   fab: {
     position: 'absolute',
