@@ -320,7 +320,7 @@ export default function HomeScreen() {
 
               <View style={styles.drawerSection}>
                 <ThemedText style={styles.sectionLabel}>View</ThemedText>
-                
+
                 <TouchableOpacity
                   style={[
                     styles.drawerItem,
@@ -328,12 +328,12 @@ export default function HomeScreen() {
                   ]}
                   onPress={() => selectView('monthly')}
                 >
-                  <Ionicons 
-                    name="calendar-outline" 
-                    size={22} 
-                    color={viewMode === 'monthly' ? theme.primary : theme.textSecondary} 
+                  <Ionicons
+                    name="calendar-outline"
+                    size={22}
+                    color={viewMode === 'monthly' ? theme.primary : theme.textSecondary}
                   />
-                  <ThemedText 
+                  <ThemedText
                     style={[
                       styles.drawerItemText,
                       { color: viewMode === 'monthly' ? theme.primary : theme.textSecondary }
@@ -350,12 +350,12 @@ export default function HomeScreen() {
                   ]}
                   onPress={() => selectView('weekly')}
                 >
-                  <Ionicons 
-                    name="grid-outline" 
-                    size={22} 
-                    color={viewMode === 'weekly' ? theme.primary : theme.textSecondary} 
+                  <Ionicons
+                    name="grid-outline"
+                    size={22}
+                    color={viewMode === 'weekly' ? theme.primary : theme.textSecondary}
                   />
-                  <ThemedText 
+                  <ThemedText
                     style={[
                       styles.drawerItemText,
                       { color: viewMode === 'weekly' ? theme.primary : theme.textSecondary }
@@ -372,12 +372,12 @@ export default function HomeScreen() {
                   ]}
                   onPress={() => selectView('daily')}
                 >
-                  <Ionicons 
-                    name="today-outline" 
-                    size={22} 
-                    color={viewMode === 'daily' ? theme.primary : theme.textSecondary} 
+                  <Ionicons
+                    name="today-outline"
+                    size={22}
+                    color={viewMode === 'daily' ? theme.primary : theme.textSecondary}
                   />
-                  <ThemedText 
+                  <ThemedText
                     style={[
                       styles.drawerItemText,
                       { color: viewMode === 'daily' ? theme.primary : theme.textSecondary }

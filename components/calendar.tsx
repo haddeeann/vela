@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { StyleSheet, TouchableOpacity, Platform, useWindowDimensions } from 'react-native';
 import { Calendar as RNCalendar, WeekCalendar, LocaleConfig, CalendarProvider } from 'react-native-calendars';
 
 import { ThemedView } from '@/components/themed-view';
@@ -41,14 +41,17 @@ interface CalendarProps {
   onDateSelect: (date: string) => void;
   events: Event[];
   view: 'monthly' | 'weekly' | 'daily';
+  style?: any;
 }
 
-export default function Calendar({ selectedDate, onDateSelect, events, view }: CalendarProps) {
+export default function Calendar({ selectedDate, onDateSelect, events, view, style }: CalendarProps) {
+  const { height } = useWindowDimensions();
+  const calendarHeight = height * 0.55;
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const today = new Date().toISOString().split('T')[0];
 
-  const commonTheme = {
+  const commonTheme = React.useMemo(() => ({
     backgroundColor: theme.background,
     calendarBackground: theme.background,
     textSectionTitleColor: theme.textSecondary,
@@ -70,63 +73,12 @@ export default function Calendar({ selectedDate, onDateSelect, events, view }: C
     textMonthFontSize: 20,
     textDayHeaderFontSize: 15,
     todayBackgroundColor: theme.primary + '20',
-    'stylesheet.calendar.header': {
-      dayHeader: {
-        marginTop: 5,
-        marginBottom: 10,
-        width: 40,
-        textAlign: 'center',
-        fontSize: 15,
-        fontWeight: '700',
-        color: theme.textSecondary
-      }
-    },
-    'stylesheet.calendar.main': {
-      dayContainer: {
-        borderWidth: 0.5,
-        borderColor: theme.border,
-        flex: 1,
-        height: 100,
-        alignItems: 'center'
+    ...(Platform.OS !== 'web' ? {
+      'stylesheet.calendar.main': {
+        paddingBottom: 10
       },
-      week: {
-        marginTop: 0,
-        marginBottom: 0,
-        flexDirection: 'row',
-        justifyContent: 'space-around'
-      }
-    },
-    'stylesheet.day.basic': {
-      base: {
-        width: 44,
-        height: 44,
-        alignItems: 'center',
-        justifyContent: 'center'
-      },
-      text: {
-        marginTop: Platform.OS === 'android' ? 4 : 6,
-        fontSize: 16,
-        fontWeight: '700',
-        color: theme.textPrimary,
-        backgroundColor: 'rgba(255, 255, 255, 0)'
-      },
-      today: {
-        backgroundColor: theme.primary + '20',
-        borderRadius: 22
-      },
-      todayText: {
-        color: theme.primary,
-        fontWeight: 'bold'
-      },
-      selected: {
-        backgroundColor: theme.primary,
-        borderRadius: 22
-      },
-      selectedText: {
-        color: '#FFFFFF',
-      }
-    }
-  };
+    } : {})
+  }), [theme]);
 
   const markedDates = React.useMemo(() => {
     const marks: { [key: string]: any } = {};
@@ -262,7 +214,7 @@ export default function Calendar({ selectedDate, onDateSelect, events, view }: C
             markingType={'multi-dot'}
             markedDates={markedDates}
             theme={commonTheme}
-            style={styles.calendar}
+            style={[styles.calendar, { height: calendarHeight }]}
             enableSwipeMonths={true}
           />
         ) : view === 'weekly' ? (
@@ -274,7 +226,7 @@ export default function Calendar({ selectedDate, onDateSelect, events, view }: C
             markingType={'multi-dot'}
             markedDates={markedDates}
             theme={commonTheme}
-            style={styles.calendar}
+            style={[styles.calendar, { height: calendarHeight }]}
           />
         ) : (
           <DailyTimeline
@@ -296,6 +248,5 @@ const styles = StyleSheet.create({
   calendar: {
     paddingLeft: 0,
     paddingRight: 0,
-    flex: 1,
   },
 });
