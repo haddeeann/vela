@@ -1,30 +1,18 @@
 import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity, Platform, useWindowDimensions } from 'react-native';
-import { Calendar as RNCalendar, LocaleConfig, CalendarProvider } from 'react-native-calendars';
+import { StyleSheet, TouchableOpacity, Platform, useWindowDimensions, View } from 'react-native';
+import { CalendarProvider } from 'react-native-calendars';
+import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
 
 import { DailyTimeline } from './daily-timeline';
 import { WeeklyTimeGrid } from './weekly-time-grid';
-
-// Configure calendar locale if needed (default is English)
-LocaleConfig.locales['en'] = {
-  monthNames: [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ],
-  monthNamesShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-  dayNames: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-  dayNamesShort: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-  today: 'Today'
-};
-LocaleConfig.defaultLocale = 'en';
+import { MonthlyGrid } from './monthly-grid';
 
 interface Event {
   id: string;
@@ -47,10 +35,26 @@ interface CalendarProps {
 
 export default function Calendar({ selectedDate, onDateSelect, events, view, style }: CalendarProps) {
   const { height } = useWindowDimensions();
-  const calendarHeight = height * 0.55;
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const today = new Date().toISOString().split('T')[0];
+
+  const handlePrevMonth = () => {
+    const date = new Date(selectedDate);
+    date.setMonth(date.getMonth() - 1);
+    onDateSelect(date.toISOString().split('T')[0]);
+  };
+
+  const handleNextMonth = () => {
+    const date = new Date(selectedDate);
+    date.setMonth(date.getMonth() + 1);
+    onDateSelect(date.toISOString().split('T')[0]);
+  };
+
+  const monthYearLabel = new Date(selectedDate).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
 
   const commonTheme = React.useMemo(() => ({
     backgroundColor: theme.background,
@@ -74,130 +78,7 @@ export default function Calendar({ selectedDate, onDateSelect, events, view, sty
     textMonthFontSize: 20,
     textDayHeaderFontSize: 15,
     todayBackgroundColor: theme.primary + '20',
-    ...(Platform.OS !== 'web' ? {
-      'stylesheet.calendar.main': {
-        paddingBottom: 10
-      },
-    } : {})
   }), [theme]);
-
-  const markedDates = React.useMemo(() => {
-    const marks: { [key: string]: any } = {};
-
-    // Helper to add a dot to a specific date
-    const addDot = (date: string, event: Event) => {
-      const category = CATEGORIES.find(c => c.id === event.categoryId);
-      const dotColor = category ? category.color : theme.primary;
-      const isAnchor = event.entryType === 'anchor';
-
-      if (!marks[date]) {
-        marks[date] = {
-          dots: [{
-            key: `${event.id}-${date}`,
-            color: dotColor,
-            ...(isAnchor && {
-              key: `${event.id}-${date}`,
-              color: 'transparent',
-              strokeWidth: 2,
-              strokeColor: dotColor
-            })
-          }],
-          markingType: 'multi-dot'
-        };
-      } else {
-        if (!marks[date].dots) {
-          marks[date].dots = [];
-          marks[date].markingType = 'multi-dot';
-        }
-        const alreadyHasColor = marks[date].dots.some((d: any) => d.color === dotColor || d.strokeColor === dotColor);
-        if (!alreadyHasColor) {
-          marks[date].dots.push({
-            key: `${event.id}-${date}`,
-            color: isAnchor ? 'transparent' : dotColor,
-            ...(isAnchor && {
-              strokeWidth: 2,
-              strokeColor: dotColor
-            })
-          });
-        }
-      }
-    };
-
-    // We only want to mark dates within a reasonable range for performance
-    // react-native-calendars usually renders the current month, previous and next.
-    // Let's mark for 3 months around the current date or selected date.
-    const start = new Date(selectedDate);
-    start.setMonth(start.getMonth() - 2);
-    const end = new Date(selectedDate);
-    end.setMonth(end.getMonth() + 4);
-
-    events.forEach(event => {
-      if (event.recurrence === 'none') {
-        addDot(event.date, event);
-      } else {
-        // Recurring event
-        let current = new Date(event.date);
-        const eventStart = new Date(event.date);
-
-        // Limit recurrence marking to the range we defined
-        // but don't start before the event's start date
-        let iter = new Date(current);
-        if (iter < start) {
-          // Optimization: jump to start of range
-          if (event.recurrence === 'daily') {
-            iter = new Date(start);
-          } else if (event.recurrence === 'weekly') {
-            iter = new Date(start);
-            while (iter.getDay() !== eventStart.getDay()) {
-              iter.setDate(iter.getDate() + 1);
-            }
-          } else if (event.recurrence === 'monthly') {
-            iter = new Date(start);
-            iter.setDate(eventStart.getDate());
-            if (iter < start) iter.setMonth(iter.getMonth() + 1);
-          }
-        }
-
-        while (iter <= end) {
-          const dateStr = iter.toISOString().split('T')[0];
-          addDot(dateStr, event);
-
-          if (event.recurrence === 'daily') {
-            iter.setDate(iter.getDate() + 1);
-          } else if (event.recurrence === 'weekly') {
-            iter.setDate(iter.getDate() + 7);
-          } else if (event.recurrence === 'monthly') {
-            iter.setMonth(iter.getMonth() + 1);
-          }
-        }
-      }
-    });
-
-    // Mark today
-    if (!marks[today]) {
-      marks[today] = { today: true };
-    } else {
-      marks[today].today = true;
-    }
-
-    // Mark selected date
-    if (selectedDate) {
-      marks[selectedDate] = {
-        ...marks[selectedDate],
-        selected: true,
-      };
-
-      // If selected date has dots, make them white for better contrast
-      if (marks[selectedDate].dots) {
-        marks[selectedDate].dots = marks[selectedDate].dots.map((d: any) => ({
-          ...d,
-          selectedDotColor: '#ffffff'
-        }));
-      }
-    }
-
-    return marks;
-  }, [selectedDate, events, theme, today]);
 
   return (
     <CalendarProvider
@@ -207,18 +88,23 @@ export default function Calendar({ selectedDate, onDateSelect, events, view, sty
     >
       <ThemedView style={styles.container}>
         {view === 'monthly' ? (
-          <RNCalendar
-            key={view}
-            current={selectedDate || today}
-            onDayPress={day => {
-              onDateSelect(day.dateString);
-            }}
-            markingType={'multi-dot'}
-            markedDates={markedDates}
-            theme={commonTheme}
-            style={[styles.calendar, { height: calendarHeight }]}
-            enableSwipeMonths={true}
-          />
+          <ThemedView style={{ flex: 1 }}>
+            <View style={styles.monthHeader}>
+              <TouchableOpacity onPress={handlePrevMonth} style={styles.navButton}>
+                <Ionicons name="chevron-back" size={24} color={theme.primary} />
+              </TouchableOpacity>
+              <ThemedText style={styles.monthLabel}>{monthYearLabel}</ThemedText>
+              <TouchableOpacity onPress={handleNextMonth} style={styles.navButton}>
+                <Ionicons name="chevron-forward" size={24} color={theme.primary} />
+              </TouchableOpacity>
+            </View>
+            <MonthlyGrid
+              selectedDate={selectedDate}
+              events={events}
+              onDateSelect={onDateSelect}
+              availableHeight={height - 200} // Rough estimate for grid height
+            />
+          </ThemedView>
         ) : view === 'weekly' ? (
           <WeeklyTimeGrid
             selectedDate={selectedDate}
@@ -242,8 +128,18 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
   },
-  calendar: {
-    paddingLeft: 0,
-    paddingRight: 0,
+  monthHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  monthLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  navButton: {
+    padding: 5,
   },
 });

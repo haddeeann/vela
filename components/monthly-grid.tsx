@@ -1,0 +1,281 @@
+import React, { useMemo } from 'react';
+import { StyleSheet, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { ThemedView } from './themed-view';
+import { ThemedText } from './themed-text';
+import { getTheme } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { CATEGORIES } from '@/constants/categories';
+import { RecurrenceType } from '@/constants/recurrence';
+
+interface Event {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  date: string;
+  categoryId: string;
+  recurrence: RecurrenceType;
+  entryType?: 'event' | 'task' | 'anchor' | 'custom';
+}
+
+interface MonthlyGridProps {
+  selectedDate: string;
+  events: Event[];
+  onDateSelect: (date: string) => void;
+  availableHeight: number;
+}
+
+export function MonthlyGrid({ selectedDate, events, onDateSelect, availableHeight }: MonthlyGridProps) {
+  const colorScheme = useColorScheme();
+  const theme = getTheme(colorScheme);
+  const { width: screenWidth } = useWindowDimensions();
+
+  const cellHeight = availableHeight / 6;
+  const cellWidth = screenWidth / 7;
+
+  const days = useMemo(() => {
+    const date = new Date(selectedDate);
+    const year = date.getFullYear();
+    const month = date.getMonth();
+
+    const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 is Sunday
+    const lastDateOfMonth = new Date(year, month + 1, 0).getDate();
+
+    // Fill the 6x7 grid (42 days)
+    const calendarDays = [];
+
+    // Previous month days
+    const prevMonthLastDate = new Date(year, month, 0).getDate();
+    for (let i = firstDayOfMonth - 1; i >= 0; i--) {
+      calendarDays.push({
+        date: new Date(year, month - 1, prevMonthLastDate - i),
+        isCurrentMonth: false,
+      });
+    }
+
+    // Current month days
+    for (let i = 1; i <= lastDateOfMonth; i++) {
+      calendarDays.push({
+        date: new Date(year, month, i),
+        isCurrentMonth: true,
+      });
+    }
+
+    // Next month days
+    const remainingDays = 42 - calendarDays.length;
+    for (let i = 1; i <= remainingDays; i++) {
+      calendarDays.push({
+        date: new Date(year, month + 1, i),
+        isCurrentMonth: false,
+      });
+    }
+
+    return calendarDays;
+  }, [selectedDate]);
+
+  const getEventsForDate = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    const dayEvents: Event[] = [];
+
+    events.forEach(event => {
+      if (event.recurrence === 'none') {
+        if (event.date === dateStr) {
+          dayEvents.push(event);
+        }
+      } else {
+        const eventStartDate = new Date(event.date);
+        eventStartDate.setHours(0, 0, 0, 0);
+        const currentDate = new Date(date);
+        currentDate.setHours(0, 0, 0, 0);
+
+        if (currentDate < eventStartDate) return;
+
+        if (event.recurrence === 'daily') {
+          dayEvents.push(event);
+        } else if (event.recurrence === 'weekly') {
+          if (currentDate.getDay() === eventStartDate.getDay()) {
+            dayEvents.push(event);
+          }
+        } else if (event.recurrence === 'monthly') {
+          if (currentDate.getDate() === eventStartDate.getDate()) {
+            dayEvents.push(event);
+          }
+        }
+      }
+    });
+
+    return dayEvents;
+  };
+
+  const renderEntryPill = (entry: Event) => {
+    const category = CATEGORIES.find(c => c.id === entry.categoryId) || CATEGORIES[4];
+    const color = category.color;
+
+    let icon: React.ReactNode;
+    if (entry.entryType === 'task') {
+      icon = <View style={[styles.hollowDot, { borderColor: color }]} />;
+    } else if (entry.entryType === 'anchor') {
+      icon = <ThemedText style={[styles.anchorIcon, { color }]}>∞</ThemedText>;
+    } else {
+      icon = <View style={[styles.solidDot, { backgroundColor: color }]} />;
+    }
+
+    return (
+      <View key={entry.id + entry.date} style={styles.pill}>
+        {icon}
+        <ThemedText style={styles.pillText} numberOfLines={1}>
+          {entry.title}
+        </ThemedText>
+      </View>
+    );
+  };
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  return (
+    <ThemedView style={styles.container}>
+      {/* Day headers */}
+      <View style={styles.headerRow}>
+        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+          <ThemedText key={i} style={[styles.headerText, { width: cellWidth }]}>
+            {day}
+          </ThemedText>
+        ))}
+      </View>
+
+      <View style={styles.grid}>
+        {days.map((dayObj, index) => {
+          const dateStr = dayObj.date.toISOString().split('T')[0];
+          const isToday = dateStr === todayStr;
+          const dayEvents = getEventsForDate(dayObj.date);
+          const displayEvents = dayEvents.slice(0, 3);
+          const moreCount = dayEvents.length - 3;
+
+          return (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.cell,
+                {
+                  width: cellWidth,
+                  height: cellHeight,
+                  borderColor: theme.border,
+                  backgroundColor: dayObj.isCurrentMonth ? 'transparent' : theme.surface + '40',
+                },
+              ]}
+              onPress={() => onDateSelect(dateStr)}
+            >
+              <View style={styles.cellHeader}>
+                <View
+                  style={[
+                    styles.dayNumberContainer,
+                    isToday && { backgroundColor: theme.primary },
+                  ]}
+                >
+                  <ThemedText
+                    style={[
+                      styles.dayNumber,
+                      { color: dayObj.isCurrentMonth ? theme.textPrimary : theme.dayTextMuted },
+                      isToday && { color: '#FFF' },
+                    ]}
+                  >
+                    {dayObj.date.getDate()}
+                  </ThemedText>
+                </View>
+              </View>
+
+              <View style={styles.pillContainer}>
+                {displayEvents.map(renderEntryPill)}
+                {moreCount > 0 && (
+                  <ThemedText style={styles.moreText}>
+                    +{moreCount} more
+                  </ThemedText>
+                )}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </ThemedView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+    paddingVertical: 8,
+  },
+  headerText: {
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '600',
+    opacity: 0.6,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  cell: {
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 2,
+  },
+  cellHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    marginBottom: 2,
+  },
+  dayNumberContainer: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dayNumber: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  pillContainer: {
+    flex: 1,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    marginBottom: 1,
+    height: 16,
+  },
+  pillText: {
+    fontSize: 10,
+    marginLeft: 4,
+    flex: 1,
+  },
+  solidDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  hollowDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    borderWidth: 1,
+    backgroundColor: 'transparent',
+  },
+  anchorIcon: {
+    fontSize: 10,
+    lineHeight: 12,
+  },
+  moreText: {
+    fontSize: 9,
+    opacity: 0.6,
+    marginLeft: 4,
+    marginTop: 1,
+  },
+});
