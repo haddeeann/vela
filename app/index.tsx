@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { StyleSheet, FlatList, TouchableOpacity, Platform, Alert, View } from 'react-native';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { StyleSheet, FlatList, TouchableOpacity, Platform, Alert, View, Animated, Modal, Dimensions, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
@@ -34,6 +34,32 @@ export default function HomeScreen() {
   const theme = getTheme(colorScheme);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [viewMode, setViewMode] = useState<'monthly' | 'weekly' | 'daily'>('monthly');
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const slideAnim = useRef(new Animated.Value(-Dimensions.get('window').width * 0.72)).current;
+
+  useEffect(() => {
+    if (isDrawerOpen) {
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: -Dimensions.get('window').width * 0.72,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isDrawerOpen]);
+
+  const toggleDrawer = () => setIsDrawerOpen(!isDrawerOpen);
+  const closeDrawer = () => setIsDrawerOpen(false);
+
+  const selectView = (view: 'monthly' | 'weekly' | 'daily') => {
+    setViewMode(view);
+    closeDrawer();
+  };
 
   interface CalendarEvent {
     id: string;
@@ -213,7 +239,16 @@ export default function HomeScreen() {
   return (
     <ThemedView style={styles.container}>
       <ThemedView style={styles.header}>
-        <ThemedText type="title" style={styles.title}>Vela</ThemedText>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity
+            style={styles.hamburgerButton}
+            onPress={toggleDrawer}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="menu-outline" size={28} color={theme.textPrimary} />
+          </TouchableOpacity>
+          <ThemedText type="title" style={styles.title}>Vela</ThemedText>
+        </View>
         <ThemedView style={styles.headerIcons}>
           <TouchableOpacity
             style={styles.headerIconButton}
@@ -242,7 +277,7 @@ export default function HomeScreen() {
         selectedDate={selectedDate}
         onDateSelect={setSelectedDate}
         events={allEvents}
-        onViewChange={setViewMode}
+        view={viewMode}
       />
 
       <TouchableOpacity
@@ -258,6 +293,106 @@ export default function HomeScreen() {
         onSave={handleAddEvent}
         selectedDate={selectedDate}
       />
+
+      <Modal
+        transparent
+        visible={isDrawerOpen}
+        onRequestClose={closeDrawer}
+        animationType="none"
+      >
+        <Pressable style={styles.drawerOverlay} onPress={closeDrawer}>
+          <Animated.View
+            style={[
+              styles.drawerContainer,
+              {
+                backgroundColor: theme.surface,
+                transform: [{ translateX: slideAnim }],
+              },
+            ]}
+          >
+            <Pressable style={{ flex: 1 }}>
+              <View style={styles.drawerHeader}>
+                <ThemedText type="title">Vela</ThemedText>
+                <TouchableOpacity onPress={closeDrawer}>
+                  <Ionicons name="close" size={28} color={theme.textPrimary} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.drawerSection}>
+                <ThemedText style={styles.sectionLabel}>View</ThemedText>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.drawerItem,
+                    viewMode === 'monthly' && { backgroundColor: theme.primary + '1A' }
+                  ]}
+                  onPress={() => selectView('monthly')}
+                >
+                  <Ionicons 
+                    name="calendar-outline" 
+                    size={22} 
+                    color={viewMode === 'monthly' ? theme.primary : theme.textSecondary} 
+                  />
+                  <ThemedText 
+                    style={[
+                      styles.drawerItemText,
+                      { color: viewMode === 'monthly' ? theme.primary : theme.textSecondary }
+                    ]}
+                  >
+                    Monthly
+                  </ThemedText>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.drawerItem,
+                    viewMode === 'weekly' && { backgroundColor: theme.primary + '1A' }
+                  ]}
+                  onPress={() => selectView('weekly')}
+                >
+                  <Ionicons 
+                    name="grid-outline" 
+                    size={22} 
+                    color={viewMode === 'weekly' ? theme.primary : theme.textSecondary} 
+                  />
+                  <ThemedText 
+                    style={[
+                      styles.drawerItemText,
+                      { color: viewMode === 'weekly' ? theme.primary : theme.textSecondary }
+                    ]}
+                  >
+                    Weekly
+                  </ThemedText>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.drawerItem,
+                    viewMode === 'daily' && { backgroundColor: theme.primary + '1A' }
+                  ]}
+                  onPress={() => selectView('daily')}
+                >
+                  <Ionicons 
+                    name="today-outline" 
+                    size={22} 
+                    color={viewMode === 'daily' ? theme.primary : theme.textSecondary} 
+                  />
+                  <ThemedText 
+                    style={[
+                      styles.drawerItemText,
+                      { color: viewMode === 'daily' ? theme.primary : theme.textSecondary }
+                    ]}
+                  >
+                    Daily
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
     </ThemedView>
   );
 }
@@ -274,6 +409,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  hamburgerButton: {
+    marginRight: 12,
   },
   headerIcons: {
     flexDirection: 'row',
@@ -299,5 +441,54 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
+  },
+  drawerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  drawerContainer: {
+    width: '72%',
+    height: '100%',
+    padding: 20,
+    paddingTop: 60,
+    elevation: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 4, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  drawerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  drawerSection: {
+    marginBottom: 20,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    color: '#9B98A8',
+    marginBottom: 12,
+    marginLeft: 4,
+  },
+  drawerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  drawerItemText: {
+    fontSize: 16,
+    marginLeft: 12,
+    fontWeight: '500',
+  },
+  divider: {
+    height: 1,
+    width: '100%',
+    marginTop: 10,
   },
 });

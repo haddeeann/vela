@@ -40,19 +40,13 @@ interface CalendarProps {
   selectedDate: string;
   onDateSelect: (date: string) => void;
   events: Event[];
-  onViewChange?: (view: 'monthly' | 'weekly' | 'daily') => void;
+  view: 'monthly' | 'weekly' | 'daily';
 }
 
-export default function Calendar({ selectedDate, onDateSelect, events, onViewChange }: CalendarProps) {
+export default function Calendar({ selectedDate, onDateSelect, events, view }: CalendarProps) {
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const today = new Date().toISOString().split('T')[0];
-  const [view, setView] = useState<'monthly' | 'weekly' | 'daily'>('monthly');
-
-  const handleViewChange = (newView: 'monthly' | 'weekly' | 'daily') => {
-    setView(newView);
-    onViewChange?.(newView);
-  };
 
   const commonTheme = {
     backgroundColor: theme.background,
@@ -259,45 +253,6 @@ export default function Calendar({ selectedDate, onDateSelect, events, onViewCha
       theme={commonTheme}
     >
       <ThemedView style={styles.container}>
-        <ThemedView style={[styles.toggleContainer, { backgroundColor: theme.surface }]}>
-          <TouchableOpacity
-            onPress={() => handleViewChange('monthly')}
-            style={[styles.toggleButton, view === 'monthly' && { backgroundColor: theme.accent }]}
-          >
-            <ThemedText style={[
-              styles.toggleText,
-              { color: theme.textPrimary },
-              view === 'monthly' && { color: '#FFFFFF', fontWeight: 'bold' }
-            ]}>
-              Monthly
-            </ThemedText>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => handleViewChange('weekly')}
-            style={[styles.toggleButton, view === 'weekly' && { backgroundColor: theme.accent }]}
-          >
-            <ThemedText style={[
-              styles.toggleText,
-              { color: theme.textPrimary },
-              view === 'weekly' && { color: '#FFFFFF', fontWeight: 'bold' }
-            ]}>
-              Weekly
-            </ThemedText>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => handleViewChange('daily')}
-            style={[styles.toggleButton, view === 'daily' && { backgroundColor: theme.accent }]}
-          >
-            <ThemedText style={[
-              styles.toggleText,
-              { color: theme.textPrimary },
-              view === 'daily' && { color: '#FFFFFF', fontWeight: 'bold' }
-            ]}>
-              Daily
-            </ThemedText>
-          </TouchableOpacity>
-        </ThemedView>
-
         {view === 'monthly' ? (
           <RNCalendar
             current={today}
@@ -337,21 +292,6 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 16,
     overflow: 'hidden',
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    marginBottom: 8,
-    borderRadius: 8,
-    padding: 2,
-  },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 6,
-  },
-  toggleText: {
-    fontSize: 14,
   },
   calendar: {
     paddingLeft: 0,
