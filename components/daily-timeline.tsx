@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, ScrollView, TouchableOpacity, Alert, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
 import { Colors } from '@/constants/theme';
@@ -15,6 +16,8 @@ interface Event {
   date: string;
   categoryId: string;
   recurrence: RecurrenceType;
+  entryType?: 'event' | 'task' | 'anchor';
+  completedAt?: number | null;
 }
 
 interface DailyTimelineProps {
@@ -72,14 +75,18 @@ export function DailyTimeline({ selectedDate, events }: DailyTimelineProps) {
   const renderEventBlocks = (hour: number) => {
     return filteredEvents
       .filter(event => {
+        if (!event.startTime) return false;
         const start = parseTime(event.startTime);
         return Math.floor(start) === hour;
       })
       .map(event => {
         const start = parseTime(event.startTime);
-        const end = parseTime(event.endTime);
-        const duration = end - start;
+        const end = event.endTime ? parseTime(event.endTime) : start + 0.5; // Tasks or anchors with only start time get 30 mins
+        const duration = Math.max(0.5, end - start);
         const category = CATEGORIES.find(c => c.id === event.categoryId) || CATEGORIES[4];
+        const isTask = event.entryType === 'task';
+        const isAnchor = event.entryType === 'anchor';
+        const isCompleted = !!event.completedAt;
 
         return (
           <TouchableOpacity
@@ -87,18 +94,37 @@ export function DailyTimeline({ selectedDate, events }: DailyTimelineProps) {
             style={[
               styles.eventBlock,
               {
-                backgroundColor: category.color + '40',
-                borderLeftColor: category.color,
+                backgroundColor: isTask ? colors.tint + '20' : (isAnchor ? category.color + '20' : category.color + '40'),
+                borderLeftColor: isTask ? colors.tint : category.color,
                 top: (start - hour) * 60,
                 height: duration * 60,
               },
+              isAnchor && { borderLeftWidth: 2, opacity: 0.8 },
+              isCompleted && { opacity: 0.5 }
             ]}
             onPress={() => handleEventPress(event)}
           >
-            <ThemedText style={[styles.eventTitle, { color: category.color }]} numberOfLines={1}>
-              {event.title}
-            </ThemedText>
-            <ThemedText style={[styles.eventTime, { color: category.color }]} numberOfLines={1}>
+            <ThemedView style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'transparent' }}>
+              <ThemedText
+                style={[
+                  styles.eventTitle,
+                  { color: isTask ? colors.tint : category.color },
+                  isCompleted && { textDecorationLine: 'line-through' },
+                  isAnchor && { fontSize: 11, color: category.color + 'CC' }
+                ]}
+                numberOfLines={1}
+              >
+                {isTask ? '[Task] ' : ''}{event.title}
+              </ThemedText>
+              {isAnchor && (
+                <Ionicons name="repeat" size={10} color={category.color} style={{ marginLeft: 4 }} />
+              )}
+            </ThemedView>
+            <ThemedText style={[
+              styles.eventTime,
+              { color: isTask ? colors.tint : category.color },
+              isAnchor && { fontSize: 9, color: category.color + 'AA' }
+            ]} numberOfLines={1}>
               {event.startTime}
             </ThemedText>
           </TouchableOpacity>

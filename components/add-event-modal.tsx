@@ -12,7 +12,17 @@ import { ReminderType, REMINDER_OPTIONS } from '@/constants/reminders';
 interface AddEventModalProps {
   isVisible: boolean;
   onClose: () => void;
-  onSave: (event: { title: string; date: string; startTime: string; endTime: string; categoryId: CategoryId; recurrence: RecurrenceType; reminder: ReminderType }) => void;
+  onSave: (event: { 
+    title: string; 
+    date: string; 
+    startTime: string; 
+    endTime: string; 
+    categoryId: CategoryId; 
+    recurrence: RecurrenceType; 
+    reminder: ReminderType;
+    entryType: 'event' | 'task' | 'anchor';
+    priority?: 'low' | 'medium' | 'high';
+  }) => void;
   selectedDate: string;
 }
 
@@ -21,10 +31,13 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
   const colors = Colors[theme];
   const { height: screenHeight } = useWindowDimensions();
 
+  const [entryType, setEntryType] = useState<'event' | 'task' | 'anchor'>('event');
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(selectedDate);
   const [startTime, setStartTime] = useState('09:00 AM');
   const [endTime, setEndTime] = useState('10:00 AM');
+  const [dueTime, setDueTime] = useState('');
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [categoryId, setCategoryId] = useState<CategoryId>('personal');
   const [recurrence, setRecurrence] = useState<RecurrenceType>('none');
   const [reminder, setReminder] = useState<ReminderType>('none');
@@ -35,10 +48,30 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
     }
   }, [isVisible, selectedDate]);
 
+  useEffect(() => {
+    if (entryType === 'anchor') {
+      setRecurrence('daily');
+      setReminder('none');
+    }
+  }, [entryType]);
+
   const handleSave = () => {
     if (title.trim()) {
-      onSave({ title, date, startTime, endTime, categoryId, recurrence, reminder });
+      onSave({ 
+        title, 
+        date, 
+        startTime: entryType === 'task' ? dueTime : startTime, 
+        endTime: entryType === 'task' ? dueTime : endTime, 
+        categoryId, 
+        recurrence, 
+        reminder,
+        entryType,
+        priority: entryType === 'task' ? priority : undefined
+      });
       setTitle('');
+      setEntryType('event');
+      setDueTime('');
+      setPriority('medium');
       setCategoryId('personal');
       setRecurrence('none');
       setReminder('none');
@@ -58,7 +91,29 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
         style={styles.modalOverlay}
       >
         <ThemedView style={[styles.modalContent, { maxHeight: screenHeight * 0.9, backgroundColor: colors.surface }]}>
-          <ThemedText type="subtitle" style={styles.modalTitle}>Add New Event</ThemedText>
+          <ThemedView style={styles.entryTypeToggle}>
+            {(['event', 'task', 'anchor'] as const).map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.entryTypeButton,
+                  entryType === type && { backgroundColor: colors.tint }
+                ]}
+                onPress={() => setEntryType(type)}
+              >
+                <ThemedText style={[
+                  styles.entryTypeText,
+                  entryType === type && { color: '#fff', fontWeight: 'bold' }
+                ]}>
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                </ThemedText>
+              </TouchableOpacity>
+            ))}
+          </ThemedView>
+
+          <ThemedText type="subtitle" style={styles.modalTitle}>
+            Add New {entryType.charAt(0).toUpperCase() + entryType.slice(1)}
+          </ThemedText>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             <ThemedText style={styles.label}>Title</ThemedText>
@@ -66,7 +121,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
               style={[styles.input, { color: colors.text, borderColor: colors.border }]}
               value={title}
               onChangeText={setTitle}
-              placeholder="Event Title"
+              placeholder={`${entryType.charAt(0).toUpperCase() + entryType.slice(1)} Title`}
               placeholderTextColor={colors.icon}
             />
 
@@ -77,48 +132,86 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
               onChangeText={setDate}
               placeholder="YYYY-MM-DD"
               placeholderTextColor={colors.icon}
+              editable={entryType !== 'anchor'}
             />
 
-            <ThemedText style={styles.label}>Start Time</ThemedText>
-            <TextInput
-              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-              value={startTime}
-              onChangeText={setStartTime}
-              placeholder="e.g. 09:00 AM"
-              placeholderTextColor={colors.icon}
-            />
+            {entryType === 'task' ? (
+              <>
+                <ThemedText style={styles.label}>Due Time (Optional)</ThemedText>
+                <TextInput
+                  style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                  value={dueTime}
+                  onChangeText={setDueTime}
+                  placeholder="e.g. 05:00 PM"
+                  placeholderTextColor={colors.icon}
+                />
 
-            <ThemedText style={styles.label}>End Time</ThemedText>
-            <TextInput
-              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-              value={endTime}
-              onChangeText={setEndTime}
-              placeholder="e.g. 10:00 AM"
-              placeholderTextColor={colors.icon}
-            />
+                <ThemedText style={styles.label}>Priority</ThemedText>
+                <ThemedView style={styles.categoryPicker}>
+                  {(['low', 'medium', 'high'] as const).map((p) => (
+                    <TouchableOpacity
+                      key={p}
+                      style={[
+                        styles.categoryItem,
+                        { borderColor: colors.tint },
+                        priority === p && { backgroundColor: colors.tint + '20' }
+                      ]}
+                      onPress={() => setPriority(p)}
+                    >
+                      <ThemedText style={[
+                        styles.categoryText,
+                        priority === p && { fontWeight: 'bold', color: colors.tint }
+                      ]}>
+                        {p.charAt(0).toUpperCase() + p.slice(1)}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </ThemedView>
+              </>
+            ) : (
+              <>
+                <ThemedText style={styles.label}>Start Time</ThemedText>
+                <TextInput
+                  style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                  value={startTime}
+                  onChangeText={setStartTime}
+                  placeholder="e.g. 09:00 AM"
+                  placeholderTextColor={colors.icon}
+                />
 
-            <ThemedText style={styles.label}>Category</ThemedText>
-            <ThemedView style={styles.categoryPicker}>
-              {CATEGORIES.map((cat) => (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={[
-                    styles.categoryItem,
-                    { borderColor: cat.color },
-                    categoryId === cat.id && { backgroundColor: cat.color + '20' }
-                  ]}
-                  onPress={() => setCategoryId(cat.id as CategoryId)}
-                >
-                  <ThemedView style={[styles.categoryDot, { backgroundColor: cat.color }]} />
-                  <ThemedText style={[
-                    styles.categoryText,
-                    categoryId === cat.id && { fontWeight: 'bold', color: cat.color }
-                  ]}>
-                    {cat.name}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </ThemedView>
+                <ThemedText style={styles.label}>End Time</ThemedText>
+                <TextInput
+                  style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+                  value={endTime}
+                  onChangeText={setEndTime}
+                  placeholder="e.g. 10:00 AM"
+                  placeholderTextColor={colors.icon}
+                />
+
+                <ThemedText style={styles.label}>Category</ThemedText>
+                <ThemedView style={styles.categoryPicker}>
+                  {CATEGORIES.map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[
+                        styles.categoryItem,
+                        { borderColor: cat.color },
+                        categoryId === cat.id && { backgroundColor: cat.color + '20' }
+                      ]}
+                      onPress={() => setCategoryId(cat.id as CategoryId)}
+                    >
+                      <ThemedView style={[styles.categoryDot, { backgroundColor: cat.color }]} />
+                      <ThemedText style={[
+                        styles.categoryText,
+                        categoryId === cat.id && { fontWeight: 'bold', color: cat.color }
+                      ]}>
+                        {cat.name}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </ThemedView>
+              </>
+            )}
 
             <ThemedText style={styles.label}>Repeat</ThemedText>
             <ThemedView style={styles.categoryPicker}>
@@ -128,9 +221,11 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
                   style={[
                     styles.categoryItem,
                     { borderColor: colors.tint },
-                    recurrence === option.id && { backgroundColor: colors.tint + '20' }
+                    recurrence === option.id && { backgroundColor: colors.tint + '20' },
+                    entryType === 'anchor' && { opacity: 0.5 }
                   ]}
-                  onPress={() => setRecurrence(option.id)}
+                  onPress={() => entryType !== 'anchor' && setRecurrence(option.id)}
+                  disabled={entryType === 'anchor'}
                 >
                   <ThemedText style={[
                     styles.categoryText,
@@ -142,27 +237,31 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
               ))}
             </ThemedView>
 
-            <ThemedText style={styles.label}>Remind me</ThemedText>
-            <ThemedView style={styles.categoryPicker}>
-              {REMINDER_OPTIONS.map((option) => (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.categoryItem,
-                    { borderColor: colors.tint },
-                    reminder === option.id && { backgroundColor: colors.tint + '20' }
-                  ]}
-                  onPress={() => setReminder(option.id)}
-                >
-                  <ThemedText style={[
-                    styles.categoryText,
-                    reminder === option.id && { fontWeight: 'bold', color: colors.tint }
-                  ]}>
-                    {option.name}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </ThemedView>
+            {entryType !== 'anchor' && (
+              <>
+                <ThemedText style={styles.label}>Remind me</ThemedText>
+                <ThemedView style={styles.categoryPicker}>
+                  {REMINDER_OPTIONS.map((option) => (
+                    <TouchableOpacity
+                      key={option.id}
+                      style={[
+                        styles.categoryItem,
+                        { borderColor: colors.tint },
+                        reminder === option.id && { backgroundColor: colors.tint + '20' }
+                      ]}
+                      onPress={() => setReminder(option.id)}
+                    >
+                      <ThemedText style={[
+                        styles.categoryText,
+                        reminder === option.id && { fontWeight: 'bold', color: colors.tint }
+                      ]}>
+                        {option.name}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </ThemedView>
+              </>
+            )}
           </ScrollView>
 
           <ThemedView style={styles.buttonContainer}>
@@ -177,7 +276,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
               style={[styles.button, styles.saveButton, { backgroundColor: colors.tint }]}
               onPress={handleSave}
             >
-              <ThemedText style={styles.saveButtonText}>Save Event</ThemedText>
+              <ThemedText style={styles.saveButtonText}>Save {entryType.charAt(0).toUpperCase() + entryType.slice(1)}</ThemedText>
             </TouchableOpacity>
           </ThemedView>
         </ThemedView>
@@ -215,6 +314,24 @@ const styles = StyleSheet.create({
   modalTitle: {
     marginBottom: 20,
     textAlign: 'center',
+    marginTop: 10,
+  },
+  entryTypeToggle: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
+  },
+  entryTypeButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  entryTypeText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   label: {
     fontSize: 14,

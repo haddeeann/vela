@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { StyleSheet, FlatList, TouchableOpacity, Platform, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
@@ -13,6 +13,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES, CategoryId } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
 import { ReminderType, REMINDER_OPTIONS } from '@/constants/reminders';
+import { getEntriesForDate, createEntry, deleteEntry, updateEntry, createRecurrenceRule, createReminder, getAllEntries } from '../../db';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -22,80 +23,56 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const MOCK_EVENTS = [
-  {
-    id: '1',
-    title: 'Morning Yoga',
-    startTime: '07:00 AM',
-    endTime: '08:00 AM',
-    date: new Date().toISOString().split('T')[0], // Today
-    categoryId: 'health' as CategoryId,
-    recurrence: 'daily' as RecurrenceType,
-    reminder: 'none' as ReminderType,
-  },
-  {
-    id: '2',
-    title: 'Project Planning',
-    startTime: '10:00 AM',
-    endTime: '11:30 AM',
-    date: new Date().toISOString().split('T')[0], // Today
-    categoryId: 'work' as CategoryId,
-    recurrence: 'none' as RecurrenceType,
-    reminder: 'at-time' as ReminderType,
-  },
-  {
-    id: '3',
-    title: 'Lunch with Sarah',
-    startTime: '12:30 PM',
-    endTime: '01:30 PM',
-    date: new Date().toISOString().split('T')[0], // Today
-    categoryId: 'social' as CategoryId,
-    recurrence: 'none' as RecurrenceType,
-    reminder: '15-min' as ReminderType,
-  },
-  {
-    id: '4',
-    title: 'Dentist Appointment',
-    startTime: '02:00 PM',
-    endTime: '03:00 PM',
-    date: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Tomorrow
-    categoryId: 'health' as CategoryId,
-    recurrence: 'none' as RecurrenceType,
-    reminder: '1-hour' as ReminderType,
-  },
-  {
-    id: '5',
-    title: 'Weekly Sync',
-    startTime: '04:00 PM',
-    endTime: '05:00 PM',
-    date: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Tomorrow
-    categoryId: 'work' as CategoryId,
-    recurrence: 'weekly' as RecurrenceType,
-    reminder: 'none' as ReminderType,
-  },
-  {
-    id: '6',
-    title: 'Workout Session',
-    startTime: '06:00 PM',
-    endTime: '07:30 PM',
-    date: new Date(Date.now() - 86400000).toISOString().split('T')[0], // Yesterday
-    categoryId: 'health' as CategoryId,
-    recurrence: 'none' as RecurrenceType,
-    reminder: 'none' as ReminderType,
-  },
-];
-
 export default function HomeScreen() {
   const theme = useColorScheme() ?? 'light';
   const colors = Colors[theme];
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [viewMode, setViewMode] = useState<'monthly' | 'weekly' | 'daily'>('monthly');
-  const [events, setEvents] = useState(MOCK_EVENTS);
+  const [events, setEvents] = useState<any[]>([]);
+  const [allEvents, setAllEvents] = useState<any[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
+
+  const fetchEvents = useCallback(async () => {
+    try {
+      const dbEntries = await getEntriesForDate(selectedDate);
+      const mappedEvents = dbEntries.map((entry: any) => ({
+        id: entry.id,
+        title: entry.title,
+        startTime: entry.start_time,
+        endTime: entry.end_time,
+        date: entry.date,
+        categoryId: entry.category,
+        recurrence: entry.frequency || 'none',
+        reminder: 'none',
+        entryType: entry.entry_type,
+        completedAt: entry.completed_at,
+        isCompletable: entry.is_completable,
+        priority: entry.notes && entry.entry_type === 'task' ? JSON.parse(entry.notes).priority : undefined
+      }));
+      setEvents(mappedEvents);
+
+      // Fetch all events for calendar dots
+      const allDbEntries = await getAllEntries();
+      const mappedAllEvents = allDbEntries.map((entry: any) => ({
+        id: entry.id,
+        title: entry.title,
+        startTime: entry.start_time,
+        endTime: entry.end_time,
+        date: entry.date,
+        categoryId: entry.category,
+        recurrence: entry.frequency || 'none',
+        entryType: entry.entry_type,
+      }));
+      setAllEvents(mappedAllEvents);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+    }
+  }, [selectedDate]);
 
   useEffect(() => {
     requestPermissions();
-  }, []);
+    fetchEvents();
+  }, [fetchEvents]);
 
   async function requestPermissions() {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -109,46 +86,78 @@ export default function HomeScreen() {
     }
   }
 
-  const filteredEvents = useMemo(() => {
-    return events.filter(event => {
-      // Direct match
-      if (event.date === selectedDate) return true;
-      
-      // Don't show recurring events before their start date
-      if (event.date > selectedDate) return false;
+  const handleAddEvent = async (newEvent: {
+    title: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    categoryId: CategoryId;
+    recurrence: RecurrenceType;
+    reminder: ReminderType;
+    entryType: 'event' | 'task' | 'anchor';
+    priority?: 'low' | 'medium' | 'high';
+  }) => {
+    try {
+      const { id } = await createEntry({
+        title: newEvent.title,
+        entry_type: newEvent.entryType,
+        date: newEvent.date,
+        start_time: newEvent.startTime || '',
+        end_time: newEvent.endTime || '',
+        category: newEvent.entryType === 'task' ? 'other' : newEvent.categoryId,
+        notes: newEvent.entryType === 'task' ? JSON.stringify({ priority: newEvent.priority }) : '',
+        is_completable: newEvent.entryType === 'task' ? 1 : 0
+      });
 
-      const eventDate = new Date(event.date);
-      const selected = new Date(selectedDate);
-
-      if (event.recurrence === 'daily') {
-        return true;
+      if (newEvent.recurrence !== 'none') {
+        await createRecurrenceRule(id, newEvent.recurrence, null, null);
       }
-      if (event.recurrence === 'weekly') {
-        return eventDate.getDay() === selected.getDay();
+
+      if (newEvent.reminder !== 'none') {
+        const reminderOption = REMINDER_OPTIONS.find(r => r.id === newEvent.reminder);
+        if (reminderOption && reminderOption.minutesBefore !== null) {
+          await createReminder(id, reminderOption.minutesBefore);
+
+          // Still schedule the local notification for immediate feedback
+          await scheduleNotification({
+            id,
+            ...newEvent,
+          });
+        }
       }
-      if (event.recurrence === 'monthly') {
-        return eventDate.getDate() === selected.getDate();
-      }
 
-      return false;
-    });
-  }, [selectedDate, events]);
-
-  const handleAddEvent = async (newEvent: { title: string; date: string; startTime: string; endTime: string; categoryId: CategoryId; recurrence: RecurrenceType; reminder: ReminderType }) => {
-    const eventId = Math.random().toString(36).substr(2, 9);
-    const event = {
-      ...newEvent,
-      id: eventId,
-    };
-    setEvents([...events, event]);
-
-    // Schedule notification if reminder is set
-    if (newEvent.reminder !== 'none') {
-      await scheduleNotification(event);
+      setIsModalVisible(false);
+      await fetchEvents();
+    } catch (error) {
+      console.error('Error adding event:', error);
+      Alert.alert('Error', 'Failed to save event.');
     }
   };
 
-  const scheduleNotification = async (event: typeof MOCK_EVENTS[0]) => {
+  const handleDeleteEvent = async (id: string) => {
+    Alert.alert(
+      'Delete Event',
+      'Are you sure you want to delete this event?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteEntry(id);
+              await fetchEvents();
+            } catch (error) {
+              console.error('Error deleting event:', error);
+              Alert.alert('Error', 'Failed to delete event.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const scheduleNotification = async (event: any) => {
     const reminderOption = REMINDER_OPTIONS.find(r => r.id === event.reminder);
     if (!reminderOption || reminderOption.minutesBefore === null) return;
 
@@ -181,19 +190,84 @@ export default function HomeScreen() {
     }
   };
 
-  const renderEventItem = ({ item }: { item: typeof MOCK_EVENTS[0] }) => {
+  const handleToggleTaskCompletion = async (item: any) => {
+    try {
+      const isCompleted = !!item.completedAt;
+      await updateEntry(item.id, {
+        completed_at: isCompleted ? null : Math.floor(Date.now() / 1000)
+      });
+      await fetchEvents();
+    } catch (error) {
+      console.error('Error toggling task completion:', error);
+    }
+  };
+
+  const renderEventItem = ({ item }: { item: any }) => {
     const category = CATEGORIES.find(c => c.id === item.categoryId) || CATEGORIES[4]; // Default to 'Other'
+    const isTask = item.entryType === 'task';
+    const isAnchor = item.entryType === 'anchor';
+    const isCompleted = !!item.completedAt;
 
     return (
-      <ThemedView style={[styles.eventCard, { borderLeftColor: category.color }]}>
-        <ThemedView style={styles.eventInfo}>
-          <ThemedText type="defaultSemiBold" style={styles.eventTitle}>{item.title}</ThemedText>
-          <ThemedText style={styles.eventTime}>{item.startTime} - {item.endTime}</ThemedText>
+      <TouchableOpacity
+        onLongPress={() => handleDeleteEvent(item.id)}
+        onPress={() => isTask ? handleToggleTaskCompletion(item) : null}
+        activeOpacity={0.7}
+      >
+        <ThemedView style={[
+          styles.eventCard,
+          !isTask && !isAnchor && { borderLeftColor: category.color },
+          isTask && { borderLeftWidth: 0, paddingLeft: 12 },
+          isAnchor && {
+            borderLeftWidth: 2,
+            borderLeftColor: category.color,
+            backgroundColor: theme === 'light' ? colors.surface + '80' : colors.surface + '40',
+            opacity: 0.8
+          }
+        ]}>
+          {isTask && (
+            <TouchableOpacity
+              style={styles.checkbox}
+              onPress={() => handleToggleTaskCompletion(item)}
+            >
+              <Ionicons
+                name={isCompleted ? "checkmark-circle" : "ellipse-outline"}
+                size={24}
+                color={isCompleted ? colors.tint : colors.icon}
+              />
+            </TouchableOpacity>
+          )}
+          <ThemedView style={styles.eventInfo}>
+            <ThemedView style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <ThemedText
+                type="defaultSemiBold"
+                style={[
+                  styles.eventTitle,
+                  isCompleted && styles.completedText,
+                  isCompleted && { color: colors.icon },
+                  isAnchor && { fontSize: 15, color: colors.text + 'CC' }
+                ]}
+              >
+                {item.title}
+              </ThemedText>
+              {isAnchor && (
+                <Ionicons name="repeat" size={14} color={colors.icon} style={{ marginLeft: 6, marginBottom: 4 }} />
+              )}
+            </ThemedView>
+            <ThemedText style={[
+              styles.eventTime,
+              isCompleted && { color: colors.icon },
+              isAnchor && { fontSize: 13, color: colors.icon + 'AA' }
+            ]}>
+              {item.startTime}{item.endTime && item.endTime !== item.startTime ? ` - ${item.endTime}` : ''}
+              {isTask && item.priority && ` • ${item.priority.charAt(0).toUpperCase() + item.priority.slice(1)} Priority`}
+            </ThemedText>
+          </ThemedView>
+          {item.reminder !== 'none' && !isAnchor && (
+            <Ionicons name="notifications-outline" size={20} color={colors.icon} />
+          )}
         </ThemedView>
-        {item.reminder !== 'none' && (
-          <Ionicons name="notifications-outline" size={20} color={colors.icon} />
-        )}
-      </ThemedView>
+      </TouchableOpacity>
     );
   };
 
@@ -203,15 +277,15 @@ export default function HomeScreen() {
       <Calendar
         selectedDate={selectedDate}
         onDateSelect={setSelectedDate}
-        events={events}
+        events={allEvents}
         onViewChange={setViewMode}
       />
       {viewMode !== 'daily' && (
         <ThemedView style={styles.eventsContainer}>
           <ThemedText type="subtitle" style={styles.eventsTitle}>Events</ThemedText>
-          {filteredEvents.length > 0 ? (
+          {events.length > 0 ? (
             <FlatList
-              data={filteredEvents}
+              data={events}
               renderItem={renderEventItem}
               keyExtractor={item => item.id}
               contentContainerStyle={styles.eventsList}
@@ -255,6 +329,13 @@ const styles = StyleSheet.create({
   },
   eventsTitle: {
     marginBottom: 12,
+  },
+  checkbox: {
+    marginRight: 12,
+  },
+  completedText: {
+    textDecorationLine: 'line-through',
+    opacity: 0.6,
   },
   eventsList: {
     paddingBottom: 24,

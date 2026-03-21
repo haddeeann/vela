@@ -33,6 +33,7 @@ interface Event {
   date: string;
   categoryId: string;
   recurrence: RecurrenceType;
+  entryType?: 'event' | 'task' | 'anchor';
 }
 
 interface CalendarProps {
@@ -139,10 +140,20 @@ export default function Calendar({ selectedDate, onDateSelect, events, onViewCha
     const addDot = (date: string, event: Event) => {
       const category = CATEGORIES.find(c => c.id === event.categoryId);
       const dotColor = category ? category.color : colors.tint;
+      const isAnchor = event.entryType === 'anchor';
 
       if (!marks[date]) {
         marks[date] = {
-          dots: [{ key: `${event.id}-${date}`, color: dotColor }],
+          dots: [{
+            key: `${event.id}-${date}`,
+            color: dotColor,
+            ...(isAnchor && {
+              key: `${event.id}-${date}`,
+              color: 'transparent',
+              strokeWidth: 2,
+              strokeColor: dotColor
+            })
+          }],
           markingType: 'multi-dot'
         };
       } else {
@@ -150,9 +161,16 @@ export default function Calendar({ selectedDate, onDateSelect, events, onViewCha
           marks[date].dots = [];
           marks[date].markingType = 'multi-dot';
         }
-        const alreadyHasColor = marks[date].dots.some((d: any) => d.color === dotColor);
+        const alreadyHasColor = marks[date].dots.some((d: any) => d.color === dotColor || d.strokeColor === dotColor);
         if (!alreadyHasColor) {
-          marks[date].dots.push({ key: `${event.id}-${date}`, color: dotColor });
+          marks[date].dots.push({
+            key: `${event.id}-${date}`,
+            color: isAnchor ? 'transparent' : dotColor,
+            ...(isAnchor && {
+              strokeWidth: 2,
+              strokeColor: dotColor
+            })
+          });
         }
       }
     };
