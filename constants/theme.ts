@@ -40,7 +40,12 @@ export const COLORS = {
     selectedText: '#4A5FCC',
     dayText: '#F0EDE8',
     dayTextMuted: '#9B98A8',
-  }
+  },
+  work: '#4A5FCC',
+  personal: '#E8A23C',
+  health: '#2ECC71',
+  social: '#9B59B6',
+  other: '#95A5A6',
 };
 
 export function getTheme(colorScheme: 'light' | 'dark' | null | undefined) {

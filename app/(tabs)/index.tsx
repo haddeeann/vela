@@ -14,12 +14,15 @@ import { CATEGORIES, CategoryId } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
 import { ReminderType, REMINDER_OPTIONS } from '@/constants/reminders';
 import { getEntriesForDate, createEntry, deleteEntry, updateEntry, createRecurrenceRule, createReminder, getAllEntries } from '../../db';
+import { EntryWithMeta } from '../../types';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -28,32 +31,70 @@ export default function HomeScreen() {
   const theme = getTheme(colorScheme);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [viewMode, setViewMode] = useState<'monthly' | 'weekly' | 'daily'>('monthly');
-  const [events, setEvents] = useState<any[]>([]);
-  const [allEvents, setAllEvents] = useState<any[]>([]);
+
+  interface UIEvent {
+    id: string;
+    title: string;
+    startTime: string;
+    endTime: string;
+    date: string;
+    categoryId: CategoryId;
+    recurrence: RecurrenceType;
+    reminder: ReminderType;
+    entryType: 'event' | 'task' | 'anchor' | 'custom';
+    completedAt: number | null;
+    isCompletable: number;
+    priority?: 'low' | 'medium' | 'high';
+  }
+
+  interface CalendarEvent {
+    id: string;
+    title: string;
+    startTime: string;
+    endTime: string;
+    date: string;
+    categoryId: string;
+    recurrence: RecurrenceType;
+    entryType?: 'event' | 'task' | 'anchor' | 'custom';
+  }
+
+  const [events, setEvents] = useState<UIEvent[]>([]);
+  const [allEvents, setAllEvents] = useState<CalendarEvent[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
 
   const fetchEvents = useCallback(async () => {
     try {
       const dbEntries = await getEntriesForDate(selectedDate);
-      const mappedEvents = dbEntries.map((entry: any) => ({
-        id: entry.id,
-        title: entry.title,
-        startTime: entry.start_time,
-        endTime: entry.end_time,
-        date: entry.date,
-        categoryId: entry.category,
-        recurrence: entry.frequency || 'none',
-        reminder: 'none',
-        entryType: entry.entry_type,
-        completedAt: entry.completed_at,
-        isCompletable: entry.is_completable,
-        priority: entry.notes && entry.entry_type === 'task' ? JSON.parse(entry.notes).priority : undefined
-      }));
+      const mappedEvents: UIEvent[] = dbEntries.map((entry: EntryWithMeta) => {
+        let priority: 'low' | 'medium' | 'high' | undefined;
+        if (entry.notes && entry.entry_type === 'task') {
+          try {
+            priority = JSON.parse(entry.notes).priority;
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        return {
+          id: entry.id,
+          title: entry.title,
+          startTime: entry.start_time,
+          endTime: entry.end_time,
+          date: entry.date,
+          categoryId: entry.category,
+          recurrence: entry.frequency || 'none',
+          reminder: 'none',
+          entryType: entry.entry_type,
+          completedAt: entry.completed_at,
+          isCompletable: entry.is_completable,
+          priority
+        };
+      });
       setEvents(mappedEvents);
 
       // Fetch all events for calendar dots
       const allDbEntries = await getAllEntries();
-      const mappedAllEvents = allDbEntries.map((entry: any) => ({
+      const mappedAllEvents: CalendarEvent[] = allDbEntries.map((entry: EntryWithMeta) => ({
         id: entry.id,
         title: entry.title,
         startTime: entry.start_time,
@@ -188,14 +229,14 @@ export default function HomeScreen() {
           body: `${event.title} starts at ${event.startTime}`,
           data: { eventId: event.id },
         },
-        trigger: triggerDate,
+        trigger: triggerDate as any,
       });
     } catch (error) {
       console.error('Error scheduling notification:', error);
     }
   };
 
-  const handleToggleTaskCompletion = async (item: any) => {
+  const handleToggleTaskCompletion = async (item: UIEvent) => {
     try {
       const isCompleted = !!item.completedAt;
       await updateEntry(item.id, {
@@ -207,7 +248,7 @@ export default function HomeScreen() {
     }
   };
 
-  const renderEventItem = ({ item }: { item: any }) => {
+  const renderEventItem = ({ item }: { item: UIEvent }) => {
     const category = CATEGORIES.find(c => c.id === item.categoryId) || CATEGORIES[4]; // Default to 'Other'
     const isTask = item.entryType === 'task';
     const isAnchor = item.entryType === 'anchor';

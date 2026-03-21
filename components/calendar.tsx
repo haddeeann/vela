@@ -33,7 +33,7 @@ interface Event {
   date: string;
   categoryId: string;
   recurrence: RecurrenceType;
-  entryType?: 'event' | 'task' | 'anchor';
+  entryType?: 'event' | 'task' | 'anchor' | 'custom';
 }
 
 interface CalendarProps {
@@ -69,9 +69,9 @@ export default function Calendar({ selectedDate, onDateSelect, events, onViewCha
     disabledArrowColor: theme.dayTextMuted,
     monthTextColor: theme.textPrimary,
     indicatorColor: theme.primary,
-    textDayFontWeight: '700',
-    textMonthFontWeight: 'bold',
-    textDayHeaderFontWeight: '700',
+    textDayFontWeight: '700' as const,
+    textMonthFontWeight: 'bold' as const,
+    textDayHeaderFontWeight: '700' as const,
     textDayFontSize: 16,
     textMonthFontSize: 20,
     textDayHeaderFontSize: 15,
@@ -249,7 +249,7 @@ export default function Calendar({ selectedDate, onDateSelect, events, onViewCha
     }
 
     return marks;
-  }, [selectedDate, events, colors, theme, today]);
+  }, [selectedDate, events, theme, today]);
 
   return (
     <CalendarProvider

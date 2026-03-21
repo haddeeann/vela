@@ -1,10 +1,13 @@
 import * as SQLite from 'expo-sqlite';
+import { Entry, EntryWithMeta, Reminder, RecurrenceRule } from './types';
+import { CategoryId } from './constants/categories';
+import { RecurrenceType } from './constants/recurrence';
 
 /**
  * Generate a basic UUID using Math.random() as per requirements.
  * Note: This is a placeholder for a more robust UUID library.
  */
-const generateUUID = () => {
+const generateUUID = (): string => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
@@ -12,13 +15,13 @@ const generateUUID = () => {
   });
 };
 
-let db = null;
-let dbPromise = null;
+let db: SQLite.SQLiteDatabase | null = null;
+let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 /**
  * Initialize the database and create tables if they do not exist.
  */
-export const initDB = async () => {
+export const initDB = async (): Promise<SQLite.SQLiteDatabase> => {
   // If we already have a promise, wait for it.
   if (dbPromise) {
     try {
@@ -32,14 +35,14 @@ export const initDB = async () => {
     try {
       if (!db) {
         // Handle potential Transient sqlite3_open_v2 errors on web
-        let lastError;
+        let lastError: Error | undefined;
         for (let i = 0; i < 3; i++) {
           try {
             db = await SQLite.openDatabaseAsync('vela.db');
             break;
           } catch (e) {
-            lastError = e;
-            if (e.message?.includes('sqlite3_open_v2')) {
+            lastError = e as Error;
+            if (lastError.message?.includes('sqlite3_open_v2')) {
               console.warn(`Database open attempt ${i + 1} failed, retrying...`);
               await new Promise(resolve => setTimeout(resolve, 100 * (i + 1)));
               continue;
@@ -122,13 +125,25 @@ export const initDB = async () => {
 /**
  * Ensures the database is initialized.
  */
-const getDB = async () => {
+const getDB = async (): Promise<SQLite.SQLiteDatabase> => {
   return initDB();
 };
 
 // Entries
 
-export const createEntry = async (entryData) => {
+export interface CreateEntryData {
+  title: string;
+  entry_type: 'event' | 'task' | 'anchor' | 'custom';
+  date: string;
+  start_time: string;
+  end_time: string;
+  category: CategoryId;
+  notes?: string | null;
+  is_completable?: number;
+  custom_type_name?: string | null;
+}
+
+export const createEntry = async (entryData: CreateEntryData): Promise<{ id: string; metaId: string }> => {
   const sqlite = await getDB();
   const id = generateUUID();
   const metaId = generateUUID();
@@ -163,17 +178,18 @@ export const createEntry = async (entryData) => {
   return { id, metaId };
 };
 
-export const getAllEntries = async () => {
+export const getAllEntries = async (): Promise<EntryWithMeta[]> => {
   const sqlite = await getDB();
-  return await sqlite.getAllAsync(`
+  const rows = await sqlite.getAllAsync(`
     SELECT e.*, em.is_completable, em.completed_at, em.custom_type_name, rr.frequency, rr.end_date, rr.max_occurrences
     FROM entries e
     LEFT JOIN entry_meta em ON e.id = em.entry_id
     LEFT JOIN recurrence_rules rr ON e.id = rr.entry_id
   `);
+  return rows as EntryWithMeta[];
 };
 
-export const getEntriesForDate = async (date) => {
+export const getEntriesForDate = async (date: string): Promise<EntryWithMeta[]> => {
   const sqlite = await getDB();
 
   // This query gets:
@@ -183,13 +199,15 @@ export const getEntriesForDate = async (date) => {
   // might be needed in JS, but we fetch them all for the given date context.
   // For now, we'll fetch entries matching the date OR having a recurrence rule.
 
-  const entries = await sqlite.getAllAsync(`
+  const rows = await sqlite.getAllAsync(`
     SELECT e.*, em.is_completable, em.completed_at, em.custom_type_name, rr.frequency, rr.end_date, rr.max_occurrences
     FROM entries e
     LEFT JOIN entry_meta em ON e.id = em.entry_id
     LEFT JOIN recurrence_rules rr ON e.id = rr.entry_id
     WHERE e.date = ? OR rr.id IS NOT NULL
   `, [date]);
+
+  const entries = rows as EntryWithMeta[];
 
   // JS filtering for recurring entries
   return entries.filter(entry => {
@@ -215,7 +233,20 @@ export const getEntriesForDate = async (date) => {
   });
 };
 
-export const updateEntry = async (id, entryData) => {
+export interface UpdateEntryData {
+  title?: string;
+  entry_type?: 'event' | 'task' | 'anchor' | 'custom';
+  date?: string;
+  start_time?: string;
+  end_time?: string;
+  category?: CategoryId;
+  notes?: string | null;
+  is_completable?: number;
+  completed_at?: number | null;
+  custom_type_name?: string | null;
+}
+
+export const updateEntry = async (id: string, entryData: UpdateEntryData): Promise<void> => {
   const sqlite = await getDB();
   const now = Math.floor(Date.now() / 1000);
 
@@ -234,8 +265,8 @@ export const updateEntry = async (id, entryData) => {
 
   await sqlite.withTransactionAsync(async () => {
     // Update entries table
-    const entryFields = [];
-    const entryValues = [];
+    const entryFields: string[] = [];
+    const entryValues: (string | number | null)[] = [];
 
     if (title !== undefined) { entryFields.push('title = ?'); entryValues.push(title); }
     if (entry_type !== undefined) { entryFields.push('entry_type = ?'); entryValues.push(entry_type); }
@@ -256,8 +287,8 @@ export const updateEntry = async (id, entryData) => {
     }
 
     // Update entry_meta table
-    const metaFields = [];
-    const metaValues = [];
+    const metaFields: string[] = [];
+    const metaValues: (string | number | null)[] = [];
 
     if (is_completable !== undefined) { metaFields.push('is_completable = ?'); metaValues.push(is_completable); }
     if (completed_at !== undefined) { metaFields.push('completed_at = ?'); metaValues.push(completed_at); }
@@ -273,7 +304,7 @@ export const updateEntry = async (id, entryData) => {
   });
 };
 
-export const deleteEntry = async (id) => {
+export const deleteEntry = async (id: string): Promise<void> => {
   const sqlite = await getDB();
   // Cascade manually as requested, even though schema has ON DELETE CASCADE
   await sqlite.withTransactionAsync(async () => {
@@ -286,12 +317,12 @@ export const deleteEntry = async (id) => {
 
 // Reminders
 
-export const createReminder = async (entryId, remindBeforeMinutes) => {
+export const createReminder = async (entryId: string, remindBeforeMinutes: number): Promise<string> => {
   const sqlite = await getDB();
   const id = generateUUID();
 
   // We need to fetch the entry to calculate scheduled_at
-  const entry = await sqlite.getFirstAsync('SELECT date, start_time FROM entries WHERE id = ?', [entryId]);
+  const entry = await sqlite.getFirstAsync('SELECT date, start_time FROM entries WHERE id = ?', [entryId]) as { date: string; start_time: string } | null;
   if (!entry) throw new Error('Entry not found');
 
   // Basic calculation for scheduled_at (unix timestamp)
@@ -327,12 +358,13 @@ export const createReminder = async (entryId, remindBeforeMinutes) => {
   return id;
 };
 
-export const getRemindersForEntry = async (entryId) => {
+export const getRemindersForEntry = async (entryId: string): Promise<Reminder[]> => {
   const sqlite = await getDB();
-  return await sqlite.getAllAsync('SELECT * FROM reminders WHERE entry_id = ?', [entryId]);
+  const rows = await sqlite.getAllAsync('SELECT * FROM reminders WHERE entry_id = ?', [entryId]);
+  return rows as Reminder[];
 };
 
-export const markReminderFired = async (reminderId, expoNotificationId) => {
+export const markReminderFired = async (reminderId: string, expoNotificationId: string): Promise<void> => {
   const sqlite = await getDB();
   await sqlite.runAsync(
     'UPDATE reminders SET is_fired = 1, expo_notification_id = ? WHERE id = ?',
@@ -340,14 +372,14 @@ export const markReminderFired = async (reminderId, expoNotificationId) => {
   );
 };
 
-export const deleteRemindersForEntry = async (entryId) => {
+export const deleteRemindersForEntry = async (entryId: string): Promise<void> => {
   const sqlite = await getDB();
   await sqlite.runAsync('DELETE FROM reminders WHERE entry_id = ?', [entryId]);
 };
 
 // Recurrence
 
-export const createRecurrenceRule = async (entryId, frequency, endDate, maxOccurrences) => {
+export const createRecurrenceRule = async (entryId: string, frequency: RecurrenceType, endDate: string | null, maxOccurrences: number | null): Promise<string> => {
   const sqlite = await getDB();
   const id = generateUUID();
   await sqlite.runAsync(
@@ -358,12 +390,13 @@ export const createRecurrenceRule = async (entryId, frequency, endDate, maxOccur
   return id;
 };
 
-export const getRecurrenceForEntry = async (entryId) => {
+export const getRecurrenceForEntry = async (entryId: string): Promise<RecurrenceRule | null> => {
   const sqlite = await getDB();
-  return await sqlite.getFirstAsync('SELECT * FROM recurrence_rules WHERE entry_id = ?', [entryId]);
+  const row = await sqlite.getFirstAsync('SELECT * FROM recurrence_rules WHERE entry_id = ?', [entryId]);
+  return row as RecurrenceRule | null;
 };
 
-export const deleteRecurrenceForEntry = async (entryId) => {
+export const deleteRecurrenceForEntry = async (entryId: string): Promise<void> => {
   const sqlite = await getDB();
   await sqlite.runAsync('DELETE FROM recurrence_rules WHERE entry_id = ?', [entryId]);
 };

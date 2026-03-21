@@ -260,7 +260,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
                     mode="time"
                     is24Hour={false}
                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={(event, selectedDate) => {
+                    onChange={(_event: DateTimePickerEvent, selectedDate?: Date) => {
                       if (Platform.OS === 'android') setShowDueTimePicker(false);
                       if (selectedDate) setDueTimeDate(selectedDate);
                     }}
@@ -312,7 +312,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
                     mode="time"
                     is24Hour={false}
                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={(event, selectedDate) => {
+                    onChange={(_event: DateTimePickerEvent, selectedDate?: Date) => {
                       if (Platform.OS === 'android') setShowStartTimePicker(false);
                       if (selectedDate) {
                         setStartTimeDate(selectedDate);
@@ -347,7 +347,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
                     mode="time"
                     is24Hour={false}
                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={(event, selectedDate) => {
+                    onChange={(_event: DateTimePickerEvent, selectedDate?: Date) => {
                       if (Platform.OS === 'android') setShowEndTimePicker(false);
                       if (selectedDate) {
                         const minEndTime = new Date(startTimeDate.getTime());

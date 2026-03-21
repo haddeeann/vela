@@ -16,7 +16,7 @@ interface Event {
   date: string;
   categoryId: string;
   recurrence: RecurrenceType;
-  entryType?: 'event' | 'task' | 'anchor';
+  entryType?: 'event' | 'task' | 'anchor' | 'custom';
   completedAt?: number | null;
 }
 
