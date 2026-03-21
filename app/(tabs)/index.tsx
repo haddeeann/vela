@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { StyleSheet, FlatList, TouchableOpacity, Platform, Alert } from 'react-native';
+import { StyleSheet, FlatList, TouchableOpacity, Platform, Alert, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { useRouter } from 'expo-router';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
@@ -27,6 +29,7 @@ Notifications.setNotificationHandler({
 });
 
 export default function HomeScreen() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -65,8 +68,10 @@ export default function HomeScreen() {
   const fetchEvents = useCallback(async () => {
     try {
       const dbEntries = await getEntriesForDate(selectedDate);
-      const mappedEvents: UIEvent[] = dbEntries.map((entry: EntryWithMeta) => {
-        let priority: 'low' | 'medium' | 'high' | undefined;
+      const mappedEvents: UIEvent[] = dbEntries
+        .filter((entry: EntryWithMeta) => entry.entry_type !== 'task' && entry.entry_type !== 'event' && entry.entry_type !== 'anchor')
+        .map((entry: EntryWithMeta) => {
+          let priority: 'low' | 'medium' | 'high' | undefined;
         if (entry.notes && entry.entry_type === 'task') {
           try {
             priority = JSON.parse(entry.notes).priority;
@@ -116,14 +121,24 @@ export default function HomeScreen() {
   }, [fetchEvents]);
 
   async function requestPermissions() {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+    // Skip if running in Expo Go on Android for SDK 53+ to avoid issues with expo-notifications
+    if (Platform.OS === 'android' && Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
+      console.warn('Skipping notification permissions in Expo Go on Android (SDK 53+ limit)');
+      return;
     }
-    if (finalStatus !== 'granted') {
-      Alert.alert('Permission needed', 'Please enable notifications to receive event reminders.');
+
+    try {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') {
+        Alert.alert('Permission needed', 'Please enable notifications to receive event reminders.');
+      }
+    } catch (e) {
+      console.error('Error requesting notification permissions:', e);
     }
   }
 
@@ -199,6 +214,11 @@ export default function HomeScreen() {
   };
 
   const scheduleNotification = async (event: any) => {
+    // Skip if running in Expo Go on Android for SDK 53+
+    if (Platform.OS === 'android' && Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
+      return;
+    }
+
     const reminderOption = REMINDER_OPTIONS.find(r => r.id === event.reminder);
     if (!reminderOption || reminderOption.minutesBefore === null) return;
 
@@ -322,7 +342,32 @@ export default function HomeScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>Vela</ThemedText>
+      <ThemedView style={styles.header}>
+        <ThemedText type="title" style={styles.title}>Vela</ThemedText>
+        <ThemedView style={styles.headerIcons}>
+          <TouchableOpacity 
+            style={styles.headerIconButton} 
+            onPress={() => router.push('/tasks')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="checkbox-outline" size={24} color={theme.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.headerIconButton} 
+            onPress={() => router.push('/events')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="calendar-outline" size={24} color={theme.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.headerIconButton} 
+            onPress={() => router.push('/anchors')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="infinite-outline" size={24} color={theme.textSecondary} />
+          </TouchableOpacity>
+        </ThemedView>
+      </ThemedView>
       <Calendar
         selectedDate={selectedDate}
         onDateSelect={setSelectedDate}
@@ -370,8 +415,21 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     position: 'relative',
   },
-  title: {
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
+  },
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIconButton: {
+    marginLeft: 16,
+  },
+  title: {
+    marginBottom: 0,
   },
   eventsContainer: {
     marginTop: 24,

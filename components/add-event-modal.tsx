@@ -27,14 +27,15 @@ interface AddEventModalProps {
     priority?: 'low' | 'medium' | 'high';
   }) => void;
   selectedDate: string;
+  initialEntryType?: 'event' | 'task' | 'anchor';
 }
 
-export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddEventModalProps) {
+export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initialEntryType }: AddEventModalProps) {
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const { height: screenHeight } = useWindowDimensions();
 
-  const [entryType, setEntryType] = useState<'event' | 'task' | 'anchor'>('event');
+  const [entryType, setEntryType] = useState<'event' | 'task' | 'anchor'>(initialEntryType || 'event');
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(selectedDate);
 
@@ -106,6 +107,9 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate }: AddE
 
   useEffect(() => {
     if (isVisible) {
+      if (initialEntryType) {
+        setEntryType(initialEntryType);
+      }
       setDate(selectedDate);
       setShowStartTimePicker(false);
       setShowEndTimePicker(false);
