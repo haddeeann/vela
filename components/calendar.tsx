@@ -89,20 +89,11 @@ export default function Calendar({ selectedDate, onDateSelect, events, view, sty
       <ThemedView style={styles.container}>
         {view === 'monthly' ? (
           <ThemedView style={{ flex: 1 }}>
-            <View style={styles.monthHeader}>
-              <TouchableOpacity onPress={handlePrevMonth} style={styles.navButton}>
-                <Ionicons name="chevron-back" size={24} color={theme.primary} />
-              </TouchableOpacity>
-              <ThemedText style={styles.monthLabel}>{monthYearLabel}</ThemedText>
-              <TouchableOpacity onPress={handleNextMonth} style={styles.navButton}>
-                <Ionicons name="chevron-forward" size={24} color={theme.primary} />
-              </TouchableOpacity>
-            </View>
             <MonthlyGrid
               selectedDate={selectedDate}
               events={events}
               onDateSelect={onDateSelect}
-              availableHeight={height - 200} // Rough estimate for grid height
+              availableHeight={height - 120} // Adjusted for removed header
             />
           </ThemedView>
         ) : view === 'weekly' ? (
@@ -127,19 +118,5 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 16,
     overflow: 'hidden',
-  },
-  monthHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  monthLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  navButton: {
-    padding: 5,
   },
 });

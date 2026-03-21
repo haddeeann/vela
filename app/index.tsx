@@ -18,15 +18,19 @@ import { ReminderType, REMINDER_OPTIONS } from '@/constants/reminders';
 import { createEntry, deleteEntry, updateEntry, createRecurrenceRule, createReminder, getAllEntries } from '../db';
 import { EntryWithMeta } from '../types';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+const isExpoGoOnAndroid = Platform.OS === 'android' && Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+if (!isExpoGoOnAndroid) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -35,6 +39,7 @@ export default function HomeScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [viewMode, setViewMode] = useState<'monthly' | 'weekly' | 'daily'>('monthly');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isMonthPickerVisible, setIsMonthPickerVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(-Dimensions.get('window').width * 0.72)).current;
 
   useEffect(() => {
@@ -102,7 +107,7 @@ export default function HomeScreen() {
 
   async function requestPermissions() {
     // Skip if running in Expo Go on Android for SDK 53+ to avoid issues with expo-notifications
-    if (Platform.OS === 'android' && Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
+    if (isExpoGoOnAndroid) {
       console.warn('Skipping notification permissions in Expo Go on Android (SDK 53+ limit)');
       return;
     }
@@ -195,7 +200,7 @@ export default function HomeScreen() {
 
   const scheduleNotification = async (event: any) => {
     // Skip if running in Expo Go on Android for SDK 53+
-    if (Platform.OS === 'android' && Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
+    if (isExpoGoOnAndroid) {
       return;
     }
 
@@ -236,6 +241,109 @@ export default function HomeScreen() {
     }
   };
 
+  const handleDateSelect = (date: string) => {
+    setSelectedDate(date);
+    setIsMonthPickerVisible(false);
+  };
+
+  const getHeaderTitle = () => {
+    const date = new Date(selectedDate);
+    if (viewMode === 'monthly') {
+      return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    } else if (viewMode === 'weekly') {
+      // Find start and end of week (Monday to Sunday)
+      const day = date.getDay();
+      const diff = date.getDate() - (day === 0 ? 6 : day - 1);
+      const monday = new Date(new Date(selectedDate).setDate(diff));
+      const sunday = new Date(new Date(monday).setDate(monday.getDate() + 6));
+
+      const monMonth = monday.toLocaleDateString('en-US', { month: 'short' });
+      const sunMonth = sunday.toLocaleDateString('en-US', { month: 'short' });
+      const monDay = monday.getDate();
+      const sunDay = sunday.getDate();
+
+      if (monMonth === sunMonth) {
+        return `${monMonth} ${monDay} – ${sunDay}`;
+      } else {
+        return `${monMonth} ${monDay} – ${sunMonth} ${sunDay}`;
+      }
+    } else {
+      return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    }
+  };
+
+  const MonthPicker = () => {
+    const [pickerYear, setPickerYear] = useState(new Date(selectedDate).getFullYear());
+    const selectedMonth = new Date(selectedDate).getMonth();
+
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+
+    const handleMonthSelect = (monthIndex: number) => {
+      const newDate = new Date(selectedDate);
+      newDate.setFullYear(pickerYear);
+      newDate.setMonth(monthIndex);
+      handleDateSelect(newDate.toISOString().split('T')[0]);
+    };
+
+    const changeYear = (delta: number) => {
+      setPickerYear(prev => prev + delta);
+    };
+
+    return (
+      <Modal
+        visible={isMonthPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsMonthPickerVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setIsMonthPickerVisible(false)}
+        >
+          <ThemedView style={styles.monthPickerContainer}>
+            <View style={styles.yearSelector}>
+              <TouchableOpacity onPress={() => changeYear(-1)} style={styles.yearNavButton}>
+                <Ionicons name="chevron-back" size={24} color={theme.primary} />
+              </TouchableOpacity>
+              <ThemedText style={styles.yearText}>{pickerYear}</ThemedText>
+              <TouchableOpacity onPress={() => changeYear(1)} style={styles.yearNavButton}>
+                <Ionicons name="chevron-forward" size={24} color={theme.primary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.monthGrid}>
+              {months.map((month, index) => {
+                const isSelected = index === selectedMonth && pickerYear === new Date(selectedDate).getFullYear();
+                return (
+                  <TouchableOpacity
+                    key={month}
+                    style={[
+                      styles.monthPill,
+                      { backgroundColor: isSelected ? theme.primary : theme.surface },
+                    ]}
+                    onPress={() => handleMonthSelect(index)}
+                  >
+                    <ThemedText
+                      style={[
+                        styles.monthPillText,
+                        { color: isSelected ? '#FFF' : theme.textPrimary },
+                      ]}
+                    >
+                      {month}
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </ThemedView>
+        </Pressable>
+      </Modal>
+    );
+  };
+
   return (
     <ThemedView style={styles.container}>
       <ThemedView style={styles.header}>
@@ -247,6 +355,20 @@ export default function HomeScreen() {
           >
             <Ionicons name="menu-outline" size={28} color={theme.textPrimary} />
           </TouchableOpacity>
+          {viewMode === 'monthly' ? (
+            <TouchableOpacity
+              style={styles.monthSelector}
+              onPress={() => setIsMonthPickerVisible(true)}
+              activeOpacity={0.7}
+            >
+              <ThemedText type="subtitle" style={styles.monthSelectorText}>
+                {getHeaderTitle()}
+              </ThemedText>
+              <Ionicons name="chevron-down-outline" size={16} color={theme.textPrimary} style={styles.chevron} />
+            </TouchableOpacity>
+          ) : (
+            <ThemedText style={styles.headerDateText}>{getHeaderTitle()}</ThemedText>
+          )}
           <ThemedText type="title" style={styles.title}>Vela</ThemedText>
         </View>
         <ThemedView style={styles.headerIcons}>
@@ -275,10 +397,12 @@ export default function HomeScreen() {
       </ThemedView>
       <Calendar
         selectedDate={selectedDate}
-        onDateSelect={setSelectedDate}
+        onDateSelect={handleDateSelect}
         events={allEvents}
         view={viewMode}
       />
+
+      <MonthPicker />
 
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: theme.primary }]}
@@ -426,6 +550,72 @@ const styles = StyleSheet.create({
   },
   title: {
     marginBottom: 0,
+    marginLeft: 8,
+  },
+  monthSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  monthSelectorText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  chevron: {
+    marginLeft: 4,
+  },
+  headerDateText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#9B98A8',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  monthPickerContainer: {
+    width: '85%',
+    padding: 20,
+    borderRadius: 16,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  yearSelector: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  yearNavButton: {
+    padding: 10,
+  },
+  yearText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginHorizontal: 30,
+  },
+  monthGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  monthPill: {
+    width: '30%',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  monthPillText: {
+    fontSize: 16,
+    fontWeight: '500',
   },
   fab: {
     position: 'absolute',

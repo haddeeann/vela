@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, useWindowDimensions, View, PanResponder } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
@@ -133,11 +133,31 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, availableHeigh
 
   const todayStr = new Date().toISOString().split('T')[0];
 
+  const panResponder = React.useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_, gestureState) => {
+      return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dy) < 40;
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      if (gestureState.dx > 50) {
+        // Swipe Right - Previous Month
+        const date = new Date(selectedDate);
+        date.setMonth(date.getMonth() - 1);
+        onDateSelect(date.toISOString().split('T')[0]);
+      } else if (gestureState.dx < -50) {
+        // Swipe Left - Next Month
+        const date = new Date(selectedDate);
+        date.setMonth(date.getMonth() + 1);
+        onDateSelect(date.toISOString().split('T')[0]);
+      }
+    },
+  }), [selectedDate, onDateSelect]);
+
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={styles.container} {...panResponder.panHandlers}>
       {/* Day headers */}
       <View style={styles.headerRow}>
-        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
           <ThemedText key={i} style={[styles.headerText, { width: cellWidth }]}>
             {day}
           </ThemedText>
@@ -209,13 +229,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.05)',
-    paddingVertical: 8,
+    height: 24,
+    alignItems: 'center',
   },
   headerText: {
     textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '600',
-    opacity: 0.6,
+    fontSize: 10,
+    fontWeight: '400',
+    color: '#6B6860', // textSecondary
   },
   grid: {
     flexDirection: 'row',

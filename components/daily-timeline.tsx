@@ -153,9 +153,6 @@ export function DailyTimeline({ selectedDate, events }: DailyTimelineProps) {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="subtitle" style={styles.dateHeading}>
-        {formattedDate}
-      </ThemedText>
       <ScrollView
         ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
@@ -182,11 +179,6 @@ export function DailyTimeline({ selectedDate, events }: DailyTimelineProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    marginTop: 10,
-  },
-  dateHeading: {
-    textAlign: 'center',
-    marginBottom: 15,
   },
   scrollContent: {
     paddingRight: 16,
