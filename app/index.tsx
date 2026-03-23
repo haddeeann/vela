@@ -40,7 +40,35 @@ export default function HomeScreen() {
   const [viewMode, setViewMode] = useState<'monthly' | 'weekly' | 'daily'>('monthly');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isMonthPickerVisible, setIsMonthPickerVisible] = useState(false);
+  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(-Dimensions.get('window').width * 0.72)).current;
+  const dropdownFadeAnim = useRef(new Animated.Value(0)).current;
+  const dropdownScaleAnim = useRef(new Animated.Value(0.95)).current;
+
+  useEffect(() => {
+    if (isDropdownVisible) {
+      Animated.parallel([
+        Animated.timing(dropdownFadeAnim, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(dropdownScaleAnim, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.timing(dropdownFadeAnim, {
+        toValue: 0,
+        duration: 100,
+        useNativeDriver: true,
+      }).start(() => {
+        dropdownScaleAnim.setValue(0.95);
+      });
+    }
+  }, [isDropdownVisible]);
 
   useEffect(() => {
     if (isDrawerOpen) {
@@ -60,6 +88,13 @@ export default function HomeScreen() {
 
   const toggleDrawer = () => setIsDrawerOpen(!isDrawerOpen);
   const closeDrawer = () => setIsDrawerOpen(false);
+  const openDropdown = () => setIsDropdownVisible(true);
+  const closeDropdown = () => setIsDropdownVisible(false);
+
+  const navigateFromDropdown = (path: string) => {
+    closeDropdown();
+    router.push(path as any);
+  };
 
   const selectView = (view: 'monthly' | 'weekly' | 'daily') => {
     setViewMode(view);
@@ -385,24 +420,10 @@ export default function HomeScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerIconButton}
-            onPress={() => router.push('/tasks')}
+            onPress={openDropdown}
             activeOpacity={0.7}
           >
-            <Ionicons name="checkbox-outline" size={24} color={theme.textSecondary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerIconButton}
-            onPress={() => router.push('/events')}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="calendar-outline" size={24} color={theme.textSecondary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerIconButton}
-            onPress={() => router.push('/anchors')}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="infinite-outline" size={24} color={theme.textSecondary} />
+            <Ionicons name="list-outline" size={24} color={theme.textPrimary} />
           </TouchableOpacity>
         </ThemedView>
       </ThemedView>
@@ -421,6 +442,51 @@ export default function HomeScreen() {
         onSave={handleAddEvent}
         selectedDate={viewMode === 'daily' ? selectedDate : new Date().toISOString().split('T')[0]}
       />
+
+      <Modal
+        transparent
+        visible={isDropdownVisible}
+        onRequestClose={closeDropdown}
+        animationType="none"
+      >
+        <Pressable style={styles.dropdownOverlay} onPress={closeDropdown}>
+          <Animated.View
+            style={[
+              styles.dropdownMenu,
+              {
+                backgroundColor: theme.surface,
+                borderColor: theme.border,
+                opacity: dropdownFadeAnim,
+                transform: [{ scale: dropdownScaleAnim }],
+              },
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.dropdownItem}
+              onPress={() => navigateFromDropdown('/events')}
+            >
+              <Ionicons name="calendar-outline" size={22} color={theme.primary} />
+              <ThemedText style={styles.dropdownItemText}>Events</ThemedText>
+            </TouchableOpacity>
+            <View style={[styles.dropdownDivider, { backgroundColor: theme.border }]} />
+            <TouchableOpacity
+              style={styles.dropdownItem}
+              onPress={() => navigateFromDropdown('/tasks')}
+            >
+              <Ionicons name="checkbox-outline" size={22} color={theme.primary} />
+              <ThemedText style={styles.dropdownItemText}>Tasks</ThemedText>
+            </TouchableOpacity>
+            <View style={[styles.dropdownDivider, { backgroundColor: theme.border }]} />
+            <TouchableOpacity
+              style={styles.dropdownItem}
+              onPress={() => navigateFromDropdown('/anchors')}
+            >
+              <Ionicons name="infinite-outline" size={22} color={theme.primary} />
+              <ThemedText style={styles.dropdownItemText}>Anchors</ThemedText>
+            </TouchableOpacity>
+          </Animated.View>
+        </Pressable>
+      </Modal>
 
       <Modal
         transparent
@@ -671,5 +737,38 @@ const styles = StyleSheet.create({
     height: 1,
     width: '100%',
     marginTop: 10,
+  },
+  dropdownOverlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 108, // header paddingTop(60) + height(48)
+    right: 0,
+    width: 200,
+    borderRadius: 12,
+    borderWidth: 1,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 48,
+    paddingHorizontal: 16,
+  },
+  dropdownItemText: {
+    fontSize: 15,
+    marginLeft: 12,
+    fontWeight: '500',
+  },
+  dropdownDivider: {
+    height: 1,
+    width: '100%',
   },
 });
