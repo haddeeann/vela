@@ -372,14 +372,17 @@ export default function HomeScreen() {
             >
               {getHeaderTitle()}
             </ThemedText>
-            {viewMode === 'daily' ? (
-              <Ionicons name="add-outline" size={20} color={theme.textPrimary} style={styles.chevron} />
-            ) : (
-              <Ionicons name="chevron-down-outline" size={16} color={theme.textPrimary} style={styles.chevron} />
-            )}
+            <Ionicons name="chevron-down-outline" size={16} color={theme.textPrimary} style={styles.chevron} />
           </TouchableOpacity>
         </View>
         <ThemedView style={styles.headerIcons}>
+          <TouchableOpacity
+            style={styles.headerIconButton}
+            onPress={() => setIsModalVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="add-outline" size={26} color={theme.textPrimary} />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerIconButton}
             onPress={() => router.push('/tasks')}
@@ -412,18 +415,11 @@ export default function HomeScreen() {
 
       <MonthPicker />
 
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: theme.primary }]}
-        onPress={() => setIsModalVisible(true)}
-      >
-        <Ionicons name="add" size={32} color={colorScheme === 'dark' ? '#000' : '#fff'} />
-      </TouchableOpacity>
-
       <AddEventModal
         isVisible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
         onSave={handleAddEvent}
-        selectedDate={selectedDate}
+        selectedDate={viewMode === 'daily' ? selectedDate : new Date().toISOString().split('T')[0]}
       />
 
       <Modal
@@ -626,21 +622,6 @@ const styles = StyleSheet.create({
   monthPillText: {
     fontSize: 16,
     fontWeight: '500',
-  },
-  fab: {
-    position: 'absolute',
-    right: 24,
-    bottom: 24,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
   },
   drawerOverlay: {
     flex: 1,

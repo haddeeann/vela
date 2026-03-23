@@ -80,6 +80,11 @@ export default function AnchorsScreen() {
           headerTintColor: theme.textPrimary,
           headerTitleStyle: { fontWeight: '500' },
           headerShadowVisible: false,
+          headerRight: () => (
+            <TouchableOpacity onPress={() => setIsModalVisible(true)} style={{ paddingHorizontal: 12 }}>
+              <Ionicons name="add-outline" size={26} color={theme.textPrimary} />
+            </TouchableOpacity>
+          ),
         }}
       />
       <FlatList
@@ -89,13 +94,6 @@ export default function AnchorsScreen() {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={<ThemedText style={styles.emptyText}>No anchors found</ThemedText>}
       />
-
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: theme.primary }]}
-        onPress={() => setIsModalVisible(true)}
-      >
-        <Ionicons name="add" size={32} color={colorScheme === 'dark' ? '#000' : '#fff'} />
-      </TouchableOpacity>
 
       <AddEventModal
         isVisible={isModalVisible}
@@ -148,20 +146,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 40,
     opacity: 0.6,
-  },
-  fab: {
-    position: 'absolute',
-    right: 24,
-    bottom: 24,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
   },
 });
