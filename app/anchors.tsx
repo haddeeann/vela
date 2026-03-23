@@ -6,9 +6,12 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getAllEntries, createEntry } from '../db';
+import { getAllEntries, createEntry, saveQuickAddEntry } from '../db';
 import { EntryWithMeta } from '../types';
+import { QuickAddDraft } from '../types/quickAdd.types';
 import { AddEventModal } from '@/components/add-event-modal';
+import { QuickAddSheet } from '../components/QuickAddSheet';
+import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
 import { CATEGORIES } from '@/constants/categories';
 
 export default function AnchorsScreen() {
@@ -17,6 +20,8 @@ export default function AnchorsScreen() {
   const theme = getTheme(colorScheme);
   const [anchors, setAnchors] = useState<EntryWithMeta[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isQuickAddVisible, setIsQuickAddVisible] = useState(false);
+  const [currentDraft, setCurrentDraft] = useState<QuickAddDraft | null>(null);
 
   const fetchAnchors = useCallback(async () => {
     try {
@@ -81,7 +86,7 @@ export default function AnchorsScreen() {
           headerTitleStyle: { fontWeight: '500' },
           headerShadowVisible: false,
           headerRight: () => (
-            <TouchableOpacity onPress={() => setIsModalVisible(true)} style={{ paddingHorizontal: 12 }}>
+            <TouchableOpacity onPress={() => setIsQuickAddVisible(true)} style={{ paddingHorizontal: 12 }}>
               <Ionicons name="add-outline" size={26} color={theme.textPrimary} />
             </TouchableOpacity>
           ),
@@ -101,6 +106,30 @@ export default function AnchorsScreen() {
         onSave={handleAddEvent}
         selectedDate={new Date().toISOString().split('T')[0]}
         initialEntryType="anchor"
+      />
+
+      <QuickAddSheet
+        visible={isQuickAddVisible}
+        onClose={() => setIsQuickAddVisible(false)}
+        onDraftCreated={(draft) => setCurrentDraft(draft)}
+        onOpenFullForm={() => {
+          setIsQuickAddVisible(false);
+          setIsModalVisible(true);
+        }}
+        theme={theme}
+        initialType="anchor"
+      />
+
+      <QuickAddConfirmSheet
+        draft={currentDraft}
+        visible={currentDraft !== null}
+        onConfirm={async (edited) => {
+          await saveQuickAddEntry(edited);
+          setCurrentDraft(null);
+          await fetchAnchors();
+        }}
+        onCancel={() => setCurrentDraft(null)}
+        theme={theme}
       />
     </ThemedView>
   );

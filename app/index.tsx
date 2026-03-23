@@ -18,8 +18,8 @@ import { ReminderType, REMINDER_OPTIONS } from '@/constants/reminders';
 import { createEntry, deleteEntry, updateEntry, createRecurrenceRule, createReminder, getAllEntries, saveQuickAddEntry } from '../db';
 import { EntryWithMeta } from '../types';
 import { QuickAddDraft } from '../types/quickAdd.types';
-import { QuickAddInput } from '../components/QuickAddInput';
 import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
+import { QuickAddSheet } from '../components/QuickAddSheet';
 
 const isExpoGoOnAndroid = Platform.OS === 'android' && Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
@@ -44,6 +44,7 @@ export default function HomeScreen() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isMonthPickerVisible, setIsMonthPickerVisible] = useState(false);
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+  const [isQuickAddVisible, setIsQuickAddVisible] = useState(false);
   const [currentDraft, setCurrentDraft] = useState<QuickAddDraft | null>(null);
   const slideAnim = useRef(new Animated.Value(-Dimensions.get('window').width * 0.72)).current;
   const dropdownFadeAnim = useRef(new Animated.Value(0)).current;
@@ -417,7 +418,7 @@ export default function HomeScreen() {
         <ThemedView style={styles.headerIcons}>
           <TouchableOpacity
             style={styles.headerIconButton}
-            onPress={() => setIsModalVisible(true)}
+            onPress={() => setIsQuickAddVisible(true)}
             activeOpacity={0.7}
           >
             <Ionicons name="add-outline" size={26} color={theme.textPrimary} />
@@ -431,11 +432,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </ThemedView>
       </ThemedView>
-
-      <QuickAddInput
-        onDraftCreated={(draft) => setCurrentDraft(draft)}
-        theme={theme}
-      />
 
       <Calendar
         selectedDate={selectedDate}
@@ -451,6 +447,17 @@ export default function HomeScreen() {
         onClose={() => setIsModalVisible(false)}
         onSave={handleAddEvent}
         selectedDate={viewMode === 'daily' ? selectedDate : new Date().toISOString().split('T')[0]}
+      />
+
+      <QuickAddSheet
+        visible={isQuickAddVisible}
+        onClose={() => setIsQuickAddVisible(false)}
+        onDraftCreated={(draft) => setCurrentDraft(draft)}
+        onOpenFullForm={() => {
+          setIsQuickAddVisible(false);
+          setIsModalVisible(true);
+        }}
+        theme={theme}
       />
 
       <QuickAddConfirmSheet
