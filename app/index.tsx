@@ -15,8 +15,11 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES, CategoryId } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
 import { ReminderType, REMINDER_OPTIONS } from '@/constants/reminders';
-import { createEntry, deleteEntry, updateEntry, createRecurrenceRule, createReminder, getAllEntries } from '../db';
+import { createEntry, deleteEntry, updateEntry, createRecurrenceRule, createReminder, getAllEntries, saveQuickAddEntry } from '../db';
 import { EntryWithMeta } from '../types';
+import { QuickAddDraft } from '../types/quickAdd.types';
+import { QuickAddInput } from '../components/QuickAddInput';
+import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
 
 const isExpoGoOnAndroid = Platform.OS === 'android' && Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
@@ -41,6 +44,7 @@ export default function HomeScreen() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isMonthPickerVisible, setIsMonthPickerVisible] = useState(false);
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+  const [currentDraft, setCurrentDraft] = useState<QuickAddDraft | null>(null);
   const slideAnim = useRef(new Animated.Value(-Dimensions.get('window').width * 0.72)).current;
   const dropdownFadeAnim = useRef(new Animated.Value(0)).current;
   const dropdownScaleAnim = useRef(new Animated.Value(0.95)).current;
@@ -427,6 +431,12 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </ThemedView>
       </ThemedView>
+
+      <QuickAddInput
+        onDraftCreated={(draft) => setCurrentDraft(draft)}
+        theme={theme}
+      />
+
       <Calendar
         selectedDate={selectedDate}
         onDateSelect={handleDateSelect}
@@ -441,6 +451,18 @@ export default function HomeScreen() {
         onClose={() => setIsModalVisible(false)}
         onSave={handleAddEvent}
         selectedDate={viewMode === 'daily' ? selectedDate : new Date().toISOString().split('T')[0]}
+      />
+
+      <QuickAddConfirmSheet
+        draft={currentDraft}
+        visible={currentDraft !== null}
+        onConfirm={async (edited) => {
+          await saveQuickAddEntry(edited);
+          setCurrentDraft(null);
+          await fetchEvents();
+        }}
+        onCancel={() => setCurrentDraft(null)}
+        theme={theme}
       />
 
       <Modal

@@ -2,6 +2,7 @@ import * as SQLite from 'expo-sqlite';
 import { Entry, EntryWithMeta, Reminder, RecurrenceRule } from './types';
 import { CategoryId } from './constants/categories';
 import { RecurrenceType } from './constants/recurrence';
+import { QuickAddSaveInput } from './types/quickAdd.types';
 
 /**
  * Generate a basic UUID using Math.random() as per requirements.
@@ -399,6 +400,61 @@ export const getRecurrenceForEntry = async (entryId: string): Promise<Recurrence
 export const deleteRecurrenceForEntry = async (entryId: string): Promise<void> => {
   const sqlite = await getDB();
   await sqlite.runAsync('DELETE FROM recurrence_rules WHERE entry_id = ?', [entryId]);
+};
+
+/**
+ * Save a quick add entry to the database.
+ */
+export const saveQuickAddEntry = async (input: QuickAddSaveInput): Promise<string> => {
+  try {
+    const sqlite = await getDB();
+    const id = generateUUID();
+    const metaId = generateUUID();
+    const recurrenceId = generateUUID();
+    const now = Date.now();
+
+    const {
+      title,
+      entry_type,
+      date,
+      start_time = '',
+      end_time = '',
+      category = 'personal',
+      notes = null,
+      recurrence
+    } = input;
+
+    await sqlite.withTransactionAsync(async () => {
+      // 4. Insert a row into the entries table
+      await sqlite.runAsync(
+        `INSERT INTO entries (id, title, entry_type, date, start_time, end_time, category, notes, created_at, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [id, title, entry_type, date, start_time, end_time, category, notes, now, now]
+      );
+
+      // 5. Insert a row into entry_meta
+      const is_completable = entry_type === 'task' ? 1 : 0;
+      await sqlite.runAsync(
+        `INSERT INTO entry_meta (id, entry_id, is_completable, completed_at) 
+         VALUES (?, ?, ?, ?);`,
+        [metaId, id, is_completable, null]
+      );
+
+      // 6. If input.recurrence exists, insert into recurrence_rules
+      if (recurrence) {
+        await sqlite.runAsync(
+          `INSERT INTO recurrence_rules (id, entry_id, frequency, end_date, max_occurrences) 
+           VALUES (?, ?, ?, ?, ?);`,
+          [recurrenceId, id, recurrence.frequency, recurrence.endDate || null, null]
+        );
+      }
+    });
+
+    return id;
+  } catch (error) {
+    console.error('Error in saveQuickAddEntry:', error);
+    throw error;
+  }
 };
 
 export { db, generateUUID };
