@@ -3,10 +3,12 @@ import { StyleSheet, TouchableOpacity, useWindowDimensions, View, PanResponder }
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
+import { AnchorStripe } from './AnchorStripe';
 import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
+import { useCalendarSettings } from '@/utils/calendarSettings';
 
 interface Event {
   id: string;
@@ -30,6 +32,7 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, availableHeigh
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const { width: screenWidth } = useWindowDimensions();
+  const { showAnchorsOnMonth } = useCalendarSettings();
 
   const cellHeight = availableHeight / 6;
   const cellWidth = screenWidth / 7;
@@ -108,10 +111,15 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, availableHeigh
     return dayEvents;
   };
 
-  const renderEntryPill = (entry: Event, isCurrentMonth: boolean) => {
+  const renderEntryPill = (
+    entry: Event,
+    isCurrentMonth: boolean,
+    options?: { opacity?: number }
+  ) => {
     const category = CATEGORIES.find(c => c.id === entry.categoryId) || CATEGORIES[4];
     const color = category.color;
     const opacity = isCurrentMonth ? 'FF' : '4D'; // 100% or 30%
+    const pillOpacity = options?.opacity;
 
     let icon: React.ReactNode;
     if (entry.entryType === 'task') {
@@ -123,7 +131,7 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, availableHeigh
     }
 
     return (
-      <View key={entry.id + entry.date} style={styles.pill}>
+      <View key={entry.id + entry.date} style={[styles.pill, typeof pillOpacity === 'number' ? { opacity: pillOpacity } : null]}>
         {icon}
         <ThemedText 
           style={[
@@ -176,8 +184,13 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, availableHeigh
           const dateStr = dayObj.date.toISOString().split('T')[0];
           const isToday = dateStr === todayStr;
           const dayEvents = getEventsForDate(dayObj.date);
-          const displayEvents = dayEvents.slice(0, 3);
-          const moreCount = dayEvents.length - 3;
+          const anchors = dayEvents.filter((e) => e.entryType === 'anchor');
+          const foregroundEntries = dayEvents.filter((e) => e.entryType !== 'anchor');
+          const entriesForPills = showAnchorsOnMonth
+            ? [...foregroundEntries, ...anchors]
+            : foregroundEntries;
+          const displayEvents = entriesForPills.slice(0, 3);
+          const moreCount = Math.max(0, entriesForPills.length - 3);
 
           return (
             <TouchableOpacity
@@ -215,13 +228,21 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, availableHeigh
               </View>
 
               <View style={styles.pillContainer}>
-                {displayEvents.map(ev => renderEntryPill(ev, dayObj.isCurrentMonth))}
+                {displayEvents.map(ev =>
+                  renderEntryPill(
+                    ev,
+                    dayObj.isCurrentMonth,
+                    ev.entryType === 'anchor' ? { opacity: 0.6 } : undefined
+                  )
+                )}
                 {moreCount > 0 && (
                   <ThemedText style={[styles.moreText, !dayObj.isCurrentMonth && { opacity: 0.3 }]}>
                     +{moreCount} more
                   </ThemedText>
                 )}
               </View>
+
+              <AnchorStripe anchors={anchors.map(anchor => ({ category: anchor.categoryId }))} />
             </TouchableOpacity>
           );
         })}
@@ -254,6 +275,8 @@ const styles = StyleSheet.create({
   cell: {
     borderWidth: StyleSheet.hairlineWidth,
     padding: 2,
+    position: 'relative',
+    overflow: 'hidden',
   },
   cellHeader: {
     flexDirection: 'row',

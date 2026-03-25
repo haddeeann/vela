@@ -7,6 +7,7 @@ import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
+import { useCalendarSettings } from '@/utils/calendarSettings';
 
 interface Event {
   id: string;
@@ -26,10 +27,22 @@ interface DailyTimelineProps {
 }
 
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 6 AM to 10 PM
+const TIMELINE_START_HOUR = 6;
+const TIMELINE_END_HOUR = 22;
+
+interface EventSegment {
+  id: string;
+  event: Event;
+  start: number;
+  end: number;
+  continuedFromPrevious?: boolean;
+  continuesToNext?: boolean;
+}
 
 export function DailyTimeline({ selectedDate, events }: DailyTimelineProps) {
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
+  const { showAnchorsOnWeek } = useCalendarSettings();
   const scrollViewRef = useRef<ScrollView>(null);
 
   const formattedDate = new Date(selectedDate).toLocaleDateString('en-US', {
@@ -91,17 +104,77 @@ export function DailyTimeline({ selectedDate, events }: DailyTimelineProps) {
     Alert.alert(event.title, `${event.startTime} - ${event.endTime}`);
   };
 
+  const getSegmentsForEvent = (event: Event): EventSegment[] => {
+    if (!event.startTime) return [];
+
+    const start = parseTime(event.startTime);
+    const end = event.endTime ? parseTime(event.endTime) : start + 0.5;
+    const isAnchor = event.entryType === 'anchor';
+
+    if (!isAnchor) {
+      return [
+        {
+          id: `${event.id}-default`,
+          event,
+          start,
+          end,
+        },
+      ];
+    }
+
+    if (!showAnchorsOnWeek) return [];
+
+    const isOvernight = end <= start;
+    if (!isOvernight) {
+      const clippedStart = Math.max(TIMELINE_START_HOUR, start);
+      const clippedEnd = Math.min(TIMELINE_END_HOUR, end);
+
+      if (clippedEnd <= clippedStart) return [];
+
+      return [
+        {
+          id: `${event.id}-anchor-default`,
+          event,
+          start: clippedStart,
+          end: clippedEnd,
+        },
+      ];
+    }
+
+    const segments: EventSegment[] = [];
+
+    const eveningStart = Math.max(TIMELINE_START_HOUR, start);
+    if (eveningStart < TIMELINE_END_HOUR) {
+      segments.push({
+        id: `${event.id}-anchor-evening`,
+        event,
+        start: eveningStart,
+        end: TIMELINE_END_HOUR,
+        continuesToNext: true,
+      });
+    }
+
+    const morningEnd = Math.min(TIMELINE_END_HOUR, end);
+    if (morningEnd > TIMELINE_START_HOUR) {
+      segments.push({
+        id: `${event.id}-anchor-morning`,
+        event,
+        start: TIMELINE_START_HOUR,
+        end: morningEnd,
+        continuedFromPrevious: true,
+      });
+    }
+
+    return segments;
+  };
+
   const renderEventBlocks = (hour: number) => {
     return filteredEvents
-      .filter(event => {
-        if (!event.startTime) return false;
-        const start = parseTime(event.startTime);
-        return Math.floor(start) === hour;
-      })
-      .map(event => {
-        const start = parseTime(event.startTime);
-        const end = event.endTime ? parseTime(event.endTime) : start + 0.5; // Tasks or anchors with only start time get 30 mins
-        const duration = Math.max(0.5, end - start);
+      .flatMap(getSegmentsForEvent)
+      .filter(segment => Math.floor(segment.start) === hour)
+      .map(segment => {
+        const { event, start, end, continuedFromPrevious, continuesToNext } = segment;
+        const duration = Math.max(0.25, end - start);
         const category = CATEGORIES.find(c => c.id === event.categoryId) || CATEGORIES[4];
         const isTask = event.entryType === 'task';
         const isAnchor = event.entryType === 'anchor';
@@ -109,43 +182,65 @@ export function DailyTimeline({ selectedDate, events }: DailyTimelineProps) {
 
         return (
           <TouchableOpacity
-            key={event.id}
+            key={segment.id}
             style={[
               styles.eventBlock,
+              isAnchor ? styles.anchorBlock : styles.foregroundBlock,
               {
-                backgroundColor: isTask ? theme.primary + '20' : (isAnchor ? category.color + '20' : category.color + '40'),
+                backgroundColor: isTask ? theme.primary + '20' : (isAnchor ? category.color + '1F' : category.color + '40'),
                 borderLeftColor: isTask ? theme.primary : category.color,
                 top: (start - hour) * 60,
                 height: duration * 60,
               },
-              isAnchor && { borderLeftWidth: 2, opacity: 0.8 },
+              isAnchor && { borderLeftWidth: 3, opacity: 0.85 },
               isCompleted && { opacity: 0.5 }
             ]}
             onPress={() => handleEventPress(event)}
           >
-            <ThemedView style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'transparent' }}>
-              <ThemedText
-                style={[
-                  styles.eventTitle,
+            {isAnchor ? (
+              <>
+                <ThemedView style={styles.anchorTitleRow}>
+                  <Ionicons name="infinite-outline" size={10} color={category.color + 'CC'} style={styles.anchorIcon} />
+                  <ThemedText
+                    style={[
+                      styles.anchorTitle,
+                      { color: category.color + 'CC' },
+                      isCompleted && { textDecorationLine: 'line-through' },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {event.title}
+                  </ThemedText>
+                </ThemedView>
+                {continuedFromPrevious && (
+                  <Ionicons name="chevron-up" size={10} color={category.color + '99'} style={styles.continuedTop} />
+                )}
+                {continuesToNext && (
+                  <Ionicons name="chevron-down" size={10} color={category.color + '99'} style={styles.continuedBottom} />
+                )}
+              </>
+            ) : (
+              <>
+                <ThemedView style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'transparent' }}>
+                  <ThemedText
+                    style={[
+                      styles.eventTitle,
+                      { color: isTask ? theme.primary : category.color },
+                      isCompleted && { textDecorationLine: 'line-through' },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {isTask ? '[Task] ' : ''}{event.title}
+                  </ThemedText>
+                </ThemedView>
+                <ThemedText style={[
+                  styles.eventTime,
                   { color: isTask ? theme.primary : category.color },
-                  isCompleted && { textDecorationLine: 'line-through' },
-                  isAnchor && { fontSize: 11, color: category.color + 'CC' }
-                ]}
-                numberOfLines={1}
-              >
-                {isTask ? '[Task] ' : ''}{event.title}
-              </ThemedText>
-              {isAnchor && (
-                <Ionicons name="repeat" size={10} color={category.color} style={{ marginLeft: 4 }} />
-              )}
-            </ThemedView>
-            <ThemedText style={[
-              styles.eventTime,
-              { color: isTask ? theme.primary : category.color },
-              isAnchor && { fontSize: 9, color: category.color + 'AA' }
-            ]} numberOfLines={1}>
-              {event.startTime}
-            </ThemedText>
+                ]} numberOfLines={1}>
+                  {event.startTime}
+                </ThemedText>
+              </>
+            )}
           </TouchableOpacity>
         );
       });
@@ -209,8 +304,15 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderLeftWidth: 4,
     padding: 4,
-    zIndex: 10,
     justifyContent: 'center',
+  },
+  foregroundBlock: {
+    zIndex: 1,
+  },
+  anchorBlock: {
+    left: 0,
+    right: 0,
+    zIndex: 0,
   },
   eventTitle: {
     fontSize: 12,
@@ -218,6 +320,28 @@ const styles = StyleSheet.create({
   },
   eventTime: {
     fontSize: 10,
+  },
+  anchorTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  anchorIcon: {
+    marginRight: 4,
+  },
+  anchorTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  continuedTop: {
+    position: 'absolute',
+    top: 2,
+    right: 4,
+  },
+  continuedBottom: {
+    position: 'absolute',
+    bottom: 2,
+    right: 4,
   },
   lastHourPadding: {
     height: 60,

@@ -1,11 +1,13 @@
 import React, { useRef, useEffect, useMemo } from 'react';
 import { StyleSheet, ScrollView, TouchableOpacity, Alert, View, useWindowDimensions } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
 import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
+import { useCalendarSettings } from '@/utils/calendarSettings';
 
 interface Event {
   id: string;
@@ -28,11 +30,28 @@ interface WeeklyTimeGridProps {
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 6 AM to 10 PM
 const HOUR_HEIGHT = 50;
 const TIME_COLUMN_WIDTH = 50;
+const VISIBLE_START_HOUR = 6;
+const VISIBLE_END_HOUR = 22;
+
+const hexToRgba = (hex: string, alpha: number) => {
+  const normalized = hex.replace('#', '');
+  const safeHex =
+    normalized.length === 3
+      ? normalized.split('').map(char => `${char}${char}`).join('')
+      : normalized;
+
+  const r = parseInt(safeHex.slice(0, 2), 16);
+  const g = parseInt(safeHex.slice(2, 4), 16);
+  const b = parseInt(safeHex.slice(4, 6), 16);
+
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 
 export function WeeklyTimeGrid({ selectedDate, events, onDateSelect }: WeeklyTimeGridProps) {
   const { width: screenWidth } = useWindowDimensions();
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
+  const { showAnchorsOnWeek } = useCalendarSettings();
   const scrollViewRef = useRef<ScrollView>(null);
 
   const columnWidth = (screenWidth - TIME_COLUMN_WIDTH - 32) / 7;
@@ -167,9 +186,46 @@ export function WeeklyTimeGrid({ selectedDate, events, onDateSelect }: WeeklyTim
                 const end = event.endTime ? parseTime(event.endTime) : start + 0.5;
                 if (start < 6 || start > 23) return null; // Outside visible range
 
-                const duration = Math.max(0.5, end - start);
                 const category = CATEGORIES.find(c => c.id === event.categoryId) || CATEGORIES[4];
                 const isAnchor = event.entryType === 'anchor';
+
+                if (isAnchor) {
+                  if (!showAnchorsOnWeek) return null;
+
+                  const effectiveStart = Math.max(VISIBLE_START_HOUR, start);
+                  const effectiveEnd = end <= start
+                    ? VISIBLE_END_HOUR
+                    : Math.min(VISIBLE_END_HOUR, end);
+                  const duration = Math.max(0, effectiveEnd - effectiveStart);
+
+                  if (duration <= 0) return null;
+
+                  const blockHeight = duration * HOUR_HEIGHT;
+
+                  return (
+                    <TouchableOpacity
+                      key={event.id}
+                      style={[
+                        styles.eventBlock,
+                        styles.anchorBlock,
+                        {
+                          top: (effectiveStart - VISIBLE_START_HOUR) * HOUR_HEIGHT,
+                          height: blockHeight,
+                          width: columnWidth - 2,
+                          backgroundColor: hexToRgba(category.color, 0.1),
+                          borderColor: hexToRgba(category.color, 0.4),
+                        }
+                      ]}
+                      onPress={() => handleEventPress(event)}
+                    >
+                      {blockHeight >= 30 ? (
+                        <Ionicons name="infinite-outline" size={10} color={hexToRgba(category.color, 0.6)} />
+                      ) : null}
+                    </TouchableOpacity>
+                  );
+                }
+
+                const duration = Math.max(0.5, end - start);
 
                 return (
                   <TouchableOpacity
@@ -263,6 +319,12 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     padding: 2,
     zIndex: 10,
+  },
+  anchorBlock: {
+    borderWidth: 1,
+    zIndex: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   eventTitle: {
     fontSize: 9,

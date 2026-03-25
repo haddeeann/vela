@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, FlatList, TouchableOpacity, Platform, Alert, View, Animated, Modal, Dimensions, Pressable } from 'react-native';
+import { StyleSheet, FlatList, TouchableOpacity, Platform, Alert, View, Animated, Modal, Dimensions, Pressable, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
@@ -23,6 +23,7 @@ import { QuickAddSheet } from '../components/QuickAddSheet';
 import { useReminderResponseListener } from '../notifications/useReminderResponseListener';
 import { scheduleReminderSequence } from '../notifications/scheduleReminderSequence';
 import { saveNotificationIds } from '../db/reminderQueries';
+import { useCalendarSettings } from '../utils/calendarSettings';
 
 const isExpoGoOnAndroid = Platform.OS === 'android' && Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
@@ -49,6 +50,12 @@ export default function HomeScreen() {
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [isQuickAddVisible, setIsQuickAddVisible] = useState(false);
   const [currentDraft, setCurrentDraft] = useState<QuickAddDraft | null>(null);
+  const {
+    showAnchorsOnMonth,
+    showAnchorsOnWeek,
+    setShowAnchorsOnMonth,
+    setShowAnchorsOnWeek,
+  } = useCalendarSettings();
   const slideAnim = useRef(new Animated.Value(-Dimensions.get('window').width * 0.72)).current;
   const dropdownFadeAnim = useRef(new Animated.Value(0)).current;
   const dropdownScaleAnim = useRef(new Animated.Value(0.95)).current;
@@ -618,6 +625,38 @@ export default function HomeScreen() {
               </View>
 
               <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+              <View style={styles.drawerSection}>
+                <ThemedText style={styles.sectionLabel}>Anchors</ThemedText>
+
+                <View style={styles.toggleRow}>
+                  <View style={styles.toggleTextContainer}>
+                    <ThemedText style={[styles.toggleLabel, { color: theme.textPrimary }]}>Show anchors on month</ThemedText>
+                    <ThemedText style={[styles.toggleSubLabel, { color: theme.textSecondary }]}>Display anchor details in month cells</ThemedText>
+                  </View>
+                  <Switch
+                    value={showAnchorsOnMonth}
+                    onValueChange={setShowAnchorsOnMonth}
+                    trackColor={{ false: theme.border, true: theme.primary }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                <View style={[styles.toggleRowDivider, { backgroundColor: theme.border + '80' }]} />
+
+                <View style={styles.toggleRow}>
+                  <View style={styles.toggleTextContainer}>
+                    <ThemedText style={[styles.toggleLabel, { color: theme.textPrimary }]}>Show anchors on week</ThemedText>
+                    <ThemedText style={[styles.toggleSubLabel, { color: theme.textSecondary }]}>Display anchors in weekly time grid</ThemedText>
+                  </View>
+                  <Switch
+                    value={showAnchorsOnWeek}
+                    onValueChange={setShowAnchorsOnWeek}
+                    trackColor={{ false: theme.border, true: theme.primary }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+              </View>
             </Pressable>
           </Animated.View>
         </Pressable>
@@ -772,6 +811,30 @@ const styles = StyleSheet.create({
     height: 1,
     width: '100%',
     marginTop: 10,
+    marginBottom: 10,
+  },
+  toggleRow: {
+    minHeight: 56,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  toggleTextContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  toggleLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  toggleSubLabel: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  toggleRowDivider: {
+    height: 1,
+    marginHorizontal: 16,
   },
   dropdownOverlay: {
     flex: 1,
