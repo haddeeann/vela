@@ -3,6 +3,7 @@ import { Entry, EntryWithMeta, Reminder, RecurrenceRule } from './types';
 import { CategoryId } from './constants/categories';
 import { RecurrenceType } from './constants/recurrence';
 import { QuickAddSaveInput } from './types/quickAdd.types';
+import { scheduleReminderSequence, cancelReminderNotifications } from './notifications/scheduleReminderSequence';
 
 /**
  * Generate a basic UUID using Math.random() as per requirements.
@@ -109,6 +110,11 @@ export const initDB = async (): Promise<SQLite.SQLiteDatabase> => {
           FOREIGN KEY (entry_id) REFERENCES entries(id) ON DELETE CASCADE
         );
       `);
+
+      await db.execAsync(`
+        ALTER TABLE reminders 
+        ADD COLUMN snooze_count INTEGER DEFAULT 0
+      `).catch(() => {})
 
       console.log('Database initialized successfully');
       return db;
@@ -307,6 +313,20 @@ export const updateEntry = async (id: string, entryData: UpdateEntryData): Promi
 
 export const deleteEntry = async (id: string): Promise<void> => {
   const sqlite = await getDB();
+
+  const reminderRows = await sqlite.getAllAsync(
+    'SELECT expo_notification_id FROM reminders WHERE entry_id = ?',
+    [id]
+  ) as Array<{ expo_notification_id: string | null }>;
+
+  const notificationIds = reminderRows
+    .map((row) => row.expo_notification_id)
+    .filter((notificationId): notificationId is string => Boolean(notificationId));
+
+  if (notificationIds.length > 0) {
+    await cancelReminderNotifications(notificationIds);
+  }
+
   // Cascade manually as requested, even though schema has ON DELETE CASCADE
   await sqlite.withTransactionAsync(async () => {
     await sqlite.runAsync('DELETE FROM reminders WHERE entry_id = ?', [id]);
@@ -421,8 +441,12 @@ export const saveQuickAddEntry = async (input: QuickAddSaveInput): Promise<strin
       end_time = '',
       category = 'personal',
       notes = null,
-      recurrence
+      recurrence,
+      remind_before_minutes = null,
     } = input;
+
+    let reminderId: string | null = null;
+    let scheduledAt: number | null = null;
 
     await sqlite.withTransactionAsync(async () => {
       // 4. Insert a row into the entries table
@@ -448,7 +472,45 @@ export const saveQuickAddEntry = async (input: QuickAddSaveInput): Promise<strin
           [recurrenceId, id, recurrence.frequency, recurrence.endDate || null, null]
         );
       }
+
+      if (typeof remind_before_minutes === 'number') {
+        reminderId = generateUUID();
+
+        const entryDateTime = new Date(date);
+        if (start_time && start_time.trim() !== '') {
+          const [time, period] = start_time.split(' ');
+          let [hours, minutes] = time.split(':').map(Number);
+          if (period === 'PM' && hours < 12) hours += 12;
+          if (period === 'AM' && hours === 12) hours = 0;
+          entryDateTime.setHours(hours, minutes, 0, 0);
+        } else {
+          entryDateTime.setHours(0, 0, 0, 0);
+        }
+
+        scheduledAt = entryDateTime.getTime() - remind_before_minutes * 60 * 1000;
+
+        await sqlite.runAsync(
+          `INSERT INTO reminders (id, entry_id, remind_before_minutes, scheduled_at, is_fired)
+           VALUES (?, ?, ?, ?, 0);`,
+          [reminderId, id, remind_before_minutes, scheduledAt]
+        );
+      }
     });
+
+    if (reminderId && scheduledAt !== null) {
+      const result = await scheduleReminderSequence({
+        reminderId,
+        entryId: id,
+        entryType: entry_type,
+        entryTitle: title,
+        scheduledAt,
+      });
+
+      await sqlite.runAsync(
+        'UPDATE reminders SET expo_notification_id = ? WHERE id = ?',
+        [result.nowNotificationId, reminderId]
+      );
+    }
 
     return id;
   } catch (error) {

@@ -27,6 +27,7 @@ export interface QuickAddSaveInput {
   date: string
   start_time?: string
   end_time?: string
+  remind_before_minutes?: number | null
   category: string
   notes?: string
   recurrence?: ParsedRecurrence

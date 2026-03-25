@@ -20,6 +20,9 @@ import { EntryWithMeta } from '../types';
 import { QuickAddDraft } from '../types/quickAdd.types';
 import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
 import { QuickAddSheet } from '../components/QuickAddSheet';
+import { useReminderResponseListener } from '../notifications/useReminderResponseListener';
+import { scheduleReminderSequence } from '../notifications/scheduleReminderSequence';
+import { saveNotificationIds } from '../db/reminderQueries';
 
 const isExpoGoOnAndroid = Platform.OS === 'android' && Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
@@ -140,32 +143,29 @@ export default function HomeScreen() {
     }
   }, []);
 
+  useReminderResponseListener(() => {
+    fetchEvents();
+  });
+
   useEffect(() => {
-    requestPermissions();
     fetchEvents();
   }, [fetchEvents]);
 
-  async function requestPermissions() {
-    // Skip if running in Expo Go on Android for SDK 53+ to avoid issues with expo-notifications
-    if (isExpoGoOnAndroid) {
-      console.warn('Skipping notification permissions in Expo Go on Android (SDK 53+ limit)');
-      return;
+  const getEntryDateTimeMs = (date: string, startTime?: string): number => {
+    const entryDateTime = new Date(date);
+
+    if (startTime && startTime.trim() !== '') {
+      const [time, period] = startTime.split(' ');
+      let [hours, minutes] = time.split(':').map(Number);
+      if (period === 'PM' && hours < 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+      entryDateTime.setHours(hours, minutes, 0, 0);
+    } else {
+      entryDateTime.setHours(0, 0, 0, 0);
     }
 
-    try {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-      if (finalStatus !== 'granted') {
-        Alert.alert('Permission needed', 'Please enable notifications to receive event reminders.');
-      }
-    } catch (e) {
-      console.error('Error requesting notification permissions:', e);
-    }
-  }
+    return entryDateTime.getTime();
+  };
 
   const handleAddEvent = async (newEvent: {
     title: string;
@@ -197,13 +197,19 @@ export default function HomeScreen() {
       if (newEvent.reminder !== 'none') {
         const reminderOption = REMINDER_OPTIONS.find(r => r.id === newEvent.reminder);
         if (reminderOption && reminderOption.minutesBefore !== null) {
-          await createReminder(id, reminderOption.minutesBefore);
+          const reminderId = await createReminder(id, reminderOption.minutesBefore);
+          const entryDateTimeMs = getEntryDateTimeMs(newEvent.date, newEvent.startTime);
+          const scheduledAt = entryDateTimeMs - reminderOption.minutesBefore * 60 * 1000;
 
-          // Still schedule the local notification for immediate feedback
-          await scheduleNotification({
-            id,
-            ...newEvent,
+          const result = await scheduleReminderSequence({
+            reminderId,
+            entryId: id,
+            entryType: newEvent.entryType,
+            entryTitle: newEvent.title,
+            scheduledAt,
           });
+
+          await saveNotificationIds(reminderId, result);
         }
       }
 
