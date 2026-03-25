@@ -28,9 +28,18 @@ interface AddEventModalProps {
   }) => void;
   selectedDate: string;
   initialEntryType?: 'event' | 'task' | 'anchor';
+  initialValues?: {
+    title: string;
+    date: string;
+    startTime?: string;
+    endTime?: string;
+    categoryId?: CategoryId;
+    recurrence?: RecurrenceType;
+    entryType?: 'event' | 'task' | 'anchor';
+  };
 }
 
-export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initialEntryType }: AddEventModalProps) {
+export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initialEntryType, initialValues }: AddEventModalProps) {
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const { height: screenHeight } = useWindowDimensions();
@@ -82,6 +91,20 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
     });
   };
 
+  const parseTimeLabel = (timeLabel?: string): Date | null => {
+    if (!timeLabel) return null;
+    const [time, period] = timeLabel.split(' ');
+    if (!time || !period) return null;
+    let [hours, minutes] = time.split(':').map(Number);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+
+    const parsed = new Date();
+    parsed.setHours(hours, minutes, 0, 0);
+    return parsed;
+  };
+
   const calendarTheme = useMemo(() => ({
     backgroundColor: theme.surface,
     calendarBackground: theme.surface,
@@ -107,16 +130,33 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
 
   useEffect(() => {
     if (isVisible) {
-      if (initialEntryType) {
-        setEntryType(initialEntryType);
+      if (initialValues) {
+        setTitle(initialValues.title);
+        setDate(initialValues.date);
+        setEntryType(initialValues.entryType || 'event');
+        setCategoryId(initialValues.categoryId || 'personal');
+        setRecurrence(initialValues.recurrence || 'none');
+
+        const parsedStartTime = parseTimeLabel(initialValues.startTime);
+        const parsedEndTime = parseTimeLabel(initialValues.endTime);
+        if (parsedStartTime) {
+          setStartTimeDate(parsedStartTime);
+        }
+        if (parsedEndTime) {
+          setEndTimeDate(parsedEndTime);
+        }
+      } else {
+        if (initialEntryType) {
+          setEntryType(initialEntryType);
+        }
+        setDate(selectedDate);
       }
-      setDate(selectedDate);
       setShowStartTimePicker(false);
       setShowEndTimePicker(false);
       setShowDueTimePicker(false);
       setIsDatePickerVisible(false);
     }
-  }, [isVisible, selectedDate]);
+  }, [isVisible, selectedDate, initialEntryType, initialValues]);
 
   useEffect(() => {
     if (entryType === 'anchor') {
@@ -184,7 +224,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
           </ThemedView>
 
           <ThemedText type="subtitle" style={styles.modalTitle}>
-            Add New {entryType.charAt(0).toUpperCase() + entryType.slice(1)}
+            {initialValues ? 'Edit' : 'Add New'} {entryType.charAt(0).toUpperCase() + entryType.slice(1)}
           </ThemedText>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>

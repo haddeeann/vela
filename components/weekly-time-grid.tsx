@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useMemo } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, Alert, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, ScrollView, TouchableOpacity, Pressable, Animated, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import * as Haptics from 'expo-haptics';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
 import { getTheme } from '@/constants/theme';
@@ -25,6 +26,9 @@ interface WeeklyTimeGridProps {
   selectedDate: string;
   events: Event[];
   onDateSelect: (date: string) => void;
+  onEntryPress?: (event: Event) => void;
+  onEmptySlotPress?: (params: { date: string; startTime: string; endTime: string }) => void;
+  onHeaderDayPress?: (date: string) => void;
 }
 
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 6 AM to 10 PM
@@ -47,7 +51,14 @@ const hexToRgba = (hex: string, alpha: number) => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-export function WeeklyTimeGrid({ selectedDate, events, onDateSelect }: WeeklyTimeGridProps) {
+export function WeeklyTimeGrid({
+  selectedDate,
+  events,
+  onDateSelect,
+  onEntryPress,
+  onEmptySlotPress,
+  onHeaderDayPress,
+}: WeeklyTimeGridProps) {
   const { width: screenWidth } = useWindowDimensions();
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
@@ -116,8 +127,63 @@ export function WeeklyTimeGrid({ selectedDate, events, onDateSelect }: WeeklyTim
     });
   };
 
+  const flashedCellRef = useRef<string | null>(null);
+  const flashOpacity = useRef(new Animated.Value(0)).current;
+
+  const formatHourLabel = (hour: number) => {
+    if (hour === 0) return '12:00 AM';
+    if (hour === 12) return '12:00 PM';
+    if (hour > 12) return `${hour - 12}:00 PM`;
+    return `${hour}:00 AM`;
+  };
+
+  const flashCell = (cellKey: string) => {
+    flashedCellRef.current = cellKey;
+    flashOpacity.setValue(0.08);
+    Animated.timing(flashOpacity, {
+      toValue: 0,
+      duration: 100,
+      useNativeDriver: true,
+    }).start(() => {
+      if (flashedCellRef.current === cellKey) {
+        flashedCellRef.current = null;
+      }
+    });
+  };
+
   const handleEventPress = (event: Event) => {
-    Alert.alert(event.title, `${event.startTime} - ${event.endTime}`);
+    onEntryPress?.(event);
+  };
+
+  const getVisibleSegmentsForDay = (date: Date) => {
+    return getEventsForDay(date).flatMap(event => {
+      const start = parseTime(event.startTime);
+      const end = event.endTime ? parseTime(event.endTime) : start + 0.5;
+      const isAnchor = event.entryType === 'anchor';
+
+      if (isAnchor && !showAnchorsOnWeek) return [];
+
+      if (isAnchor && end <= start) {
+        const clippedStart = Math.max(VISIBLE_START_HOUR, start);
+        const clippedEnd = VISIBLE_END_HOUR;
+        if (clippedEnd <= clippedStart) return [];
+        return [{ start: clippedStart, end: clippedEnd }];
+      }
+
+      const clippedStart = Math.max(VISIBLE_START_HOUR, start);
+      const clippedEnd = Math.min(VISIBLE_END_HOUR, end);
+      if (clippedEnd <= clippedStart) return [];
+      return [{ start: clippedStart, end: clippedEnd }];
+    });
+  };
+
+  const handleEmptySlotPress = (date: string, hour: number) => {
+    const startTime = formatHourLabel(hour);
+    const endTime = formatHourLabel(hour + 1);
+    const cellKey = `${date}-${hour}`;
+    flashCell(cellKey);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    onEmptySlotPress?.({ date, startTime, endTime });
   };
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -134,7 +200,11 @@ export function WeeklyTimeGrid({ selectedDate, events, onDateSelect }: WeeklyTim
             <TouchableOpacity
               key={index}
               style={[styles.dayHeader, { width: columnWidth }]}
-              onPress={() => onDateSelect(day.toISOString().split('T')[0])}
+              onPress={() => {
+                const columnDate = day.toISOString().split('T')[0];
+                onDateSelect(columnDate);
+                onHeaderDayPress?.(columnDate);
+              }}
             >
               <ThemedText style={styles.dayName}>
                 {day.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0)}
@@ -151,6 +221,7 @@ export function WeeklyTimeGrid({ selectedDate, events, onDateSelect }: WeeklyTim
                   {day.getDate()}
                 </ThemedText>
               </View>
+              <View style={[styles.headerTapHint, { backgroundColor: isSelected ? theme.primary : theme.border }]} />
             </TouchableOpacity>
           );
         })}
@@ -175,11 +246,41 @@ export function WeeklyTimeGrid({ selectedDate, events, onDateSelect }: WeeklyTim
           </View>
 
           {/* Day Columns */}
-          {weekDays.map((day, dayIndex) => (
+          {weekDays.map((day, dayIndex) => {
+            const dayDate = day.toISOString().split('T')[0];
+            const isSelectedColumn = dayDate === selectedDate;
+            const visibleSegments = getVisibleSegmentsForDay(day);
+
+            return (
             <View key={dayIndex} style={[styles.dayColumn, { width: columnWidth, borderLeftColor: theme.border }]}>
-              {HOURS.map(hour => (
-                <View key={hour} style={[styles.hourCell, { height: HOUR_HEIGHT, borderBottomColor: theme.border }]} />
-              ))}
+              {isSelectedColumn ? (
+                <View style={[styles.selectedColumnTint, { backgroundColor: hexToRgba(theme.primary, 0.05) }]} />
+              ) : null}
+              {HOURS.map(hour => {
+                const hourStart = hour;
+                const hourEnd = hour + 1;
+                const isOccupied = visibleSegments.some(segment => segment.start < hourEnd && segment.end > hourStart);
+                const hourCellKey = `${dayDate}-${hour}`;
+
+                return (
+                  <Pressable
+                    key={hour}
+                    style={[styles.hourCell, { height: HOUR_HEIGHT, borderBottomColor: theme.border, zIndex: 0 }]}
+                    disabled={isOccupied}
+                    onPress={() => handleEmptySlotPress(dayDate, hour)}
+                  >
+                    {!isOccupied && flashedCellRef.current === hourCellKey ? (
+                      <Animated.View
+                        pointerEvents="none"
+                        style={[
+                          styles.cellFlash,
+                          { backgroundColor: theme.primary, opacity: flashOpacity },
+                        ]}
+                      />
+                    ) : null}
+                  </Pressable>
+                );
+              })}
               {/* Events for this day */}
               {getEventsForDay(day).map(event => {
                 const start = parseTime(event.startTime);
@@ -234,10 +335,11 @@ export function WeeklyTimeGrid({ selectedDate, events, onDateSelect }: WeeklyTim
                       styles.eventBlock,
                       {
                         backgroundColor: category.color,
-                        opacity: isAnchor ? 0.6 : 0.8,
+                        opacity: 0.8,
                         top: (start - 6) * HOUR_HEIGHT,
                         height: duration * HOUR_HEIGHT,
                         width: columnWidth - 2,
+                        zIndex: 1,
                       }
                     ]}
                     onPress={() => handleEventPress(event)}
@@ -249,7 +351,7 @@ export function WeeklyTimeGrid({ selectedDate, events, onDateSelect }: WeeklyTim
                 );
               })}
             </View>
-          ))}
+          )})}
         </View>
       </ScrollView>
     </ThemedView>
@@ -269,6 +371,7 @@ const styles = StyleSheet.create({
   dayHeader: {
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 2,
   },
   dayName: {
     fontSize: 10,
@@ -285,6 +388,12 @@ const styles = StyleSheet.create({
   },
   dateNumber: {
     fontSize: 14,
+  },
+  headerTapHint: {
+    width: 14,
+    height: 2,
+    borderRadius: 1,
+    opacity: 0.45,
   },
   scrollContent: {
     paddingBottom: 20,
@@ -307,11 +416,18 @@ const styles = StyleSheet.create({
     borderLeftWidth: 1,
     position: 'relative',
   },
+  selectedColumnTint: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: -1,
+  },
   hourRow: {
     justifyContent: 'flex-start',
   },
   hourCell: {
     borderBottomWidth: 1,
+  },
+  cellFlash: {
+    ...StyleSheet.absoluteFillObject,
   },
   eventBlock: {
     position: 'absolute',

@@ -22,6 +22,9 @@ interface QuickAddSheetProps {
   onOpenFullForm: () => void;
   theme: ReturnType<typeof getTheme>;
   initialType?: EntryType;
+  prefilledDate?: string;
+  prefilledStartTime?: string;
+  prefilledEndTime?: string;
 }
 
 const SHEET_HEIGHT = 320;
@@ -33,10 +36,36 @@ export function QuickAddSheet({
   onOpenFullForm,
   theme,
   initialType,
+  prefilledDate,
+  prefilledStartTime,
+  prefilledEndTime,
 }: QuickAddSheetProps) {
   const [input, setInput] = useState('');
-  const [selectedType, setSelectedType] = useState<EntryType | null>(initialType || null);
+  const [selectedType, setSelectedType] = useState<EntryType | null>(prefilledStartTime ? 'event' : (initialType || null));
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
+
+  const resolvedPrefilledEndTime = React.useMemo(() => {
+    if (prefilledEndTime) return prefilledEndTime;
+    if (!prefilledStartTime) return undefined;
+
+    const [time, period] = prefilledStartTime.split(' ');
+    if (!time || !period) return undefined;
+
+    let [hours, minutes] = time.split(':').map(Number);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return undefined;
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+
+    const endDate = new Date();
+    endDate.setHours(hours, minutes, 0, 0);
+    endDate.setTime(endDate.getTime() + 60 * 60 * 1000);
+
+    return endDate.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  }, [prefilledEndTime, prefilledStartTime]);
 
   useEffect(() => {
     if (visible) {
@@ -45,7 +74,9 @@ export function QuickAddSheet({
         duration: 300,
         useNativeDriver: true,
       }).start();
-      if (initialType) {
+      if (prefilledStartTime) {
+        setSelectedType('event');
+      } else if (initialType) {
         setSelectedType(initialType);
       }
     } else {
@@ -55,19 +86,27 @@ export function QuickAddSheet({
         useNativeDriver: true,
       }).start();
     }
-  }, [visible, initialType]);
+  }, [visible, initialType, prefilledStartTime]);
 
   const handleSubmit = () => {
     if (!input.trim()) return;
 
     const draft = parseQuickAdd(input);
+    if (prefilledDate) {
+      draft.date = prefilledDate;
+    }
+    if (prefilledStartTime) {
+      draft.startTime = prefilledStartTime;
+      draft.endTime = resolvedPrefilledEndTime;
+      draft.entryType = 'event';
+    }
     if (selectedType) {
       draft.entryType = selectedType;
     }
 
     onDraftCreated(draft);
     setInput('');
-    setSelectedType(initialType || null);
+    setSelectedType(prefilledStartTime ? 'event' : (initialType || null));
     onClose();
   };
 
@@ -98,6 +137,17 @@ export function QuickAddSheet({
       </TouchableOpacity>
     );
   };
+
+  const formattedPrefilledDate = React.useMemo(() => {
+    if (!prefilledDate) return '';
+    const [year, month, day] = prefilledDate.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
+  }, [prefilledDate]);
 
   return (
     <Modal
@@ -133,6 +183,24 @@ export function QuickAddSheet({
                 returnKeyType="done"
                 onSubmitEditing={handleSubmit}
               />
+
+              {prefilledDate ? (
+                <View style={[styles.prefilledDateContainer, { backgroundColor: theme.background }]}> 
+                  <Ionicons name="calendar-outline" size={14} color={theme.textSecondary} />
+                  <ThemedText style={[styles.prefilledDateText, { color: theme.textPrimary }]}> 
+                    {formattedPrefilledDate}
+                  </ThemedText>
+                </View>
+              ) : null}
+
+              {prefilledStartTime ? (
+                <View style={[styles.prefilledDateContainer, { backgroundColor: theme.background }]}> 
+                  <Ionicons name="time-outline" size={14} color={theme.textSecondary} />
+                  <ThemedText style={[styles.prefilledDateText, { color: theme.textPrimary }]}> 
+                    {prefilledStartTime} - {resolvedPrefilledEndTime}
+                  </ThemedText>
+                </View>
+              ) : null}
 
               <View style={styles.pillRow}>
                 {renderTypePill('anchor', 'Anchor', 'infinite-outline')}
@@ -195,6 +263,19 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     paddingVertical: 12,
     marginBottom: 16,
+  },
+  prefilledDateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  prefilledDateText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   pillRow: {
     flexDirection: 'row',

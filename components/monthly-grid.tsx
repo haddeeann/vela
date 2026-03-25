@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, TouchableOpacity, useWindowDimensions, View, PanResponder } from 'react-native';
+import { StyleSheet, TouchableOpacity, useWindowDimensions, View, PanResponder, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
@@ -25,14 +25,17 @@ interface MonthlyGridProps {
   selectedDate: string;
   events: Event[];
   onDateSelect: (date: string) => void;
+  onDayPress?: (date: string) => void;
+  onDayLongPress?: (date: string) => void;
   availableHeight: number;
 }
 
-export function MonthlyGrid({ selectedDate, events, onDateSelect, availableHeight }: MonthlyGridProps) {
+export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, onDayLongPress, availableHeight }: MonthlyGridProps) {
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const { width: screenWidth } = useWindowDimensions();
   const { showAnchorsOnMonth } = useCalendarSettings();
+  const pressScalesRef = React.useRef<Record<string, Animated.Value>>({});
 
   const cellHeight = availableHeight / 6;
   const cellWidth = screenWidth / 7;
@@ -168,6 +171,21 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, availableHeigh
     },
   }), [selectedDate, onDateSelect]);
 
+  const getPressScale = (dateStr: string) => {
+    if (!pressScalesRef.current[dateStr]) {
+      pressScalesRef.current[dateStr] = new Animated.Value(1);
+    }
+    return pressScalesRef.current[dateStr];
+  };
+
+  const animateCellScale = (dateStr: string, toValue: number) => {
+    Animated.timing(getPressScale(dateStr), {
+      toValue,
+      duration: 100,
+      useNativeDriver: true,
+    }).start();
+  };
+
   return (
     <ThemedView style={styles.container} {...panResponder.panHandlers}>
       {/* Day headers */}
@@ -193,7 +211,7 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, availableHeigh
           const moreCount = Math.max(0, entriesForPills.length - 3);
 
           return (
-            <TouchableOpacity
+            <Pressable
               key={index}
               style={[
                 styles.cell,
@@ -201,49 +219,55 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, availableHeigh
                   width: cellWidth,
                   height: cellHeight,
                   borderColor: dayObj.isCurrentMonth ? theme.border : theme.border + '4D',
-                  backgroundColor: dayObj.isCurrentMonth 
-                    ? 'transparent' 
+                  backgroundColor: dayObj.isCurrentMonth
+                    ? 'transparent'
                     : (colorScheme === 'dark' ? '#FFFFFF05' : '#00000005'),
                 },
               ]}
-              onPress={() => onDateSelect(dateStr)}
+              onPress={() => (onDayPress ?? onDateSelect)(dateStr)}
+              onLongPress={() => onDayLongPress?.(dateStr)}
+              delayLongPress={400}
+              onPressIn={() => animateCellScale(dateStr, 0.97)}
+              onPressOut={() => animateCellScale(dateStr, 1)}
             >
-              <View style={styles.cellHeader}>
-                <View
-                  style={[
-                    styles.dayNumberContainer,
-                    isToday && { backgroundColor: theme.primary },
-                  ]}
-                >
-                  <ThemedText
+              <Animated.View style={[styles.cellInner, { transform: [{ scale: getPressScale(dateStr) }] }]}>
+                <View style={styles.cellHeader}>
+                  <View
                     style={[
-                      styles.dayNumber,
-                      { color: dayObj.isCurrentMonth ? theme.textPrimary : theme.textSecondary + '4D' },
-                      isToday && { color: '#FFF' },
+                      styles.dayNumberContainer,
+                      isToday && { backgroundColor: theme.primary },
                     ]}
                   >
-                    {dayObj.date.getDate()}
-                  </ThemedText>
+                    <ThemedText
+                      style={[
+                        styles.dayNumber,
+                        { color: dayObj.isCurrentMonth ? theme.textPrimary : theme.textSecondary + '4D' },
+                        isToday && { color: '#FFF' },
+                      ]}
+                    >
+                      {dayObj.date.getDate()}
+                    </ThemedText>
+                  </View>
                 </View>
-              </View>
 
-              <View style={styles.pillContainer}>
-                {displayEvents.map(ev =>
-                  renderEntryPill(
-                    ev,
-                    dayObj.isCurrentMonth,
-                    ev.entryType === 'anchor' ? { opacity: 0.6 } : undefined
-                  )
-                )}
-                {moreCount > 0 && (
-                  <ThemedText style={[styles.moreText, !dayObj.isCurrentMonth && { opacity: 0.3 }]}>
-                    +{moreCount} more
-                  </ThemedText>
-                )}
-              </View>
+                <View style={styles.pillContainer}>
+                  {displayEvents.map((ev) =>
+                    renderEntryPill(
+                      ev,
+                      dayObj.isCurrentMonth,
+                      ev.entryType === 'anchor' ? { opacity: 0.6 } : undefined
+                    )
+                  )}
+                  {moreCount > 0 && (
+                    <ThemedText style={[styles.moreText, !dayObj.isCurrentMonth && { opacity: 0.3 }]}>
+                      +{moreCount} more
+                    </ThemedText>
+                  )}
+                </View>
 
-              <AnchorStripe anchors={anchors.map(anchor => ({ category: anchor.categoryId }))} />
-            </TouchableOpacity>
+                <AnchorStripe anchors={anchors.map((anchor) => ({ category: anchor.categoryId }))} />
+              </Animated.View>
+            </Pressable>
           );
         })}
       </View>
@@ -277,6 +301,9 @@ const styles = StyleSheet.create({
     padding: 2,
     position: 'relative',
     overflow: 'hidden',
+  },
+  cellInner: {
+    flex: 1,
   },
   cellHeader: {
     flexDirection: 'row',

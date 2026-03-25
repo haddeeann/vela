@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, FlatList, TouchableOpacity, Platform, Alert, View, Animated, Modal, Dimensions, Pressable, Switch } from 'react-native';
+import { StyleSheet, FlatList, TouchableOpacity, Platform, Alert, View, Animated, Modal, Pressable, Switch, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
+import * as Haptics from 'expo-haptics';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useRouter } from 'expo-router';
 
@@ -20,6 +21,7 @@ import { EntryWithMeta } from '../types';
 import { QuickAddDraft } from '../types/quickAdd.types';
 import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
 import { QuickAddSheet } from '../components/QuickAddSheet';
+import { EntryDetailSheet } from '../components/EntryDetailSheet';
 import { useReminderResponseListener } from '../notifications/useReminderResponseListener';
 import { scheduleReminderSequence } from '../notifications/scheduleReminderSequence';
 import { saveNotificationIds } from '../db/reminderQueries';
@@ -49,7 +51,13 @@ export default function HomeScreen() {
   const [isMonthPickerVisible, setIsMonthPickerVisible] = useState(false);
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [isQuickAddVisible, setIsQuickAddVisible] = useState(false);
+  const [quickAddPrefilledDate, setQuickAddPrefilledDate] = useState<string | undefined>(undefined);
+  const [quickAddPrefilledStartTime, setQuickAddPrefilledStartTime] = useState<string | undefined>(undefined);
+  const [quickAddPrefilledEndTime, setQuickAddPrefilledEndTime] = useState<string | undefined>(undefined);
   const [currentDraft, setCurrentDraft] = useState<QuickAddDraft | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<CalendarEvent | null>(null);
+  const [isEntryDetailVisible, setIsEntryDetailVisible] = useState(false);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const {
     showAnchorsOnMonth,
     showAnchorsOnWeek,
@@ -125,6 +133,7 @@ export default function HomeScreen() {
     categoryId: string;
     recurrence: RecurrenceType;
     entryType?: 'event' | 'task' | 'anchor' | 'custom';
+    notes?: string | null;
   }
 
   const [allEvents, setAllEvents] = useState<CalendarEvent[]>([]);
@@ -143,6 +152,7 @@ export default function HomeScreen() {
         categoryId: entry.category,
         recurrence: entry.frequency || 'none',
         entryType: entry.entry_type,
+        notes: entry.notes,
       }));
       setAllEvents(mappedAllEvents);
     } catch (error) {
@@ -186,6 +196,23 @@ export default function HomeScreen() {
     priority?: 'low' | 'medium' | 'high';
   }) => {
     try {
+      if (editingEntryId) {
+        await updateEntry(editingEntryId, {
+          title: newEvent.title,
+          entry_type: newEvent.entryType,
+          date: newEvent.date,
+          start_time: newEvent.startTime || '',
+          end_time: newEvent.endTime || '',
+          category: newEvent.entryType === 'task' ? 'other' : newEvent.categoryId,
+          notes: newEvent.entryType === 'task' ? JSON.stringify({ priority: newEvent.priority }) : '',
+          is_completable: newEvent.entryType === 'task' ? 1 : 0,
+        });
+        setEditingEntryId(null);
+        setIsModalVisible(false);
+        await fetchEvents();
+        return;
+      }
+
       const { id } = await createEntry({
         title: newEvent.title,
         entry_type: newEvent.entryType,
@@ -227,6 +254,61 @@ export default function HomeScreen() {
       Alert.alert('Error', 'Failed to save event.');
     }
   };
+
+  const closeEntryDetail = useCallback(() => {
+    setIsEntryDetailVisible(false);
+    setSelectedEntry(null);
+  }, []);
+
+  const openEntryDetail = useCallback((event: CalendarEvent) => {
+    setSelectedEntry(event);
+    setIsEntryDetailVisible(true);
+  }, []);
+
+  const handleDailyEmptyHourPress = useCallback(({ date, startTime, endTime }: { date: string; startTime: string; endTime: string }) => {
+    setQuickAddPrefilledDate(date);
+    setQuickAddPrefilledStartTime(startTime);
+    setQuickAddPrefilledEndTime(endTime);
+    setIsQuickAddVisible(true);
+  }, []);
+
+  const handleWeeklyEmptySlotPress = useCallback(({ date, startTime, endTime }: { date: string; startTime: string; endTime: string }) => {
+    setQuickAddPrefilledDate(date);
+    setQuickAddPrefilledStartTime(startTime);
+    setQuickAddPrefilledEndTime(endTime);
+    setIsQuickAddVisible(true);
+  }, []);
+
+  const handleWeeklyHeaderDayPress = useCallback((date: string) => {
+    Haptics.selectionAsync().catch(() => {});
+    setSelectedDate(date);
+    setViewMode('daily');
+  }, []);
+
+  const handleEditEntry = useCallback((entryFromSheet: {
+    id: string;
+    title: string;
+    entry_type: 'event' | 'task' | 'anchor';
+    date: string;
+    start_time?: string;
+    end_time?: string;
+    category: string;
+    notes?: string;
+  }) => {
+    setSelectedEntry({
+      id: entryFromSheet.id,
+      title: entryFromSheet.title,
+      startTime: entryFromSheet.start_time || '',
+      endTime: entryFromSheet.end_time || '',
+      date: entryFromSheet.date,
+      categoryId: entryFromSheet.category,
+      recurrence: 'none',
+      entryType: entryFromSheet.entry_type,
+      notes: entryFromSheet.notes,
+    });
+    setEditingEntryId(entryFromSheet.id);
+    setIsModalVisible(true);
+  }, []);
 
   const handleDeleteEvent = async (id: string) => {
     Alert.alert(
@@ -298,6 +380,22 @@ export default function HomeScreen() {
     setSelectedDate(date);
     setIsMonthPickerVisible(false);
   };
+
+  const handleMonthDayPress = useCallback((date: string) => {
+    setSelectedDate(date);
+    setViewMode('daily');
+  }, []);
+
+  const handleMonthDayLongPress = useCallback(async (date: string) => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (error) {
+      console.warn('Haptic feedback failed:', error);
+    }
+
+    setQuickAddPrefilledDate(date);
+    setIsQuickAddVisible(true);
+  }, []);
 
   const getHeaderTitle = () => {
     const date = new Date(selectedDate);
@@ -431,7 +529,12 @@ export default function HomeScreen() {
         <ThemedView style={styles.headerIcons}>
           <TouchableOpacity
             style={styles.headerIconButton}
-            onPress={() => setIsQuickAddVisible(true)}
+            onPress={() => {
+              setQuickAddPrefilledDate(undefined);
+              setQuickAddPrefilledStartTime(undefined);
+              setQuickAddPrefilledEndTime(undefined);
+              setIsQuickAddVisible(true);
+            }}
             activeOpacity={0.7}
           >
             <Ionicons name="add-outline" size={26} color={theme.textPrimary} />
@@ -449,6 +552,13 @@ export default function HomeScreen() {
       <Calendar
         selectedDate={selectedDate}
         onDateSelect={handleDateSelect}
+        onMonthDayPress={handleMonthDayPress}
+        onMonthDayLongPress={handleMonthDayLongPress}
+        onDailyEmptyHourPress={handleDailyEmptyHourPress}
+        onDailyEntryPress={openEntryDetail}
+        onWeeklyEmptySlotPress={handleWeeklyEmptySlotPress}
+        onWeeklyEntryPress={openEntryDetail}
+        onWeeklyHeaderDayPress={handleWeeklyHeaderDayPress}
         events={allEvents}
         view={viewMode}
       />
@@ -457,19 +567,65 @@ export default function HomeScreen() {
 
       <AddEventModal
         isVisible={isModalVisible}
-        onClose={() => setIsModalVisible(false)}
+        onClose={() => {
+          setIsModalVisible(false);
+          setEditingEntryId(null);
+        }}
         onSave={handleAddEvent}
         selectedDate={viewMode === 'daily' ? selectedDate : new Date().toISOString().split('T')[0]}
+        initialValues={selectedEntry && editingEntryId ? {
+          title: selectedEntry.title,
+          date: selectedEntry.date,
+          startTime: selectedEntry.startTime,
+          endTime: selectedEntry.endTime,
+          categoryId: selectedEntry.categoryId as CategoryId,
+          recurrence: selectedEntry.recurrence,
+          entryType: (selectedEntry.entryType || 'event') as 'event' | 'task' | 'anchor',
+        } : undefined}
       />
 
       <QuickAddSheet
         visible={isQuickAddVisible}
-        onClose={() => setIsQuickAddVisible(false)}
-        onDraftCreated={(draft) => setCurrentDraft(draft)}
+        onClose={() => {
+          setIsQuickAddVisible(false);
+          setQuickAddPrefilledDate(undefined);
+          setQuickAddPrefilledStartTime(undefined);
+          setQuickAddPrefilledEndTime(undefined);
+        }}
+        onDraftCreated={(draft) => {
+          setCurrentDraft(draft);
+          setQuickAddPrefilledDate(undefined);
+          setQuickAddPrefilledStartTime(undefined);
+          setQuickAddPrefilledEndTime(undefined);
+        }}
         onOpenFullForm={() => {
           setIsQuickAddVisible(false);
+          setQuickAddPrefilledDate(undefined);
+          setQuickAddPrefilledStartTime(undefined);
+          setQuickAddPrefilledEndTime(undefined);
           setIsModalVisible(true);
         }}
+        theme={theme}
+        prefilledDate={quickAddPrefilledDate}
+        prefilledStartTime={quickAddPrefilledStartTime}
+        prefilledEndTime={quickAddPrefilledEndTime}
+      />
+
+      <EntryDetailSheet
+        entry={selectedEntry ? {
+          id: selectedEntry.id,
+          title: selectedEntry.title,
+          entry_type: (selectedEntry.entryType || 'event') as 'event' | 'task' | 'anchor',
+          date: selectedEntry.date,
+          start_time: selectedEntry.startTime,
+          end_time: selectedEntry.endTime,
+          category: selectedEntry.categoryId,
+          notes: selectedEntry.notes || undefined,
+        } : null}
+        visible={isEntryDetailVisible}
+        onClose={closeEntryDetail}
+        onEditPressed={handleEditEntry}
+        onDeleted={fetchEvents}
         theme={theme}
       />
 

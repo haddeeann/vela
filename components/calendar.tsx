@@ -23,17 +23,38 @@ interface Event {
   categoryId: string;
   recurrence: RecurrenceType;
   entryType?: 'event' | 'task' | 'anchor' | 'custom';
+  notes?: string;
 }
 
 interface CalendarProps {
   selectedDate: string;
   onDateSelect: (date: string) => void;
+  onMonthDayPress?: (date: string) => void;
+  onMonthDayLongPress?: (date: string) => void;
+  onDailyEmptyHourPress?: (params: { date: string; startTime: string; endTime: string }) => void;
+  onDailyEntryPress?: (event: Event) => void;
+  onWeeklyEmptySlotPress?: (params: { date: string; startTime: string; endTime: string }) => void;
+  onWeeklyEntryPress?: (event: Event) => void;
+  onWeeklyHeaderDayPress?: (date: string) => void;
   events: Event[];
   view: 'monthly' | 'weekly' | 'daily';
   style?: any;
 }
 
-export default function Calendar({ selectedDate, onDateSelect, events, view, style }: CalendarProps) {
+export default function Calendar({
+  selectedDate,
+  onDateSelect,
+  onMonthDayPress,
+  onMonthDayLongPress,
+  onDailyEmptyHourPress,
+  onDailyEntryPress,
+  onWeeklyEmptySlotPress,
+  onWeeklyEntryPress,
+  onWeeklyHeaderDayPress,
+  events,
+  view,
+  style,
+}: CalendarProps) {
   const { height } = useWindowDimensions();
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
@@ -93,6 +114,8 @@ export default function Calendar({ selectedDate, onDateSelect, events, view, sty
               selectedDate={selectedDate}
               events={events}
               onDateSelect={onDateSelect}
+              onDayPress={onMonthDayPress}
+              onDayLongPress={onMonthDayLongPress}
               availableHeight={height - 120} // Adjusted for removed header
             />
           </ThemedView>
@@ -101,11 +124,16 @@ export default function Calendar({ selectedDate, onDateSelect, events, view, sty
             selectedDate={selectedDate}
             events={events}
             onDateSelect={onDateSelect}
+            onEmptySlotPress={onWeeklyEmptySlotPress}
+            onEntryPress={onWeeklyEntryPress}
+            onHeaderDayPress={onWeeklyHeaderDayPress}
           />
         ) : (
           <DailyTimeline
             selectedDate={selectedDate}
             events={events}
+            onEmptyHourPress={onDailyEmptyHourPress}
+            onEntryPress={onDailyEntryPress}
           />
         )}
       </ThemedView>

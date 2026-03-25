@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, Alert, View } from 'react-native';
+import { StyleSheet, ScrollView, TouchableOpacity, View, Pressable, Animated } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
@@ -19,11 +20,14 @@ interface Event {
   recurrence: RecurrenceType;
   entryType?: 'event' | 'task' | 'anchor' | 'custom';
   completedAt?: number | null;
+  notes?: string;
 }
 
 interface DailyTimelineProps {
   selectedDate: string;
   events: Event[];
+  onEmptyHourPress?: (params: { date: string; startTime: string; endTime: string }) => void;
+  onEntryPress?: (event: Event) => void;
 }
 
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 6 AM to 10 PM
@@ -39,7 +43,7 @@ interface EventSegment {
   continuesToNext?: boolean;
 }
 
-export function DailyTimeline({ selectedDate, events }: DailyTimelineProps) {
+export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryPress }: DailyTimelineProps) {
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const { showAnchorsOnWeek } = useCalendarSettings();
@@ -100,8 +104,49 @@ export function DailyTimeline({ selectedDate, events }: DailyTimelineProps) {
     return hours + minutes / 60;
   };
 
+  const flashedHourRef = useRef<number | null>(null);
+  const flashOpacity = useRef(new Animated.Value(0)).current;
+
+  const formatHourLabel = (hour: number) => {
+    if (hour === 0) return '12:00 AM';
+    if (hour === 12) return '12:00 PM';
+    if (hour > 12) return `${hour - 12}:00 PM`;
+    return `${hour}:00 AM`;
+  };
+
   const handleEventPress = (event: Event) => {
-    Alert.alert(event.title, `${event.startTime} - ${event.endTime}`);
+    onEntryPress?.(event);
+  };
+
+  const isHourOccupied = (hour: number) => {
+    const hourStart = hour;
+    const hourEnd = hour + 1;
+
+    return filteredEvents
+      .flatMap(getSegmentsForEvent)
+      .some(segment => segment.start < hourEnd && segment.end > hourStart);
+  };
+
+  const flashHour = (hour: number) => {
+    flashedHourRef.current = hour;
+    flashOpacity.setValue(0.08);
+    Animated.timing(flashOpacity, {
+      toValue: 0,
+      duration: 100,
+      useNativeDriver: true,
+    }).start(() => {
+      if (flashedHourRef.current === hour) {
+        flashedHourRef.current = null;
+      }
+    });
+  };
+
+  const handleEmptyHourPress = async (hour: number) => {
+    const startTime = formatHourLabel(hour);
+    const endTime = formatHourLabel(hour + 1);
+    flashHour(hour);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    onEmptyHourPress?.({ date: selectedDate, startTime, endTime });
   };
 
   const getSegmentsForEvent = (event: Event): EventSegment[] => {
@@ -261,6 +306,22 @@ export function DailyTimeline({ selectedDate, events }: DailyTimelineProps) {
               </ThemedText>
             </View>
             <View style={[styles.hourContent, { borderTopColor: theme.border }]}>
+              {!isHourOccupied(hour) ? (
+                <Pressable
+                  style={styles.emptyHourPressable}
+                  onPress={() => handleEmptyHourPress(hour)}
+                >
+                  {flashedHourRef.current === hour ? (
+                    <Animated.View
+                      pointerEvents="none"
+                      style={[
+                        styles.emptyHourFlash,
+                        { backgroundColor: theme.primary, opacity: flashOpacity },
+                      ]}
+                    />
+                  ) : null}
+                </Pressable>
+              ) : null}
               {renderEventBlocks(hour)}
             </View>
           </View>
@@ -296,6 +357,13 @@ const styles = StyleSheet.create({
     flex: 1,
     borderTopWidth: 1,
     position: 'relative',
+  },
+  emptyHourPressable: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+  },
+  emptyHourFlash: {
+    ...StyleSheet.absoluteFillObject,
   },
   eventBlock: {
     position: 'absolute',

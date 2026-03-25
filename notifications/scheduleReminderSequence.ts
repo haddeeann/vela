@@ -1,4 +1,4 @@
-import * as Notifications from 'expo-notifications';
+import type * as NotificationsModule from 'expo-notifications';
 
 import {
   ReminderNotificationData,
@@ -8,6 +8,16 @@ import {
 import { getCategoryForEntry } from './registerReminderCategories';
 
 type EntryType = 'event' | 'task' | 'anchor';
+
+let notificationsModulePromise: Promise<typeof NotificationsModule> | null = null;
+
+const getNotificationsModule = async (): Promise<typeof NotificationsModule> => {
+  if (!notificationsModulePromise) {
+    notificationsModulePromise = import('expo-notifications');
+  }
+
+  return notificationsModulePromise;
+};
 
 const toMs = (timestamp: number): number => {
   return timestamp < 1_000_000_000_000 ? timestamp * 1000 : timestamp;
@@ -21,6 +31,7 @@ export const scheduleReminderSequence = async (params: {
   scheduledAt: number;
   isEscalated?: boolean;
 }): Promise<ScheduledReminderResult> => {
+  const Notifications = await getNotificationsModule();
   const {
     reminderId,
     entryId,
@@ -103,6 +114,7 @@ export const scheduleReminderSequence = async (params: {
 };
 
 export const cancelReminderNotifications = async (notificationIds: string[]): Promise<void> => {
+  const Notifications = await getNotificationsModule();
   await Promise.all(
     notificationIds.map((notificationId) =>
       Notifications.cancelScheduledNotificationAsync(notificationId).catch(() => {})
