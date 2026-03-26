@@ -27,6 +27,21 @@ import { scheduleReminderSequence } from '../notifications/scheduleReminderSeque
 import { saveNotificationIds } from '../db/reminderQueries';
 import { useCalendarSettings } from '../utils/calendarSettings';
 
+type EditableEntry = {
+  id: string;
+  title: string;
+  entry_type: 'event' | 'task' | 'anchor';
+  date: string;
+  start_time?: string;
+  end_time?: string;
+  category: CategoryId;
+  notes?: string;
+  recurrence?: {
+    frequency: RecurrenceType;
+    end_date?: string;
+  };
+};
+
 const isExpoGoOnAndroid = Platform.OS === 'android' && Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 if (!isExpoGoOnAndroid) {
@@ -57,7 +72,7 @@ export default function HomeScreen() {
   const [currentDraft, setCurrentDraft] = useState<QuickAddDraft | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<CalendarEvent | null>(null);
   const [isEntryDetailVisible, setIsEntryDetailVisible] = useState(false);
-  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [editingEntry, setEditingEntry] = useState<EditableEntry | null>(null);
   const {
     showAnchorsOnMonth,
     showAnchorsOnWeek,
@@ -132,6 +147,7 @@ export default function HomeScreen() {
     date: string;
     categoryId: string;
     recurrence: RecurrenceType;
+    recurrenceEndDate?: string | null;
     entryType?: 'event' | 'task' | 'anchor' | 'custom';
     notes?: string | null;
   }
@@ -151,6 +167,7 @@ export default function HomeScreen() {
         date: entry.date,
         categoryId: entry.category,
         recurrence: entry.frequency || 'none',
+        recurrenceEndDate: entry.end_date,
         entryType: entry.entry_type,
         notes: entry.notes,
       }));
@@ -196,23 +213,6 @@ export default function HomeScreen() {
     priority?: 'low' | 'medium' | 'high';
   }) => {
     try {
-      if (editingEntryId) {
-        await updateEntry(editingEntryId, {
-          title: newEvent.title,
-          entry_type: newEvent.entryType,
-          date: newEvent.date,
-          start_time: newEvent.startTime || '',
-          end_time: newEvent.endTime || '',
-          category: newEvent.entryType === 'task' ? 'other' : newEvent.categoryId,
-          notes: newEvent.entryType === 'task' ? JSON.stringify({ priority: newEvent.priority }) : '',
-          is_completable: newEvent.entryType === 'task' ? 1 : 0,
-        });
-        setEditingEntryId(null);
-        setIsModalVisible(false);
-        await fetchEvents();
-        return;
-      }
-
       const { id } = await createEntry({
         title: newEvent.title,
         entry_type: newEvent.entryType,
@@ -294,20 +294,28 @@ export default function HomeScreen() {
     end_time?: string;
     category: string;
     notes?: string;
+    recurrence?: {
+      frequency: RecurrenceType;
+      end_date?: string;
+    };
   }) => {
-    setSelectedEntry({
+    setEditingEntry({
       id: entryFromSheet.id,
       title: entryFromSheet.title,
-      startTime: entryFromSheet.start_time || '',
-      endTime: entryFromSheet.end_time || '',
+      entry_type: entryFromSheet.entry_type,
       date: entryFromSheet.date,
-      categoryId: entryFromSheet.category,
-      recurrence: 'none',
-      entryType: entryFromSheet.entry_type,
+      start_time: entryFromSheet.start_time,
+      end_time: entryFromSheet.end_time,
+      category: entryFromSheet.category as CategoryId,
       notes: entryFromSheet.notes,
+      recurrence: entryFromSheet.recurrence,
     });
-    setEditingEntryId(entryFromSheet.id);
-    setIsModalVisible(true);
+    closeEntryDetail();
+  }, [closeEntryDetail]);
+
+  const handleEditSaved = useCallback(async () => {
+    setEditingEntry(null);
+    await fetchEvents();
   }, []);
 
   const handleDeleteEvent = async (id: string) => {
@@ -569,11 +577,10 @@ export default function HomeScreen() {
         isVisible={isModalVisible}
         onClose={() => {
           setIsModalVisible(false);
-          setEditingEntryId(null);
         }}
         onSave={handleAddEvent}
         selectedDate={viewMode === 'daily' ? selectedDate : new Date().toISOString().split('T')[0]}
-        initialValues={selectedEntry && editingEntryId ? {
+        initialValues={selectedEntry ? {
           title: selectedEntry.title,
           date: selectedEntry.date,
           startTime: selectedEntry.startTime,
@@ -582,6 +589,15 @@ export default function HomeScreen() {
           recurrence: selectedEntry.recurrence,
           entryType: (selectedEntry.entryType || 'event') as 'event' | 'task' | 'anchor',
         } : undefined}
+      />
+
+      <AddEventModal
+        isVisible={editingEntry !== null}
+        onClose={() => setEditingEntry(null)}
+        onSave={handleAddEvent}
+        selectedDate={editingEntry?.date || selectedDate}
+        existingEntry={editingEntry || undefined}
+        onSaved={handleEditSaved}
       />
 
       <QuickAddSheet
@@ -621,6 +637,12 @@ export default function HomeScreen() {
           end_time: selectedEntry.endTime,
           category: selectedEntry.categoryId,
           notes: selectedEntry.notes || undefined,
+          recurrence: selectedEntry.recurrence !== 'none'
+            ? {
+                frequency: selectedEntry.recurrence,
+                end_date: selectedEntry.recurrenceEndDate || undefined,
+              }
+            : undefined,
         } : null}
         visible={isEntryDetailVisible}
         onClose={closeEntryDetail}

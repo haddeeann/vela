@@ -248,6 +248,10 @@ export interface UpdateEntryData {
   end_time?: string;
   category?: CategoryId;
   notes?: string | null;
+  recurrence?: {
+    frequency: RecurrenceType;
+    end_date?: string | null;
+  } | null;
   is_completable?: number;
   completed_at?: number | null;
   custom_type_name?: string | null;
@@ -265,6 +269,7 @@ export const updateEntry = async (id: string, entryData: UpdateEntryData): Promi
     end_time,
     category,
     notes,
+    recurrence,
     is_completable,
     completed_at,
     custom_type_name
@@ -283,15 +288,13 @@ export const updateEntry = async (id: string, entryData: UpdateEntryData): Promi
     if (category !== undefined) { entryFields.push('category = ?'); entryValues.push(category); }
     if (notes !== undefined) { entryFields.push('notes = ?'); entryValues.push(notes); }
 
-    if (entryFields.length > 0) {
-      entryFields.push('updated_at = ?');
-      entryValues.push(now);
-      entryValues.push(id);
-      await sqlite.runAsync(
-        `UPDATE entries SET ${entryFields.join(', ')} WHERE id = ?`,
-        entryValues
-      );
-    }
+    entryFields.push('updated_at = ?');
+    entryValues.push(now);
+    entryValues.push(id);
+    await sqlite.runAsync(
+      `UPDATE entries SET ${entryFields.join(', ')} WHERE id = ?`,
+      entryValues
+    );
 
     // Update entry_meta table
     const metaFields: string[] = [];
@@ -307,6 +310,29 @@ export const updateEntry = async (id: string, entryData: UpdateEntryData): Promi
         `UPDATE entry_meta SET ${metaFields.join(', ')} WHERE entry_id = ?`,
         metaValues
       );
+    }
+
+    if (recurrence !== undefined) {
+      if (recurrence && recurrence.frequency !== 'none') {
+        const existingRule = await sqlite.getFirstAsync(
+          'SELECT id FROM recurrence_rules WHERE entry_id = ?',
+          [id]
+        ) as { id: string } | null;
+
+        if (existingRule) {
+          await sqlite.runAsync(
+            'UPDATE recurrence_rules SET frequency = ?, end_date = ? WHERE entry_id = ?',
+            [recurrence.frequency, recurrence.end_date ?? null, id]
+          );
+        } else {
+          await sqlite.runAsync(
+            'INSERT INTO recurrence_rules (id, entry_id, frequency, end_date, max_occurrences) VALUES (?, ?, ?, ?, ?)',
+            [generateUUID(), id, recurrence.frequency, recurrence.end_date ?? null, null]
+          );
+        }
+      } else {
+        await sqlite.runAsync('DELETE FROM recurrence_rules WHERE entry_id = ?', [id]);
+      }
     }
   });
 };

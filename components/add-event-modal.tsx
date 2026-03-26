@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, View } from 'react-native';
+import { Modal, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, View, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Calendar } from 'react-native-calendars';
 import DateTimePicker, { DateTimePickerEvent, DateTimePickerAndroid } from '@react-native-community/datetimepicker';
@@ -11,6 +11,22 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES, CategoryId } from '@/constants/categories';
 import { RecurrenceType, RECURRENCE_OPTIONS } from '@/constants/recurrence';
 import { ReminderType, REMINDER_OPTIONS } from '@/constants/reminders';
+import { updateEntry } from '@/db';
+
+type ExistingEntry = {
+  id: string;
+  title: string;
+  entry_type: 'event' | 'task' | 'anchor';
+  date: string;
+  start_time?: string;
+  end_time?: string;
+  category: CategoryId;
+  notes?: string;
+  recurrence?: {
+    frequency: RecurrenceType;
+    end_date?: string;
+  };
+};
 
 interface AddEventModalProps {
   isVisible: boolean;
@@ -28,6 +44,8 @@ interface AddEventModalProps {
   }) => void;
   selectedDate: string;
   initialEntryType?: 'event' | 'task' | 'anchor';
+  existingEntry?: ExistingEntry;
+  onSaved?: () => void;
   initialValues?: {
     title: string;
     date: string;
@@ -39,7 +57,7 @@ interface AddEventModalProps {
   };
 }
 
-export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initialEntryType, initialValues }: AddEventModalProps) {
+export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initialEntryType, existingEntry, onSaved, initialValues }: AddEventModalProps) {
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const { height: screenHeight } = useWindowDimensions();
@@ -130,7 +148,22 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
 
   useEffect(() => {
     if (isVisible) {
-      if (initialValues) {
+      if (existingEntry) {
+        setTitle(existingEntry.title);
+        setDate(existingEntry.date);
+        setEntryType(existingEntry.entry_type);
+        setCategoryId(existingEntry.category || 'personal');
+        setRecurrence(existingEntry.recurrence?.frequency || 'none');
+
+        const parsedStartTime = parseTimeLabel(existingEntry.start_time);
+        const parsedEndTime = parseTimeLabel(existingEntry.end_time);
+        if (parsedStartTime) {
+          setStartTimeDate(parsedStartTime);
+        }
+        if (parsedEndTime) {
+          setEndTimeDate(parsedEndTime);
+        }
+      } else if (initialValues) {
         setTitle(initialValues.title);
         setDate(initialValues.date);
         setEntryType(initialValues.entryType || 'event');
@@ -156,7 +189,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
       setShowDueTimePicker(false);
       setIsDatePickerVisible(false);
     }
-  }, [isVisible, selectedDate, initialEntryType, initialValues]);
+  }, [isVisible, selectedDate, initialEntryType, initialValues, existingEntry]);
 
   useEffect(() => {
     if (entryType === 'anchor') {
@@ -165,30 +198,59 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
     }
   }, [entryType]);
 
-  const handleSave = () => {
-    if (title.trim()) {
-      onSave({
-        title,
-        date,
-        startTime: entryType === 'task' ? (dueTimeDate ? formatTimeLabel(dueTimeDate) : '') : formatTimeLabel(startTimeDate),
-        endTime: entryType === 'task' ? (dueTimeDate ? formatTimeLabel(dueTimeDate) : '') : formatTimeLabel(endTimeDate),
-        categoryId,
-        recurrence,
-        reminder,
-        entryType,
-        priority: entryType === 'task' ? priority : undefined
-      });
-      setTitle('');
-      setEntryType('event');
-      setDueTimeDate(null);
-      setStartTimeDate(getNextRoundHour());
-      setEndTimeDate(new Date(getNextRoundHour().getTime() + 60 * 60 * 1000));
-      setPriority('medium');
-      setCategoryId('personal');
-      setRecurrence('none');
-      setReminder('none');
-      onClose();
+  const handleSave = async () => {
+    if (!title.trim()) return;
+
+    const startTime = entryType === 'task' ? (dueTimeDate ? formatTimeLabel(dueTimeDate) : '') : formatTimeLabel(startTimeDate);
+    const endTime = entryType === 'task' ? (dueTimeDate ? formatTimeLabel(dueTimeDate) : '') : formatTimeLabel(endTimeDate);
+
+    if (existingEntry) {
+      try {
+        await updateEntry(existingEntry.id, {
+          title,
+          entry_type: entryType,
+          date,
+          start_time: startTime,
+          end_time: endTime,
+          category: entryType === 'task' ? 'other' : categoryId,
+          notes: existingEntry.notes ?? '',
+          recurrence: recurrence === 'none'
+            ? null
+            : {
+                frequency: recurrence,
+                end_date: existingEntry.recurrence?.end_date,
+              },
+        });
+        onSaved?.();
+        onClose();
+      } catch (error) {
+        console.error('Error updating entry:', error);
+        Alert.alert('Error', 'Failed to save changes.');
+      }
+      return;
     }
+
+    onSave({
+      title,
+      date,
+      startTime,
+      endTime,
+      categoryId,
+      recurrence,
+      reminder,
+      entryType,
+      priority: entryType === 'task' ? priority : undefined
+    });
+    setTitle('');
+    setEntryType('event');
+    setDueTimeDate(null);
+    setStartTimeDate(getNextRoundHour());
+    setEndTimeDate(new Date(getNextRoundHour().getTime() + 60 * 60 * 1000));
+    setPriority('medium');
+    setCategoryId('personal');
+    setRecurrence('none');
+    setReminder('none');
+    onClose();
   };
 
   return (
@@ -224,7 +286,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
           </ThemedView>
 
           <ThemedText type="subtitle" style={styles.modalTitle}>
-            {initialValues ? 'Edit' : 'Add New'} {entryType.charAt(0).toUpperCase() + entryType.slice(1)}
+            {(existingEntry || initialValues) ? 'Edit Entry' : `Add New ${entryType.charAt(0).toUpperCase() + entryType.slice(1)}`}
           </ThemedText>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -492,6 +554,10 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
             )}
           </ScrollView>
 
+          {existingEntry?.recurrence?.frequency && existingEntry.recurrence.frequency !== 'none' && (
+            <ThemedText style={[styles.recurrenceInfoText, { color: theme.textSecondary }]}>Changes apply to all occurrences</ThemedText>
+          )}
+
           <ThemedView style={styles.buttonContainer}>
             <TouchableOpacity
               style={[styles.button, styles.cancelButton]}
@@ -504,7 +570,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
               style={[styles.button, styles.saveButton, { backgroundColor: theme.primary }]}
               onPress={handleSave}
             >
-              <ThemedText style={styles.saveButtonText}>Save {entryType.charAt(0).toUpperCase() + entryType.slice(1)}</ThemedText>
+              <ThemedText style={styles.saveButtonText}>{existingEntry ? 'Save Changes' : `Save ${entryType.charAt(0).toUpperCase() + entryType.slice(1)}`}</ThemedText>
             </TouchableOpacity>
           </ThemedView>
 
@@ -694,5 +760,11 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  recurrenceInfoText: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 8,
   },
 });
