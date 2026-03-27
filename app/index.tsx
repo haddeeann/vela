@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
@@ -18,7 +18,7 @@ import { RecurrenceType } from '@/constants/recurrence';
 import { ReminderType, REMINDER_OPTIONS } from '@/constants/reminders';
 import { createEntry, deleteEntry, updateEntry, createRecurrenceRule, createReminder, getAllEntries, saveQuickAddEntry } from '../db';
 import { EntryWithMeta } from '../types';
-import { QuickAddDraft } from '../types/quickAdd.types';
+import { EntryType, QuickAddDraft } from '../types/quickAdd.types';
 import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
 import { QuickAddSheet } from '../components/QuickAddSheet';
 import { EntryDetailSheet } from '../components/EntryDetailSheet';
@@ -58,6 +58,7 @@ if (!isExpoGoOnAndroid) {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ quickAddType?: string; quickAddPlaceholder?: string }>();
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -69,6 +70,8 @@ export default function HomeScreen() {
   const [quickAddPrefilledDate, setQuickAddPrefilledDate] = useState<string | undefined>(undefined);
   const [quickAddPrefilledStartTime, setQuickAddPrefilledStartTime] = useState<string | undefined>(undefined);
   const [quickAddPrefilledEndTime, setQuickAddPrefilledEndTime] = useState<string | undefined>(undefined);
+  const [quickAddInitialType, setQuickAddInitialType] = useState<EntryType | undefined>(undefined);
+  const [quickAddPlaceholderText, setQuickAddPlaceholderText] = useState<string | undefined>(undefined);
   const [currentDraft, setCurrentDraft] = useState<QuickAddDraft | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<CalendarEvent | null>(null);
   const [isEntryDetailVisible, setIsEntryDetailVisible] = useState(false);
@@ -143,6 +146,19 @@ export default function HomeScreen() {
       useNativeDriver: true,
     }).start();
   }, [isViewingToday, todayButtonOpacity]);
+
+  useEffect(() => {
+    if (!params.quickAddType || params.quickAddType !== 'anchor') {
+      return;
+    }
+
+    setQuickAddInitialType('anchor');
+    if (typeof params.quickAddPlaceholder === 'string' && params.quickAddPlaceholder.length > 0) {
+      setQuickAddPlaceholderText(params.quickAddPlaceholder);
+    }
+    setIsQuickAddVisible(true);
+    router.replace('/');
+  }, [params.quickAddPlaceholder, params.quickAddType, router]);
 
   useEffect(() => {
     if (isDrawerOpen) {
@@ -663,24 +679,32 @@ export default function HomeScreen() {
         visible={isQuickAddVisible}
         onClose={() => {
           setIsQuickAddVisible(false);
+          setQuickAddInitialType(undefined);
+          setQuickAddPlaceholderText(undefined);
           setQuickAddPrefilledDate(undefined);
           setQuickAddPrefilledStartTime(undefined);
           setQuickAddPrefilledEndTime(undefined);
         }}
         onDraftCreated={(draft) => {
           setCurrentDraft(draft);
+          setQuickAddInitialType(undefined);
+          setQuickAddPlaceholderText(undefined);
           setQuickAddPrefilledDate(undefined);
           setQuickAddPrefilledStartTime(undefined);
           setQuickAddPrefilledEndTime(undefined);
         }}
         onOpenFullForm={() => {
           setIsQuickAddVisible(false);
+          setQuickAddInitialType(undefined);
+          setQuickAddPlaceholderText(undefined);
           setQuickAddPrefilledDate(undefined);
           setQuickAddPrefilledStartTime(undefined);
           setQuickAddPrefilledEndTime(undefined);
           setIsModalVisible(true);
         }}
         theme={theme}
+        initialType={quickAddInitialType}
+        placeholderText={quickAddPlaceholderText}
         prefilledDate={quickAddPrefilledDate}
         prefilledStartTime={quickAddPrefilledStartTime}
         prefilledEndTime={quickAddPrefilledEndTime}

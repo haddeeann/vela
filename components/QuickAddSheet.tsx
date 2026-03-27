@@ -22,6 +22,7 @@ interface QuickAddSheetProps {
   onOpenFullForm: () => void;
   theme: ReturnType<typeof getTheme>;
   initialType?: EntryType;
+  placeholderText?: string;
   prefilledDate?: string;
   prefilledStartTime?: string;
   prefilledEndTime?: string;
@@ -36,6 +37,7 @@ export function QuickAddSheet({
   onOpenFullForm,
   theme,
   initialType,
+  placeholderText,
   prefilledDate,
   prefilledStartTime,
   prefilledEndTime,
@@ -174,7 +176,7 @@ export function QuickAddSheet({
             <View style={styles.content}>
               <TextInput
                 style={[styles.input, { color: theme.textPrimary }]}
-                placeholder="What's happening? 'dentist Thursday 2pm'"
+                placeholder={placeholderText || "What's happening? 'dentist Thursday 2pm'"}
                 placeholderTextColor={theme.textSecondary + '80'}
                 value={input}
                 onChangeText={setInput}

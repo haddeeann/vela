@@ -3,6 +3,20 @@ import { useCallback, useEffect, useState } from 'react';
 
 const SHOW_ANCHORS_MONTH_KEY = 'vela_show_anchors_month';
 const SHOW_ANCHORS_WEEK_KEY = 'vela_show_anchors_week';
+const HAS_ONBOARDED_KEY = 'vela_has_onboarded';
+
+export const getHasOnboarded = async (): Promise<boolean> => {
+  const value = await AsyncStorage.getItem(HAS_ONBOARDED_KEY);
+  if (value === null) {
+    return false;
+  }
+
+  return value === 'true';
+};
+
+export const setHasOnboarded = async (): Promise<void> => {
+  await AsyncStorage.setItem(HAS_ONBOARDED_KEY, 'true');
+};
 
 export const getShowAnchorsOnMonth = async (): Promise<boolean> => {
   const value = await AsyncStorage.getItem(SHOW_ANCHORS_MONTH_KEY);
