@@ -4,6 +4,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  ActivityIndicator,
   Animated,
   Dimensions,
   Modal,
@@ -20,7 +21,7 @@ import { ThemedView } from './themed-view';
 interface Props {
   draft: QuickAddDraft | null;
   visible: boolean;
-  onConfirm: (edited: QuickAddSaveInput) => void;
+  onConfirm: (edited: QuickAddSaveInput) => void | Promise<void>;
   onCancel: () => void;
   theme: ReturnType<typeof getTheme>;
 }
@@ -39,6 +40,7 @@ export const QuickAddConfirmSheet: React.FC<Props> = ({
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [entryType, setEntryType] = useState<EntryType>('event');
+  const [isSaving, setIsSaving] = useState(false);
 
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
@@ -66,7 +68,9 @@ export const QuickAddConfirmSheet: React.FC<Props> = ({
 
   if (!draft && !visible) return null;
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    if (isSaving) return;
+
     const edited: QuickAddSaveInput = {
       title,
       entry_type: entryType,
@@ -76,7 +80,15 @@ export const QuickAddConfirmSheet: React.FC<Props> = ({
       category: 'personal', // Default as per requirements
       recurrence: draft?.recurrence,
     };
-    onConfirm(edited);
+
+    setIsSaving(true);
+    try {
+      await Promise.resolve(onConfirm(edited));
+    } catch {
+      // DB layer handles user-facing alert and this sheet stays open for retry.
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const getEntryTypeIcon = (type: EntryType) => {
@@ -230,14 +242,20 @@ export const QuickAddConfirmSheet: React.FC<Props> = ({
               <TouchableOpacity
                 onPress={onCancel}
                 style={[styles.button, styles.cancelButton, { borderColor: theme.primary }]}
+                disabled={isSaving}
               >
                 <ThemedText style={{ color: theme.primary, fontWeight: '600' }}>Cancel</ThemedText>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleConfirm}
                 style={[styles.button, styles.confirmButton, { backgroundColor: theme.primary }]}
+                disabled={isSaving}
               >
-                <ThemedText style={{ color: '#FFF', fontWeight: '600' }}>Confirm</ThemedText>
+                {isSaving ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <ThemedText style={{ color: '#FFF', fontWeight: '600' }}>Confirm</ThemedText>
+                )}
               </TouchableOpacity>
             </View>
           </Pressable>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, View, Alert } from 'react-native';
+import { Modal, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, View, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Calendar } from 'react-native-calendars';
 import DateTimePicker, { DateTimePickerEvent, DateTimePickerAndroid } from '@react-native-community/datetimepicker';
@@ -41,7 +41,7 @@ interface AddEventModalProps {
     reminder: ReminderType;
     entryType: 'event' | 'task' | 'anchor';
     priority?: 'low' | 'medium' | 'high';
-  }) => void;
+  }) => void | Promise<void>;
   selectedDate: string;
   initialEntryType?: 'event' | 'task' | 'anchor';
   existingEntry?: ExistingEntry;
@@ -87,6 +87,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
   const [recurrence, setRecurrence] = useState<RecurrenceType>('none');
   const [reminder, setReminder] = useState<ReminderType>('none');
   const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const formatDateLabel = (dateString: string) => {
     try {
@@ -199,13 +200,14 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
   }, [entryType]);
 
   const handleSave = async () => {
-    if (!title.trim()) return;
+    if (!title.trim() || isSaving) return;
 
     const startTime = entryType === 'task' ? (dueTimeDate ? formatTimeLabel(dueTimeDate) : '') : formatTimeLabel(startTimeDate);
     const endTime = entryType === 'task' ? (dueTimeDate ? formatTimeLabel(dueTimeDate) : '') : formatTimeLabel(endTimeDate);
 
-    if (existingEntry) {
-      try {
+    setIsSaving(true);
+    try {
+      if (existingEntry) {
         await updateEntry(existingEntry.id, {
           title,
           entry_type: entryType,
@@ -221,36 +223,39 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
                 end_date: existingEntry.recurrence?.end_date,
               },
         });
+
         onSaved?.();
         onClose();
-      } catch (error) {
-        console.error('Error updating entry:', error);
-        Alert.alert('Error', 'Failed to save changes.');
+        return;
       }
-      return;
-    }
 
-    onSave({
-      title,
-      date,
-      startTime,
-      endTime,
-      categoryId,
-      recurrence,
-      reminder,
-      entryType,
-      priority: entryType === 'task' ? priority : undefined
-    });
-    setTitle('');
-    setEntryType('event');
-    setDueTimeDate(null);
-    setStartTimeDate(getNextRoundHour());
-    setEndTimeDate(new Date(getNextRoundHour().getTime() + 60 * 60 * 1000));
-    setPriority('medium');
-    setCategoryId('personal');
-    setRecurrence('none');
-    setReminder('none');
-    onClose();
+      await Promise.resolve(onSave({
+        title,
+        date,
+        startTime,
+        endTime,
+        categoryId,
+        recurrence,
+        reminder,
+        entryType,
+        priority: entryType === 'task' ? priority : undefined
+      }));
+
+      setTitle('');
+      setEntryType('event');
+      setDueTimeDate(null);
+      setStartTimeDate(getNextRoundHour());
+      setEndTimeDate(new Date(getNextRoundHour().getTime() + 60 * 60 * 1000));
+      setPriority('medium');
+      setCategoryId('personal');
+      setRecurrence('none');
+      setReminder('none');
+      onClose();
+    } catch {
+      // DB layer handles user-facing alerts. Keep modal open so user can retry.
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -562,6 +567,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
             <TouchableOpacity
               style={[styles.button, styles.cancelButton]}
               onPress={onClose}
+              disabled={isSaving}
             >
               <ThemedText style={{ color: theme.textSecondary }}>Cancel</ThemedText>
             </TouchableOpacity>
@@ -569,8 +575,13 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
             <TouchableOpacity
               style={[styles.button, styles.saveButton, { backgroundColor: theme.primary }]}
               onPress={handleSave}
+              disabled={isSaving}
             >
-              <ThemedText style={styles.saveButtonText}>{existingEntry ? 'Save Changes' : `Save ${entryType.charAt(0).toUpperCase() + entryType.slice(1)}`}</ThemedText>
+              {isSaving ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <ThemedText style={styles.saveButtonText}>{existingEntry ? 'Save Changes' : `Save ${entryType.charAt(0).toUpperCase() + entryType.slice(1)}`}</ThemedText>
+              )}
             </TouchableOpacity>
           </ThemedView>
 

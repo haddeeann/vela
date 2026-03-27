@@ -1,11 +1,17 @@
 import { initDB } from '../db';
+import { handleDbError } from '../utils/errorHandler';
 
 export const markEntryComplete = async (entryId: string): Promise<void> => {
-  const db = await initDB();
-  await db.runAsync(
-    'UPDATE entry_meta SET completed_at = ? WHERE entry_id = ?',
-    [Date.now(), entryId]
-  );
+  try {
+    const db = await initDB();
+    await db.runAsync(
+      'UPDATE entry_meta SET completed_at = ? WHERE entry_id = ?',
+      [Date.now(), entryId]
+    );
+  } catch (error) {
+    handleDbError(error, 'markEntryComplete');
+    throw error;
+  }
 };
 
 export const isEntryCompletable = async (entryId: string): Promise<boolean> => {
@@ -18,13 +24,18 @@ export const isEntryCompletable = async (entryId: string): Promise<boolean> => {
 };
 
 export const moveEntryToTomorrow = async (entryId: string): Promise<void> => {
-  const db = await initDB();
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowDate = tomorrow.toISOString().slice(0, 10);
+  try {
+    const db = await initDB();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowDate = tomorrow.toISOString().slice(0, 10);
 
-  await db.withTransactionAsync(async () => {
-    await db.runAsync('UPDATE entries SET date = ? WHERE id = ?', [tomorrowDate, entryId]);
-    await db.runAsync('UPDATE reminders SET is_fired = 0 WHERE entry_id = ?', [entryId]);
-  });
+    await db.withTransactionAsync(async () => {
+      await db.runAsync('UPDATE entries SET date = ? WHERE id = ?', [tomorrowDate, entryId]);
+      await db.runAsync('UPDATE reminders SET is_fired = 0 WHERE entry_id = ?', [entryId]);
+    });
+  } catch (error) {
+    handleDbError(error, 'moveEntryToTomorrow');
+    throw error;
+  }
 };
