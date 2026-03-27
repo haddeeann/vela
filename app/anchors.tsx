@@ -13,6 +13,7 @@ import { AddEventModal } from '@/components/add-event-modal';
 import { QuickAddSheet } from '../components/QuickAddSheet';
 import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
 import { CATEGORIES } from '@/constants/categories';
+import { EmptyState } from '@/components/EmptyState';
 
 export default function AnchorsScreen() {
   const router = useRouter();
@@ -97,7 +98,16 @@ export default function AnchorsScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderAnchorItem}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={<ThemedText style={styles.emptyText}>No anchors found</ThemedText>}
+        ListEmptyComponent={(
+          <EmptyState
+            icon="infinite-outline"
+            title="No anchors yet"
+            subtitle="Anchors are the recurring patterns that structure your day — sleep, meals, workouts."
+            actionLabel="Add your first anchor"
+            onAction={() => setIsQuickAddVisible(true)}
+            theme={theme}
+          />
+        )}
       />
 
       <AddEventModal
@@ -150,6 +160,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   listContent: {
+    flexGrow: 1,
     paddingBottom: 100,
   },
   anchorCard: {
@@ -170,10 +181,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9B98A8',
     marginTop: 4,
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 40,
-    opacity: 0.6,
   },
 });

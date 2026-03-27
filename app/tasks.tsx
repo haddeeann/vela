@@ -13,6 +13,7 @@ import { AddEventModal } from '@/components/add-event-modal';
 import { QuickAddSheet } from '../components/QuickAddSheet';
 import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
 import { CATEGORIES } from '@/constants/categories';
+import { EmptyState } from '@/components/EmptyState';
 
 export default function TasksScreen() {
   const router = useRouter();
@@ -143,7 +144,16 @@ export default function TasksScreen() {
           <ThemedText type="subtitle" style={styles.sectionHeader}>{title}</ThemedText>
         )}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={<ThemedText style={styles.emptyText}>No tasks found</ThemedText>}
+        ListEmptyComponent={(
+          <EmptyState
+            icon="checkbox-outline"
+            title="No tasks yet"
+            subtitle="Tasks are actions to get done. Tap + to add your first one."
+            actionLabel="Add a task"
+            onAction={() => setIsQuickAddVisible(true)}
+            theme={theme}
+          />
+        )}
       />
 
       <AddEventModal
@@ -202,6 +212,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   listContent: {
+    flexGrow: 1,
     paddingBottom: 100,
   },
   taskCard: {
@@ -229,11 +240,6 @@ const styles = StyleSheet.create({
   },
   completedText: {
     textDecorationLine: 'line-through',
-    opacity: 0.6,
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 40,
     opacity: 0.6,
   },
 });

@@ -4,6 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
+import { EmptyState } from './EmptyState';
 import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
@@ -187,6 +188,7 @@ export function WeeklyTimeGrid({
   };
 
   const todayStr = new Date().toISOString().split('T')[0];
+  const hasWeekEntries = weekDays.some(day => getVisibleSegmentsForDay(day).length > 0);
 
   return (
     <ThemedView style={styles.container}>
@@ -228,11 +230,12 @@ export function WeeklyTimeGrid({
       </View>
 
       {/* Grid */}
-      <ScrollView
-        ref={scrollViewRef}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+      {hasWeekEntries ? (
+        <ScrollView
+          ref={scrollViewRef}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
         <View style={styles.gridContainer}>
           {/* Time Column */}
           <View style={styles.timeColumn}>
@@ -353,7 +356,15 @@ export function WeeklyTimeGrid({
             </View>
           )})}
         </View>
-      </ScrollView>
+        </ScrollView>
+      ) : (
+        <EmptyState
+          icon="calendar-clear-outline"
+          title="Open week"
+          subtitle="Tap any time slot to add an event, or use + to get started."
+          theme={theme}
+        />
+      )}
     </ThemedView>
   );
 }

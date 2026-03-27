@@ -13,6 +13,7 @@ import { AddEventModal } from '@/components/add-event-modal';
 import { QuickAddSheet } from '../components/QuickAddSheet';
 import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
 import { CATEGORIES } from '@/constants/categories';
+import { EmptyState } from '@/components/EmptyState';
 
 export default function EventsScreen() {
   const router = useRouter();
@@ -107,7 +108,16 @@ export default function EventsScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderEventItem}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={<ThemedText style={styles.emptyText}>No upcoming events found</ThemedText>}
+        ListEmptyComponent={(
+          <EmptyState
+            icon="calendar-outline"
+            title="No events coming up"
+            subtitle="Events are scheduled commitments with a time and date."
+            actionLabel="Add an event"
+            onAction={() => setIsQuickAddVisible(true)}
+            theme={theme}
+          />
+        )}
       />
 
       <AddEventModal
@@ -167,6 +177,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   listContent: {
+    flexGrow: 1,
     paddingBottom: 100,
   },
   eventCard: {
@@ -187,10 +198,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9B98A8',
     marginTop: 4,
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 40,
-    opacity: 0.6,
   },
 });

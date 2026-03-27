@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
+import { EmptyState } from './EmptyState';
 import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
@@ -293,41 +294,50 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView
-        ref={scrollViewRef}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {HOURS.map(hour => (
-          <View key={hour} style={styles.hourRow}>
-            <View style={styles.timeLabelContainer}>
-              <ThemedText style={styles.timeLabel}>
-                {hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
-              </ThemedText>
+      {filteredEvents.length === 0 ? (
+        <EmptyState
+          icon="sunny-outline"
+          title="Nothing scheduled"
+          subtitle="Tap a time slot to add something, or use + to plan your day"
+          theme={theme}
+        />
+      ) : (
+        <ScrollView
+          ref={scrollViewRef}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {HOURS.map(hour => (
+            <View key={hour} style={styles.hourRow}>
+              <View style={styles.timeLabelContainer}>
+                <ThemedText style={styles.timeLabel}>
+                  {hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
+                </ThemedText>
+              </View>
+              <View style={[styles.hourContent, { borderTopColor: theme.border }]}>
+                {!isHourOccupied(hour) ? (
+                  <Pressable
+                    style={styles.emptyHourPressable}
+                    onPress={() => handleEmptyHourPress(hour)}
+                  >
+                    {flashedHourRef.current === hour ? (
+                      <Animated.View
+                        pointerEvents="none"
+                        style={[
+                          styles.emptyHourFlash,
+                          { backgroundColor: theme.primary, opacity: flashOpacity },
+                        ]}
+                      />
+                    ) : null}
+                  </Pressable>
+                ) : null}
+                {renderEventBlocks(hour)}
+              </View>
             </View>
-            <View style={[styles.hourContent, { borderTopColor: theme.border }]}>
-              {!isHourOccupied(hour) ? (
-                <Pressable
-                  style={styles.emptyHourPressable}
-                  onPress={() => handleEmptyHourPress(hour)}
-                >
-                  {flashedHourRef.current === hour ? (
-                    <Animated.View
-                      pointerEvents="none"
-                      style={[
-                        styles.emptyHourFlash,
-                        { backgroundColor: theme.primary, opacity: flashOpacity },
-                      ]}
-                    />
-                  ) : null}
-                </Pressable>
-              ) : null}
-              {renderEventBlocks(hour)}
-            </View>
-          </View>
-        ))}
-        <View style={styles.lastHourPadding} />
-      </ScrollView>
+          ))}
+          <View style={styles.lastHourPadding} />
+        </ScrollView>
+      )}
     </ThemedView>
   );
 }
