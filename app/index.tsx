@@ -82,6 +82,34 @@ export default function HomeScreen() {
   const slideAnim = useRef(new Animated.Value(-Dimensions.get('window').width * 0.72)).current;
   const dropdownFadeAnim = useRef(new Animated.Value(0)).current;
   const dropdownScaleAnim = useRef(new Animated.Value(0.95)).current;
+  const todayButtonOpacity = useRef(new Animated.Value(0)).current;
+
+  const todayDate = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  const isViewingToday = useMemo(() => {
+    const selected = new Date(selectedDate);
+    const today = new Date(todayDate);
+
+    if (viewMode === 'monthly') {
+      return selected.getMonth() === today.getMonth() && selected.getFullYear() === today.getFullYear();
+    }
+
+    if (viewMode === 'weekly') {
+      const day = selected.getDay();
+      const diff = selected.getDate() - (day === 0 ? 6 : day - 1);
+      const monday = new Date(selected);
+      monday.setDate(diff);
+      monday.setHours(0, 0, 0, 0);
+
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      sunday.setHours(23, 59, 59, 999);
+
+      return today >= monday && today <= sunday;
+    }
+
+    return selectedDate === todayDate;
+  }, [selectedDate, todayDate, viewMode]);
 
   useEffect(() => {
     if (isDropdownVisible) {
@@ -107,6 +135,14 @@ export default function HomeScreen() {
       });
     }
   }, [isDropdownVisible]);
+
+  useEffect(() => {
+    Animated.timing(todayButtonOpacity, {
+      toValue: isViewingToday ? 0 : 1,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+  }, [isViewingToday, todayButtonOpacity]);
 
   useEffect(() => {
     if (isDrawerOpen) {
@@ -389,6 +425,17 @@ export default function HomeScreen() {
     setIsMonthPickerVisible(false);
   };
 
+  const handleTodayPress = useCallback(async () => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      console.warn('Haptic feedback failed:', error);
+    }
+
+    setSelectedDate(todayDate);
+    setIsMonthPickerVisible(false);
+  }, [todayDate]);
+
   const handleMonthDayPress = useCallback((date: string) => {
     setSelectedDate(date);
     setViewMode('daily');
@@ -534,6 +581,18 @@ export default function HomeScreen() {
             <Ionicons name="chevron-down-outline" size={16} color={theme.textPrimary} style={styles.chevron} />
           </TouchableOpacity>
         </View>
+        <Animated.View
+          pointerEvents={isViewingToday ? 'none' : 'auto'}
+          style={[styles.todayButtonWrapper, { opacity: todayButtonOpacity }]}
+        >
+          <TouchableOpacity
+            style={[styles.todayButton, { backgroundColor: theme.primary + '1A' }]}
+            onPress={handleTodayPress}
+            activeOpacity={0.7}
+          >
+            <ThemedText style={[styles.todayButtonText, { color: theme.primary }]}>Today</ThemedText>
+          </TouchableOpacity>
+        </Animated.View>
         <ThemedView style={styles.headerIcons}>
           <TouchableOpacity
             style={styles.headerIconButton}
@@ -867,6 +926,18 @@ const styles = StyleSheet.create({
   headerIcons: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  todayButtonWrapper: {
+    marginRight: 6,
+  },
+  todayButton: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  todayButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   headerIconButton: {
     marginLeft: 16,
