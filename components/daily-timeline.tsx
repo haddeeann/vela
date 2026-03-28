@@ -10,7 +10,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
 import { useCalendarSettings } from '@/utils/calendarSettings';
-import { parseDateString } from '@/utils/dateUtils';
+import { formatHourLabel, parseDateString } from '@/utils/dateUtils';
 
 interface Event {
   id: string;
@@ -32,9 +32,10 @@ interface DailyTimelineProps {
   onEntryPress?: (event: Event) => void;
 }
 
-const HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 6 AM to 10 PM
-const TIMELINE_START_HOUR = 6;
-const TIMELINE_END_HOUR = 22;
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const TIMELINE_START_HOUR = 0;
+const TIMELINE_END_HOUR = 24;
+const ROW_HEIGHT = 60;
 
 interface EventSegment {
   id: string;
@@ -61,9 +62,7 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
     const scrollToCurrentHour = () => {
       const now = new Date();
       const currentHour = now.getHours();
-      // Use current hour if it's within our range (6-22), otherwise default to 8 AM
-      const targetHour = (currentHour >= 6 && currentHour <= 22) ? currentHour : 8;
-      const scrollOffset = (targetHour - 6) * 60;
+      const scrollOffset = currentHour * ROW_HEIGHT;
 
       if (scrollViewRef.current) {
         scrollViewRef.current.scrollTo({ y: scrollOffset, animated: true });
@@ -109,11 +108,12 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
   const flashedHourRef = useRef<number | null>(null);
   const flashOpacity = useRef(new Animated.Value(0)).current;
 
-  const formatHourLabel = (hour: number) => {
-    if (hour === 0) return '12:00 AM';
-    if (hour === 12) return '12:00 PM';
-    if (hour > 12) return `${hour - 12}:00 PM`;
-    return `${hour}:00 AM`;
+  const formatHourTime = (hour: number) => {
+    const normalizedHour = ((hour % 24) + 24) % 24;
+    if (normalizedHour === 0) return '12:00 AM';
+    if (normalizedHour === 12) return '12:00 PM';
+    if (normalizedHour > 12) return `${normalizedHour - 12}:00 PM`;
+    return `${normalizedHour}:00 AM`;
   };
 
   const handleEventPress = (event: Event) => {
@@ -144,8 +144,8 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
   };
 
   const handleEmptyHourPress = async (hour: number) => {
-    const startTime = formatHourLabel(hour);
-    const endTime = formatHourLabel(hour + 1);
+    const startTime = formatHourTime(hour);
+    const endTime = formatHourTime(hour + 1);
     flashHour(hour);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     onEmptyHourPress?.({ date: selectedDate, startTime, endTime });
@@ -222,6 +222,7 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
       .map(segment => {
         const { event, start, end, continuedFromPrevious, continuesToNext } = segment;
         const duration = Math.max(0.25, end - start);
+        const showContinuesLabel = continuesToNext && end >= 24;
         const category = CATEGORIES.find(c => c.id === event.categoryId) || CATEGORIES[4];
         const isTask = event.entryType === 'task';
         const isAnchor = event.entryType === 'anchor';
@@ -236,8 +237,8 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
               {
                 backgroundColor: isTask ? theme.primary + '20' : (isAnchor ? category.color + '1F' : category.color + '40'),
                 borderLeftColor: isTask ? theme.primary : category.color,
-                top: (start - hour) * 60,
-                height: duration * 60,
+                top: (start - hour) * ROW_HEIGHT,
+                height: duration * ROW_HEIGHT,
               },
               isAnchor && { borderLeftWidth: 3, opacity: 0.85 },
               isCompleted && { opacity: 0.5 }
@@ -263,7 +264,12 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
                   <Ionicons name="chevron-up" size={10} color={category.color + '99'} style={styles.continuedTop} />
                 )}
                 {continuesToNext && (
-                  <Ionicons name="chevron-down" size={10} color={category.color + '99'} style={styles.continuedBottom} />
+                  <>
+                    <Ionicons name="chevron-down" size={10} color={category.color + '99'} style={styles.continuedBottom} />
+                    {showContinuesLabel && (
+                      <ThemedText style={[styles.continuesLabel, { color: category.color + '99' }]}>↓ continues</ThemedText>
+                    )}
+                  </>
                 )}
               </>
             ) : (
@@ -312,7 +318,7 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
             <View key={hour} style={styles.hourRow}>
               <View style={styles.timeLabelContainer}>
                 <ThemedText style={styles.timeLabel}>
-                  {hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
+                  {formatHourLabel(hour)}
                 </ThemedText>
               </View>
               <View style={[styles.hourContent, { borderTopColor: theme.border }]}>
@@ -352,7 +358,7 @@ const styles = StyleSheet.create({
   },
   hourRow: {
     flexDirection: 'row',
-    height: 60,
+    height: ROW_HEIGHT,
   },
   timeLabelContainer: {
     width: 60,
@@ -422,7 +428,14 @@ const styles = StyleSheet.create({
     bottom: 2,
     right: 4,
   },
+  continuesLabel: {
+    position: 'absolute',
+    bottom: 2,
+    left: 4,
+    fontSize: 10,
+    opacity: 0.9,
+  },
   lastHourPadding: {
-    height: 60,
+    height: ROW_HEIGHT,
   },
 });
