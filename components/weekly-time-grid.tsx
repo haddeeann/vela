@@ -10,6 +10,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
 import { useCalendarSettings } from '@/utils/calendarSettings';
+import { getWeekStart } from '@/utils/dateUtils';
 
 interface Event {
   id: string;
@@ -69,13 +70,7 @@ export function WeeklyTimeGrid({
   const columnWidth = (screenWidth - TIME_COLUMN_WIDTH - 32) / 7;
 
   const startOfWeek = useMemo(() => {
-    const date = new Date(selectedDate);
-    const day = date.getDay(); // 0 (Sun) to 6 (Sat)
-    // Adjust to Monday as start of week. If it's Sunday (0), go back 6 days.
-    const diff = date.getDate() - (day === 0 ? 6 : day - 1);
-    const monday = new Date(date.setDate(diff));
-    monday.setHours(0, 0, 0, 0);
-    return monday;
+    return getWeekStart(new Date(selectedDate));
   }, [selectedDate]);
 
   const weekDays = useMemo(() => {
@@ -209,7 +204,7 @@ export function WeeklyTimeGrid({
               }}
             >
               <ThemedText style={styles.dayName}>
-                {day.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0)}
+                {day.toLocaleDateString('en-US', { weekday: 'short' })}
               </ThemedText>
               <View style={[
                 styles.dateCircle,

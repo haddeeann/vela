@@ -71,6 +71,8 @@ export const QuickAddConfirmSheet: React.FC<Props> = ({
   const handleConfirm = async () => {
     if (isSaving) return;
 
+    console.log('[ConfirmSheet] Confirm pressed');
+
     const edited: QuickAddSaveInput = {
       title,
       entry_type: entryType,
@@ -80,6 +82,8 @@ export const QuickAddConfirmSheet: React.FC<Props> = ({
       category: 'personal', // Default as per requirements
       recurrence: draft?.recurrence,
     };
+
+    console.log('[ConfirmSheet] Save input:', edited);
 
     setIsSaving(true);
     try {

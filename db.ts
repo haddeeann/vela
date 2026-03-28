@@ -469,6 +469,8 @@ export const deleteRecurrenceForEntry = async (entryId: string): Promise<void> =
  */
 export const saveQuickAddEntry = async (input: QuickAddSaveInput): Promise<string> => {
   try {
+    console.log('[DB] saveQuickAddEntry called with:', input);
+
     const sqlite = await getDB();
     const id = generateUUID();
     const metaId = generateUUID();
@@ -552,10 +554,15 @@ export const saveQuickAddEntry = async (input: QuickAddSaveInput): Promise<strin
         'UPDATE reminders SET expo_notification_id = ? WHERE id = ?',
         [result.nowNotificationId, reminderId]
       );
+
+      console.log('[DB] Insert result:', result);
+    } else {
+      console.log('[DB] Insert result:', { id });
     }
 
     return id;
   } catch (error) {
+    console.error('[DB] saveQuickAddEntry FAILED:', error);
     handleDbError(error, 'saveQuickAddEntry');
     throw error;
   }

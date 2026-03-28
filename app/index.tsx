@@ -26,6 +26,7 @@ import { useReminderResponseListener } from '../notifications/useReminderRespons
 import { scheduleReminderSequence } from '../notifications/scheduleReminderSequence';
 import { saveNotificationIds } from '../db/reminderQueries';
 import { useCalendarSettings } from '../utils/calendarSettings';
+import { getWeekEnd, getWeekStart, getWeeksInMonth, formatWeekRangeLabel } from '../utils/dateUtils';
 
 type EditableEntry = {
   id: string;
@@ -105,15 +106,8 @@ export default function HomeScreen() {
     }
 
     if (viewMode === 'weekly') {
-      const day = selected.getDay();
-      const diff = selected.getDate() - (day === 0 ? 6 : day - 1);
-      const monday = new Date(selected);
-      monday.setDate(diff);
-      monday.setHours(0, 0, 0, 0);
-
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
-      sunday.setHours(23, 59, 59, 999);
+      const monday = getWeekStart(selected);
+      const sunday = getWeekEnd(selected);
 
       return today >= monday && today <= sunday;
     }
@@ -481,61 +475,16 @@ export default function HomeScreen() {
     if (viewMode === 'monthly') {
       return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     } else if (viewMode === 'weekly') {
-      const weekStart = new Date(date);
-      weekStart.setDate(date.getDate() - date.getDay());
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6);
-
-      const startMonth = weekStart.toLocaleDateString('en-US', { month: 'short' });
-      const endMonth = weekEnd.toLocaleDateString('en-US', { month: 'short' });
-      const startDay = weekStart.getDate();
-      const endDay = weekEnd.getDate();
-
-      if (startMonth === endMonth) {
-        return `${startMonth} ${startDay} – ${endDay}`;
-      }
-
-      return `${startMonth} ${startDay} – ${endMonth} ${endDay}`;
+      const weekStart = getWeekStart(date);
+      const weekEnd = getWeekEnd(date);
+      return formatWeekRangeLabel(weekStart, weekEnd);
     } else {
       return date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
     }
   };
 
-  const getMonthWeeks = (baseDate: Date) => {
-    const month = baseDate.getMonth();
-    const year = baseDate.getFullYear();
-    const monthStart = new Date(year, month, 1);
-    const monthEnd = new Date(year, month + 1, 0);
-    const firstWeekStart = new Date(monthStart);
-    firstWeekStart.setDate(monthStart.getDate() - monthStart.getDay());
-
-    const weeks: { start: Date; end: Date }[] = [];
-    const cursor = new Date(firstWeekStart);
-    while (cursor <= monthEnd) {
-      const start = new Date(cursor);
-      const end = new Date(cursor);
-      end.setDate(start.getDate() + 6);
-      weeks.push({ start, end });
-      cursor.setDate(cursor.getDate() + 7);
-    }
-
-    return weeks;
-  };
-
-  const formatWeekRange = (start: Date, end: Date) => {
-    const startMonth = start.toLocaleDateString('en-US', { month: 'short' });
-    const startDay = start.getDate();
-    const endDay = end.getDate();
-    if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-      return `${startMonth} ${startDay} – ${endDay}`;
-    }
-
-    const endMonth = end.toLocaleDateString('en-US', { month: 'short' });
-    return `${startMonth} ${startDay} – ${endMonth} ${endDay}`;
-  };
-
   const WeekPicker = () => {
-    const weeks = getMonthWeeks(weekPickerMonthDate);
+    const weeks = getWeeksInMonth(weekPickerMonthDate.getFullYear(), weekPickerMonthDate.getMonth());
     const monthLabel = weekPickerMonthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
     const changeWeekPickerMonth = (delta: number) => {
@@ -572,10 +521,7 @@ export default function HomeScreen() {
 
             <View style={styles.weekList}>
               {weeks.map((week, index) => {
-                const selected = new Date(selectedDate);
-                const selectedWeekStart = new Date(selected);
-                selectedWeekStart.setDate(selected.getDate() - selected.getDay());
-                selectedWeekStart.setHours(0, 0, 0, 0);
+                const selectedWeekStart = getWeekStart(new Date(selectedDate));
                 const isSelected = week.start.toDateString() === selectedWeekStart.toDateString();
                 return (
                   <TouchableOpacity
@@ -595,7 +541,7 @@ export default function HomeScreen() {
                         { color: isSelected ? theme.primary : theme.textPrimary },
                       ]}
                     >
-                      {formatWeekRange(week.start, week.end)}
+                      {week.label}
                     </ThemedText>
                   </TouchableOpacity>
                 );

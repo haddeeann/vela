@@ -22,7 +22,7 @@ type ConceptRowProps = {
 
 function ConceptRow({ icon, iconColor, title, description, isLast, theme }: ConceptRowProps) {
   return (
-    <View style={[styles.row, { borderBottomColor: theme.border, borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth }]}> 
+    <View style={[styles.row, { borderBottomColor: theme.border, borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth }]}>
       <Ionicons name={icon} size={28} color={iconColor} style={styles.rowIcon} />
       <View style={styles.rowTextContainer}>
         <ThemedText style={[styles.rowTitle, { color: theme.textPrimary }]}>{title}</ThemedText>
@@ -43,7 +43,11 @@ export default function OnboardingScreen() {
   };
 
   const handleAddSleepAnchor = async () => {
+    console.log('[Onboarding] Button pressed');
+    console.log('[Onboarding] Calling setHasOnboarded');
     await setHasOnboarded();
+    console.log('[Onboarding] Navigating to home');
+    console.log('[Onboarding] Opening QuickAddSheet with:', { prefilledType: 'anchor' });
     router.replace({
       pathname: '/',
       params: {

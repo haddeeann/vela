@@ -42,6 +42,12 @@ export function QuickAddSheet({
   prefilledStartTime,
   prefilledEndTime,
 }: QuickAddSheetProps) {
+  console.log('[QuickAddSheet] Rendered, visible:', visible);
+  console.log('[QuickAddSheet] Props:', {
+    prefilledDate,
+    prefilledType: initialType,
+  });
+
   const [input, setInput] = useState('');
   const [selectedType, setSelectedType] = useState<EntryType | null>(prefilledStartTime ? 'event' : (initialType || null));
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
@@ -91,6 +97,9 @@ export function QuickAddSheet({
   }, [visible, initialType, prefilledStartTime]);
 
   const handleSubmit = () => {
+    console.log('[QuickAddSheet] Submit pressed');
+    const inputText = input;
+    console.log('[QuickAddSheet] Raw input:', inputText);
     if (!input.trim()) return;
 
     const draft = parseQuickAdd(input);
@@ -105,6 +114,8 @@ export function QuickAddSheet({
     if (selectedType) {
       draft.entryType = selectedType;
     }
+
+    console.log('[QuickAddSheet] Draft created:', draft);
 
     onDraftCreated(draft);
     setInput('');
