@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, FlatList, TouchableOpacity, Platform, Alert, View, Animated, Modal, Pressable, Switch, Dimensions } from 'react-native';
+import { StyleSheet, FlatList, TouchableOpacity, Platform, Alert, View, Animated, Modal, Pressable, Switch, Dimensions, DevSettings, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
@@ -190,6 +191,31 @@ export default function HomeScreen() {
   const selectView = (view: 'monthly' | 'weekly' | 'daily') => {
     setViewMode(view);
     closeDrawer();
+  };
+
+  const handleDevReset = async () => {
+    try {
+      await AsyncStorage.removeItem('vela_has_onboarded');
+      await AsyncStorage.removeItem('vela_show_anchors_month');
+      await AsyncStorage.removeItem('vela_show_anchors_week');
+
+      let didReload = false;
+      try {
+        const Updates = require('expo-updates');
+        if (Updates?.reloadAsync) {
+          await Updates.reloadAsync();
+          didReload = true;
+        }
+      } catch {
+        // expo-updates is optional in this project
+      }
+
+      if (!didReload) {
+        DevSettings.reload();
+      }
+    } catch (error) {
+      console.error('[DevReset] Failed to reset onboarding state:', error);
+    }
   };
 
   interface CalendarEvent {
@@ -986,6 +1012,14 @@ export default function HomeScreen() {
                   />
                 </View>
               </View>
+
+              <View style={styles.drawerBottomSpacer} />
+
+              {__DEV__ && (
+                <TouchableOpacity style={styles.devResetButton} onPress={handleDevReset}>
+                  <Text style={[styles.devResetText, { color: theme.error || '#D32F2F' }]}>Reset onboarding (dev only)</Text>
+                </TouchableOpacity>
+              )}
             </Pressable>
           </Animated.View>
         </Pressable>
@@ -1211,6 +1245,19 @@ const styles = StyleSheet.create({
   toggleRowDivider: {
     height: 1,
     marginHorizontal: 16,
+  },
+  drawerBottomSpacer: {
+    flex: 1,
+  },
+  devResetButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginTop: 12,
+  },
+  devResetText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   dropdownOverlay: {
     flex: 1,
