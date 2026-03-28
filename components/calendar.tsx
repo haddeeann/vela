@@ -9,6 +9,7 @@ import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import { RecurrenceType } from '@/constants/recurrence';
+import { formatDateString, parseDateString } from '@/utils/dateUtils';
 
 import { DailyTimeline } from './daily-timeline';
 import { WeeklyTimeGrid } from './weekly-time-grid';
@@ -58,21 +59,21 @@ export default function Calendar({
   const { height } = useWindowDimensions();
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
-  const today = new Date().toISOString().split('T')[0];
+  const today = formatDateString(new Date());
 
   const handlePrevMonth = () => {
-    const date = new Date(selectedDate);
+    const date = parseDateString(selectedDate);
     date.setMonth(date.getMonth() - 1);
-    onDateSelect(date.toISOString().split('T')[0]);
+    onDateSelect(formatDateString(date));
   };
 
   const handleNextMonth = () => {
-    const date = new Date(selectedDate);
+    const date = parseDateString(selectedDate);
     date.setMonth(date.getMonth() + 1);
-    onDateSelect(date.toISOString().split('T')[0]);
+    onDateSelect(formatDateString(date));
   };
 
-  const monthYearLabel = new Date(selectedDate).toLocaleDateString('en-US', {
+  const monthYearLabel = parseDateString(selectedDate).toLocaleDateString('en-US', {
     month: 'long',
     year: 'numeric',
   });

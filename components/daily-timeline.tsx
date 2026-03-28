@@ -10,6 +10,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
 import { useCalendarSettings } from '@/utils/calendarSettings';
+import { parseDateString } from '@/utils/dateUtils';
 
 interface Event {
   id: string;
@@ -50,7 +51,7 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
   const { showAnchorsOnWeek } = useCalendarSettings();
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const formattedDate = new Date(selectedDate).toLocaleDateString('en-US', {
+  const formattedDate = parseDateString(selectedDate).toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -81,8 +82,8 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
     // Don't show recurring events before their start date
     if (event.date > selectedDate) return false;
 
-    const eventDate = new Date(event.date);
-    const selected = new Date(selectedDate);
+    const eventDate = parseDateString(event.date);
+    const selected = parseDateString(selectedDate);
 
     if (event.recurrence === 'daily') {
       return true;

@@ -5,6 +5,7 @@ import { RecurrenceType } from './constants/recurrence';
 import { QuickAddSaveInput } from './types/quickAdd.types';
 import { scheduleReminderSequence, cancelReminderNotifications } from './notifications/scheduleReminderSequence';
 import { handleDbError } from './utils/errorHandler';
+import { parseDateString } from './utils/dateUtils';
 
 /**
  * Generate a basic UUID using Math.random() as per requirements.
@@ -227,11 +228,11 @@ export const getEntriesForDate = async (date: string): Promise<EntryWithMeta[]> 
     if (entry.date === date) return true;
     if (!entry.frequency) return false;
 
-    const entryDate = new Date(entry.date);
-    const targetDate = new Date(date);
+    const entryDate = parseDateString(entry.date);
+    const targetDate = parseDateString(date);
 
     if (targetDate < entryDate) return false;
-    if (entry.end_date && targetDate > new Date(entry.end_date)) return false;
+    if (entry.end_date && targetDate > parseDateString(entry.end_date)) return false;
 
     // Check recurrence rules
     if (entry.frequency === 'daily') return true;
@@ -398,11 +399,11 @@ export const createReminder = async (entryId: string, remindBeforeMinutes: numbe
     if (period === 'PM' && hours < 12) hours += 12;
     if (period === 'AM' && hours === 12) hours = 0;
 
-    startDateTime = new Date(entry.date);
+    startDateTime = parseDateString(entry.date);
     startDateTime.setHours(hours, minutes, 0, 0);
   } else {
     // Fallback to start of day if no time is provided
-    startDateTime = new Date(`${entry.date}T00:00:00`);
+    startDateTime = parseDateString(entry.date);
   }
 
   const timestamp = startDateTime.getTime();
@@ -520,7 +521,7 @@ export const saveQuickAddEntry = async (input: QuickAddSaveInput): Promise<strin
       if (typeof remind_before_minutes === 'number') {
         reminderId = generateUUID();
 
-        const entryDateTime = new Date(date);
+        const entryDateTime = parseDateString(date);
         if (start_time && start_time.trim() !== '') {
           const [time, period] = start_time.split(' ');
           let [hours, minutes] = time.split(':').map(Number);

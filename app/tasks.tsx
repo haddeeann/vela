@@ -14,6 +14,7 @@ import { QuickAddSheet } from '../components/QuickAddSheet';
 import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
 import { CATEGORIES } from '@/constants/categories';
 import { EmptyState } from '@/components/EmptyState';
+import { formatDateString, parseDateString } from '@/utils/dateUtils';
 
 export default function TasksScreen() {
   const router = useRouter();
@@ -70,14 +71,16 @@ export default function TasksScreen() {
     }
   };
 
+  const today = formatDateString(new Date());
+
   const sections = [
     {
       title: 'Today',
-      data: tasks.filter(t => !t.completed_at && t.date === new Date().toISOString().split('T')[0]),
+      data: tasks.filter(t => !t.completed_at && t.date === today),
     },
     {
       title: 'Upcoming',
-      data: tasks.filter(t => !t.completed_at && t.date > new Date().toISOString().split('T')[0]),
+      data: tasks.filter(t => !t.completed_at && t.date > today),
     },
     {
       title: 'Completed',
@@ -94,7 +97,7 @@ export default function TasksScreen() {
       } catch (e) {}
     }
 
-    const d = new Date(item.date + 'T00:00:00');
+    const d = parseDateString(item.date);
     const formattedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
     return (
@@ -160,7 +163,7 @@ export default function TasksScreen() {
         isVisible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
         onSave={handleAddEvent}
-        selectedDate={new Date().toISOString().split('T')[0]}
+        selectedDate={formatDateString(new Date())}
         initialEntryType="task"
       />
 

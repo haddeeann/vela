@@ -14,6 +14,7 @@ import { QuickAddSheet } from '../components/QuickAddSheet';
 import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
 import { CATEGORIES } from '@/constants/categories';
 import { EmptyState } from '@/components/EmptyState';
+import { formatDateString } from '@/utils/dateUtils';
 
 export default function AnchorsScreen() {
   const router = useRouter();
@@ -114,7 +115,7 @@ export default function AnchorsScreen() {
         isVisible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
         onSave={handleAddEvent}
-        selectedDate={new Date().toISOString().split('T')[0]}
+        selectedDate={formatDateString(new Date())}
         initialEntryType="anchor"
       />
 

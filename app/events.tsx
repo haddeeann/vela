@@ -14,6 +14,7 @@ import { QuickAddSheet } from '../components/QuickAddSheet';
 import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
 import { CATEGORIES } from '@/constants/categories';
 import { EmptyState } from '@/components/EmptyState';
+import { formatDateString, parseDateString } from '@/utils/dateUtils';
 
 export default function EventsScreen() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export default function EventsScreen() {
   const fetchEvents = useCallback(async () => {
     try {
       const allEntries = await getAllEntries();
-      const now = new Date().toISOString().split('T')[0];
+      const now = formatDateString(new Date());
       const filteredEvents = allEntries
         .filter(entry => entry.entry_type === 'event' && entry.date >= now)
         .sort((a, b) => {
@@ -67,7 +68,7 @@ export default function EventsScreen() {
     const category = CATEGORIES.find(c => c.id === item.category) || CATEGORIES[4];
     const showDateHeader = index === 0 || events[index - 1].date !== item.date;
 
-    const d = new Date(item.date + 'T00:00:00');
+    const d = parseDateString(item.date);
     const formattedDate = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
     return (
@@ -124,7 +125,7 @@ export default function EventsScreen() {
         isVisible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
         onSave={handleAddEvent}
-        selectedDate={new Date().toISOString().split('T')[0]}
+        selectedDate={formatDateString(new Date())}
         initialEntryType="event"
       />
 

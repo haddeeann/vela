@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getTheme } from '../constants/theme';
 import { CATEGORIES } from '../constants/categories';
 import { deleteEntry } from '../db';
+import { parseDateString } from '../utils/dateUtils';
 import { ThemedText } from './themed-text';
 
 type EntryDetail = {
@@ -66,7 +67,7 @@ export const EntryDetailSheet: React.FC<EntryDetailSheetProps> = ({
   };
 
   const friendlyDate = entry
-    ? new Date(entry.date).toLocaleDateString('en-US', {
+    ? parseDateString(entry.date).toLocaleDateString('en-US', {
       weekday: 'long',
       month: 'long',
       day: 'numeric',

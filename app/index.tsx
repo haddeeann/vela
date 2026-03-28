@@ -27,7 +27,14 @@ import { useReminderResponseListener } from '../notifications/useReminderRespons
 import { scheduleReminderSequence } from '../notifications/scheduleReminderSequence';
 import { saveNotificationIds } from '../db/reminderQueries';
 import { useCalendarSettings } from '../utils/calendarSettings';
-import { getWeekEnd, getWeekStart, getWeeksInMonth, formatWeekRangeLabel } from '../utils/dateUtils';
+import {
+  formatDateString,
+  formatWeekRangeLabel,
+  getWeekEnd,
+  getWeekStart,
+  getWeeksInMonth,
+  parseDateString,
+} from '../utils/dateUtils';
 
 type EditableEntry = {
   id: string;
@@ -63,12 +70,19 @@ export default function HomeScreen() {
   const params = useLocalSearchParams<{ quickAddType?: string; quickAddPlaceholder?: string }>();
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(formatDateString(new Date()));
   const [viewMode, setViewMode] = useState<'monthly' | 'weekly' | 'daily'>('monthly');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isMonthPickerVisible, setIsMonthPickerVisible] = useState(false);
   const [isWeekPickerVisible, setIsWeekPickerVisible] = useState(false);
+  const [isDayPickerVisible, setIsDayPickerVisible] = useState(false);
   const [weekPickerMonthDate, setWeekPickerMonthDate] = useState(() => {
+    const initial = new Date();
+    initial.setDate(1);
+    initial.setHours(0, 0, 0, 0);
+    return initial;
+  });
+  const [dayPickerMonthDate, setDayPickerMonthDate] = useState(() => {
     const initial = new Date();
     initial.setDate(1);
     initial.setHours(0, 0, 0, 0);
@@ -94,13 +108,15 @@ export default function HomeScreen() {
   const slideAnim = useRef(new Animated.Value(-Dimensions.get('window').width * 0.72)).current;
   const dropdownFadeAnim = useRef(new Animated.Value(0)).current;
   const dropdownScaleAnim = useRef(new Animated.Value(0.95)).current;
+  const pickerFadeAnim = useRef(new Animated.Value(0)).current;
+  const pickerScaleAnim = useRef(new Animated.Value(0.95)).current;
   const todayButtonOpacity = useRef(new Animated.Value(0)).current;
 
-  const todayDate = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayDate = useMemo(() => formatDateString(new Date()), []);
 
   const isViewingToday = useMemo(() => {
-    const selected = new Date(selectedDate);
-    const today = new Date(todayDate);
+    const selected = parseDateString(selectedDate);
+    const today = parseDateString(todayDate);
 
     if (viewMode === 'monthly') {
       return selected.getMonth() === today.getMonth() && selected.getFullYear() === today.getFullYear();
@@ -140,6 +156,32 @@ export default function HomeScreen() {
       });
     }
   }, [isDropdownVisible]);
+
+  useEffect(() => {
+    const isAnyPickerVisible = isMonthPickerVisible || isWeekPickerVisible || isDayPickerVisible;
+    if (isAnyPickerVisible) {
+      Animated.parallel([
+        Animated.timing(pickerFadeAnim, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pickerScaleAnim, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.timing(pickerFadeAnim, {
+        toValue: 0,
+        duration: 100,
+        useNativeDriver: true,
+      }).start(() => {
+        pickerScaleAnim.setValue(0.95);
+      });
+    }
+  }, [isDayPickerVisible, isMonthPickerVisible, isWeekPickerVisible, pickerFadeAnim, pickerScaleAnim]);
 
   useEffect(() => {
     Animated.timing(todayButtonOpacity, {
@@ -265,7 +307,7 @@ export default function HomeScreen() {
   }, [fetchEvents]);
 
   const getEntryDateTimeMs = (date: string, startTime?: string): number => {
-    const entryDateTime = new Date(date);
+    const entryDateTime = parseDateString(date);
 
     if (startTime && startTime.trim() !== '') {
       const [time, period] = startTime.split(' ');
@@ -429,7 +471,7 @@ export default function HomeScreen() {
     const reminderOption = REMINDER_OPTIONS.find(r => r.id === event.reminder);
     if (!reminderOption || reminderOption.minutesBefore === null) return;
 
-    const triggerDate = new Date(event.date);
+    const triggerDate = parseDateString(event.date);
     if (event.startTime && event.startTime.trim() !== '') {
       // Parse time
       const [time, period] = event.startTime.split(' ');
@@ -467,6 +509,7 @@ export default function HomeScreen() {
     setSelectedDate(date);
     setIsMonthPickerVisible(false);
     setIsWeekPickerVisible(false);
+    setIsDayPickerVisible(false);
   };
 
   const handleTodayPress = useCallback(async () => {
@@ -478,6 +521,8 @@ export default function HomeScreen() {
 
     setSelectedDate(todayDate);
     setIsMonthPickerVisible(false);
+    setIsWeekPickerVisible(false);
+    setIsDayPickerVisible(false);
   }, [todayDate]);
 
   const handleMonthDayPress = useCallback((date: string) => {
@@ -497,7 +542,7 @@ export default function HomeScreen() {
   }, []);
 
   const getHeaderTitle = () => {
-    const date = new Date(selectedDate);
+    const date = parseDateString(selectedDate);
     if (viewMode === 'monthly') {
       return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     } else if (viewMode === 'weekly') {
@@ -507,6 +552,22 @@ export default function HomeScreen() {
     } else {
       return date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
     }
+  };
+
+  const getDayPickerDates = (monthDate: Date) => {
+    const firstOfMonth = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+    const lastOfMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+    const start = getWeekStart(firstOfMonth);
+    const end = getWeekEnd(lastOfMonth);
+    const dates: Date[] = [];
+    const cursor = new Date(start);
+
+    while (cursor <= end) {
+      dates.push(new Date(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return dates;
   };
 
   const WeekPicker = () => {
@@ -527,14 +588,23 @@ export default function HomeScreen() {
       <Modal
         visible={isWeekPickerVisible}
         transparent
-        animationType="fade"
+        animationType="none"
         onRequestClose={() => setIsWeekPickerVisible(false)}
       >
         <Pressable
           style={styles.modalOverlay}
           onPress={() => setIsWeekPickerVisible(false)}
         >
-          <ThemedView style={styles.weekPickerContainer}>
+          <Animated.View style={{ opacity: pickerFadeAnim, transform: [{ scale: pickerScaleAnim }] }}>
+            <ThemedView
+              style={[
+                styles.weekPickerContainer,
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
             <View style={styles.weekPickerHeader}>
               <TouchableOpacity onPress={() => changeWeekPickerMonth(-1)} style={styles.yearNavButton}>
                 <Ionicons name="chevron-back" size={24} color={theme.primary} />
@@ -547,7 +617,7 @@ export default function HomeScreen() {
 
             <View style={styles.weekList}>
               {weeks.map((week, index) => {
-                const selectedWeekStart = getWeekStart(new Date(selectedDate));
+                const selectedWeekStart = getWeekStart(parseDateString(selectedDate));
                 const isSelected = week.start.toDateString() === selectedWeekStart.toDateString();
                 return (
                   <TouchableOpacity
@@ -556,7 +626,7 @@ export default function HomeScreen() {
                       styles.weekRow,
                       { backgroundColor: isSelected ? theme.primary + '1A' : theme.surface },
                     ]}
-                    onPress={() => handleDateSelect(week.start.toISOString().split('T')[0])}
+                    onPress={() => handleDateSelect(formatDateString(week.start))}
                   >
                     <ThemedText style={[styles.weekRowLabel, { color: theme.textSecondary }]}>
                       {`Week ${index + 1}:`}
@@ -573,15 +643,16 @@ export default function HomeScreen() {
                 );
               })}
             </View>
-          </ThemedView>
+            </ThemedView>
+          </Animated.View>
         </Pressable>
       </Modal>
     );
   };
 
   const MonthPicker = () => {
-    const [pickerYear, setPickerYear] = useState(new Date(selectedDate).getFullYear());
-    const selectedMonth = new Date(selectedDate).getMonth();
+    const [pickerYear, setPickerYear] = useState(parseDateString(selectedDate).getFullYear());
+    const selectedMonth = parseDateString(selectedDate).getMonth();
 
     const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -589,10 +660,10 @@ export default function HomeScreen() {
     ];
 
     const handleMonthSelect = (monthIndex: number) => {
-      const newDate = new Date(selectedDate);
+      const newDate = parseDateString(selectedDate);
       newDate.setFullYear(pickerYear);
       newDate.setMonth(monthIndex);
-      handleDateSelect(newDate.toISOString().split('T')[0]);
+      handleDateSelect(formatDateString(newDate));
     };
 
     const changeYear = (delta: number) => {
@@ -603,14 +674,23 @@ export default function HomeScreen() {
       <Modal
         visible={isMonthPickerVisible}
         transparent
-        animationType="fade"
+        animationType="none"
         onRequestClose={() => setIsMonthPickerVisible(false)}
       >
         <Pressable
           style={styles.modalOverlay}
           onPress={() => setIsMonthPickerVisible(false)}
         >
-          <ThemedView style={styles.monthPickerContainer}>
+          <Animated.View style={{ opacity: pickerFadeAnim, transform: [{ scale: pickerScaleAnim }] }}>
+            <ThemedView
+              style={[
+                styles.monthPickerContainer,
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
             <View style={styles.yearSelector}>
               <TouchableOpacity onPress={() => changeYear(-1)} style={styles.yearNavButton}>
                 <Ionicons name="chevron-back" size={24} color={theme.primary} />
@@ -623,7 +703,7 @@ export default function HomeScreen() {
 
             <View style={styles.monthGrid}>
               {months.map((month, index) => {
-                const isSelected = index === selectedMonth && pickerYear === new Date(selectedDate).getFullYear();
+                const isSelected = index === selectedMonth && pickerYear === parseDateString(selectedDate).getFullYear();
                 return (
                   <TouchableOpacity
                     key={month}
@@ -645,7 +725,103 @@ export default function HomeScreen() {
                 );
               })}
             </View>
-          </ThemedView>
+            </ThemedView>
+          </Animated.View>
+        </Pressable>
+      </Modal>
+    );
+  };
+
+  const DayPicker = () => {
+    const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const monthLabel = dayPickerMonthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const dates = getDayPickerDates(dayPickerMonthDate);
+    const selected = parseDateString(selectedDate);
+    selected.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const changeDayPickerMonth = (delta: number) => {
+      setDayPickerMonthDate(prev => {
+        const next = new Date(prev);
+        next.setMonth(next.getMonth() + delta);
+        next.setDate(1);
+        next.setHours(0, 0, 0, 0);
+        return next;
+      });
+    };
+
+    return (
+      <Modal
+        visible={isDayPickerVisible}
+        transparent
+        animationType="none"
+        onRequestClose={() => setIsDayPickerVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setIsDayPickerVisible(false)}>
+          <Animated.View style={{ opacity: pickerFadeAnim, transform: [{ scale: pickerScaleAnim }] }}>
+            <ThemedView
+              style={[
+                styles.dayPickerContainer,
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <View style={styles.dayPickerHeader}>
+                <TouchableOpacity onPress={() => changeDayPickerMonth(-1)} style={styles.yearNavButton}>
+                  <Ionicons name="chevron-back" size={24} color={theme.primary} />
+                </TouchableOpacity>
+                <ThemedText style={styles.dayPickerHeading}>{monthLabel}</ThemedText>
+                <TouchableOpacity onPress={() => changeDayPickerMonth(1)} style={styles.yearNavButton}>
+                  <Ionicons name="chevron-forward" size={24} color={theme.primary} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.dayOfWeekRow}>
+                {dayLabels.map((label) => (
+                  <ThemedText key={label} style={[styles.dayOfWeekText, { color: theme.textSecondary }]}>
+                    {label}
+                  </ThemedText>
+                ))}
+              </View>
+
+              <View style={styles.dayGrid}>
+                {dates.map((date) => {
+                  const isOutsideMonth = date.getMonth() !== dayPickerMonthDate.getMonth();
+                  const isSelected = date.toDateString() === selected.toDateString();
+                  const isToday = date.toDateString() === today.toDateString();
+
+                  return (
+                    <TouchableOpacity
+                      key={date.toISOString()}
+                      style={styles.dayCellWrap}
+                      onPress={() => handleDateSelect(formatDateString(date))}
+                    >
+                      <View
+                        style={[
+                          styles.dayCell,
+                          isSelected && { backgroundColor: '#E8A23C' },
+                          !isSelected && isToday && { backgroundColor: theme.primary },
+                        ]}
+                      >
+                        <ThemedText
+                          style={[
+                            styles.dayCellText,
+                            isOutsideMonth && { color: theme.textSecondary },
+                            (isSelected || isToday) && { color: '#FFFFFF' },
+                          ]}
+                        >
+                          {date.getDate()}
+                        </ThemedText>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ThemedView>
+          </Animated.View>
         </Pressable>
       </Modal>
     );
@@ -666,9 +842,13 @@ export default function HomeScreen() {
             style={styles.monthSelector}
             onPress={() => {
               if (viewMode === 'daily') {
-                setIsModalVisible(true);
+                const pickerMonth = parseDateString(selectedDate);
+                pickerMonth.setDate(1);
+                pickerMonth.setHours(0, 0, 0, 0);
+                setDayPickerMonthDate(pickerMonth);
+                setIsDayPickerVisible(true);
               } else if (viewMode === 'weekly') {
-                const pickerMonth = new Date(selectedDate);
+                const pickerMonth = parseDateString(selectedDate);
                 pickerMonth.setDate(1);
                 pickerMonth.setHours(0, 0, 0, 0);
                 setWeekPickerMonthDate(pickerMonth);
@@ -685,9 +865,7 @@ export default function HomeScreen() {
             >
               {getHeaderTitle()}
             </ThemedText>
-            {viewMode !== 'daily' && (
-              <Ionicons name="chevron-down-outline" size={16} color={theme.textPrimary} style={styles.chevron} />
-            )}
+            <Ionicons name="chevron-down-outline" size={16} color={theme.textPrimary} style={styles.chevron} />
           </TouchableOpacity>
         </View>
         <Animated.View
@@ -741,6 +919,7 @@ export default function HomeScreen() {
 
       <MonthPicker />
       <WeekPicker />
+      <DayPicker />
 
       <AddEventModal
         isVisible={isModalVisible}
@@ -748,7 +927,7 @@ export default function HomeScreen() {
           setIsModalVisible(false);
         }}
         onSave={handleAddEvent}
-        selectedDate={viewMode === 'daily' ? selectedDate : new Date().toISOString().split('T')[0]}
+        selectedDate={viewMode === 'daily' ? selectedDate : formatDateString(new Date())}
         initialValues={selectedEntry ? {
           title: selectedEntry.title,
           date: selectedEntry.date,
@@ -1094,14 +1273,16 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'flex-start',
     alignItems: 'center',
+    paddingTop: 108,
   },
   monthPickerContainer: {
-    width: '85%',
+    width: '90%',
     padding: 20,
-    borderRadius: 16,
+    borderRadius: 12,
+    borderWidth: 1,
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -1109,9 +1290,10 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
   },
   weekPickerContainer: {
-    width: '85%',
+    width: '90%',
     padding: 20,
-    borderRadius: 16,
+    borderRadius: 12,
+    borderWidth: 1,
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -1123,6 +1305,57 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+  },
+  dayPickerContainer: {
+    width: '90%',
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  dayPickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  dayPickerHeading: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  dayOfWeekRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  dayOfWeekText: {
+    width: `${100 / 7}%`,
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  dayGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  dayCellWrap: {
+    width: `${100 / 7}%`,
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  dayCell: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayCellText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   weekList: {
     gap: 10,

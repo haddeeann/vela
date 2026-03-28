@@ -10,7 +10,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
 import { useCalendarSettings } from '@/utils/calendarSettings';
-import { getWeekStart } from '@/utils/dateUtils';
+import { formatDateString, getWeekStart, parseDateString } from '@/utils/dateUtils';
 
 interface Event {
   id: string;
@@ -70,7 +70,7 @@ export function WeeklyTimeGrid({
   const columnWidth = (screenWidth - TIME_COLUMN_WIDTH - 32) / 7;
 
   const startOfWeek = useMemo(() => {
-    return getWeekStart(new Date(selectedDate));
+    return getWeekStart(parseDateString(selectedDate));
   }, [selectedDate]);
 
   const weekDays = useMemo(() => {
@@ -107,17 +107,17 @@ export function WeeklyTimeGrid({
   };
 
   const getEventsForDay = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatDateString(date);
     return events.filter(event => {
       if (event.date === dateStr) return true;
       if (event.date > dateStr) return false;
 
       if (event.recurrence === 'daily') return true;
       if (event.recurrence === 'weekly') {
-        return new Date(event.date).getDay() === date.getDay();
+        return parseDateString(event.date).getDay() === date.getDay();
       }
       if (event.recurrence === 'monthly') {
-        return new Date(event.date).getDate() === date.getDate();
+        return parseDateString(event.date).getDate() === date.getDate();
       }
       return false;
     });
@@ -182,7 +182,7 @@ export function WeeklyTimeGrid({
     onEmptySlotPress?.({ date, startTime, endTime });
   };
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = formatDateString(new Date());
   const hasWeekEntries = weekDays.some(day => getVisibleSegmentsForDay(day).length > 0);
 
   return (
@@ -191,14 +191,15 @@ export function WeeklyTimeGrid({
       <View style={styles.headerRow}>
         <View style={{ width: TIME_COLUMN_WIDTH }} />
         {weekDays.map((day, index) => {
-          const isToday = day.toISOString().split('T')[0] === todayStr;
-          const isSelected = day.toISOString().split('T')[0] === selectedDate;
+          const dayStr = formatDateString(day);
+          const isToday = dayStr === todayStr;
+          const isSelected = dayStr === selectedDate;
           return (
             <TouchableOpacity
               key={index}
               style={[styles.dayHeader, { width: columnWidth }]}
               onPress={() => {
-                const columnDate = day.toISOString().split('T')[0];
+                const columnDate = dayStr;
                 onDateSelect(columnDate);
                 onHeaderDayPress?.(columnDate);
               }}
@@ -245,7 +246,7 @@ export function WeeklyTimeGrid({
 
           {/* Day Columns */}
           {weekDays.map((day, dayIndex) => {
-            const dayDate = day.toISOString().split('T')[0];
+            const dayDate = formatDateString(day);
             const isSelectedColumn = dayDate === selectedDate;
             const visibleSegments = getVisibleSegmentsForDay(day);
 

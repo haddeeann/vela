@@ -17,6 +17,7 @@ import { QuickAddDraft, QuickAddSaveInput, EntryType } from '../types/quickAdd.t
 import { getTheme } from '../constants/theme';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
+import { formatDateString } from '@/utils/dateUtils';
 
 interface Props {
   draft: QuickAddDraft | null;
@@ -47,7 +48,7 @@ export const QuickAddConfirmSheet: React.FC<Props> = ({
   useEffect(() => {
     if (visible && draft) {
       setTitle(draft.title);
-      setDate(draft.date || new Date().toISOString().split('T')[0]);
+      setDate(draft.date || formatDateString(new Date()));
       setStartTime(draft.startTime || '');
       setEndTime(draft.endTime || '');
       setEntryType(draft.entryType);

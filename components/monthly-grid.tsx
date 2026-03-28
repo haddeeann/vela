@@ -9,6 +9,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
 import { useCalendarSettings } from '@/utils/calendarSettings';
+import { formatDateString, parseDateString } from '@/utils/dateUtils';
 
 interface Event {
   id: string;
@@ -41,7 +42,7 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
   const cellWidth = screenWidth / 7;
 
   const days = useMemo(() => {
-    const date = new Date(selectedDate);
+    const date = parseDateString(selectedDate);
     const year = date.getFullYear();
     const month = date.getMonth();
 
@@ -81,7 +82,7 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
   }, [selectedDate]);
 
   const getEventsForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatDateString(date);
     const dayEvents: Event[] = [];
 
     events.forEach(event => {
@@ -90,7 +91,7 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
           dayEvents.push(event);
         }
       } else {
-        const eventStartDate = new Date(event.date);
+        const eventStartDate = parseDateString(event.date);
         eventStartDate.setHours(0, 0, 0, 0);
         const currentDate = new Date(date);
         currentDate.setHours(0, 0, 0, 0);
@@ -149,7 +150,7 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
     );
   };
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = formatDateString(new Date());
 
   const panResponder = React.useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => false,
@@ -159,14 +160,14 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
     onPanResponderRelease: (_, gestureState) => {
       if (gestureState.dx > 50) {
         // Swipe Right - Previous Month
-        const date = new Date(selectedDate);
+        const date = parseDateString(selectedDate);
         date.setMonth(date.getMonth() - 1);
-        onDateSelect(date.toISOString().split('T')[0]);
+        onDateSelect(formatDateString(date));
       } else if (gestureState.dx < -50) {
         // Swipe Left - Next Month
-        const date = new Date(selectedDate);
+        const date = parseDateString(selectedDate);
         date.setMonth(date.getMonth() + 1);
-        onDateSelect(date.toISOString().split('T')[0]);
+        onDateSelect(formatDateString(date));
       }
     },
   }), [selectedDate, onDateSelect]);
@@ -199,7 +200,7 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
 
       <View style={styles.grid}>
         {days.map((dayObj, index) => {
-          const dateStr = dayObj.date.toISOString().split('T')[0];
+          const dateStr = formatDateString(dayObj.date);
           const isToday = dateStr === todayStr;
           const dayEvents = getEventsForDate(dayObj.date);
           const anchors = dayEvents.filter((e) => e.entryType === 'anchor');

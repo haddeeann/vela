@@ -187,7 +187,7 @@ export function QuickAddSheet({
             <View style={styles.content}>
               <TextInput
                 style={[styles.input, { color: theme.textPrimary }]}
-                placeholder={placeholderText || "What's happening? 'dentist Thursday 2pm'"}
+                placeholder={placeholderText || "Example: 'dentist Thursday 2pm'"}
                 placeholderTextColor={theme.textSecondary + '80'}
                 value={input}
                 onChangeText={setInput}
@@ -198,18 +198,18 @@ export function QuickAddSheet({
               />
 
               {prefilledDate ? (
-                <View style={[styles.prefilledDateContainer, { backgroundColor: theme.background }]}> 
+                <View style={[styles.prefilledDateContainer, { backgroundColor: theme.background }]}>
                   <Ionicons name="calendar-outline" size={14} color={theme.textSecondary} />
-                  <ThemedText style={[styles.prefilledDateText, { color: theme.textPrimary }]}> 
+                  <ThemedText style={[styles.prefilledDateText, { color: theme.textPrimary }]}>
                     {formattedPrefilledDate}
                   </ThemedText>
                 </View>
               ) : null}
 
               {prefilledStartTime ? (
-                <View style={[styles.prefilledDateContainer, { backgroundColor: theme.background }]}> 
+                <View style={[styles.prefilledDateContainer, { backgroundColor: theme.background }]}>
                   <Ionicons name="time-outline" size={14} color={theme.textSecondary} />
-                  <ThemedText style={[styles.prefilledDateText, { color: theme.textPrimary }]}> 
+                  <ThemedText style={[styles.prefilledDateText, { color: theme.textPrimary }]}>
                     {prefilledStartTime} - {resolvedPrefilledEndTime}
                   </ThemedText>
                 </View>
