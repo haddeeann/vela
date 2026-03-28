@@ -65,6 +65,13 @@ export default function HomeScreen() {
   const [viewMode, setViewMode] = useState<'monthly' | 'weekly' | 'daily'>('monthly');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isMonthPickerVisible, setIsMonthPickerVisible] = useState(false);
+  const [isWeekPickerVisible, setIsWeekPickerVisible] = useState(false);
+  const [weekPickerMonthDate, setWeekPickerMonthDate] = useState(() => {
+    const initial = new Date();
+    initial.setDate(1);
+    initial.setHours(0, 0, 0, 0);
+    return initial;
+  });
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [isQuickAddVisible, setIsQuickAddVisible] = useState(false);
   const [quickAddPrefilledDate, setQuickAddPrefilledDate] = useState<string | undefined>(undefined);
@@ -439,6 +446,7 @@ export default function HomeScreen() {
   const handleDateSelect = (date: string) => {
     setSelectedDate(date);
     setIsMonthPickerVisible(false);
+    setIsWeekPickerVisible(false);
   };
 
   const handleTodayPress = useCallback(async () => {
@@ -473,25 +481,130 @@ export default function HomeScreen() {
     if (viewMode === 'monthly') {
       return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     } else if (viewMode === 'weekly') {
-      // Find start and end of week (Monday to Sunday)
-      const day = date.getDay();
-      const diff = date.getDate() - (day === 0 ? 6 : day - 1);
-      const monday = new Date(new Date(selectedDate).setDate(diff));
-      const sunday = new Date(new Date(monday).setDate(monday.getDate() + 6));
+      const weekStart = new Date(date);
+      weekStart.setDate(date.getDate() - date.getDay());
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
 
-      const monMonth = monday.toLocaleDateString('en-US', { month: 'short' });
-      const sunMonth = sunday.toLocaleDateString('en-US', { month: 'short' });
-      const monDay = monday.getDate();
-      const sunDay = sunday.getDate();
+      const startMonth = weekStart.toLocaleDateString('en-US', { month: 'short' });
+      const endMonth = weekEnd.toLocaleDateString('en-US', { month: 'short' });
+      const startDay = weekStart.getDate();
+      const endDay = weekEnd.getDate();
 
-      if (monMonth === sunMonth) {
-        return `${monMonth} ${monDay} – ${sunDay}`;
-      } else {
-        return `${monMonth} ${monDay} – ${sunMonth} ${sunDay}`;
+      if (startMonth === endMonth) {
+        return `${startMonth} ${startDay} – ${endDay}`;
       }
+
+      return `${startMonth} ${startDay} – ${endMonth} ${endDay}`;
     } else {
-      return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+      return date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
     }
+  };
+
+  const getMonthWeeks = (baseDate: Date) => {
+    const month = baseDate.getMonth();
+    const year = baseDate.getFullYear();
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0);
+    const firstWeekStart = new Date(monthStart);
+    firstWeekStart.setDate(monthStart.getDate() - monthStart.getDay());
+
+    const weeks: { start: Date; end: Date }[] = [];
+    const cursor = new Date(firstWeekStart);
+    while (cursor <= monthEnd) {
+      const start = new Date(cursor);
+      const end = new Date(cursor);
+      end.setDate(start.getDate() + 6);
+      weeks.push({ start, end });
+      cursor.setDate(cursor.getDate() + 7);
+    }
+
+    return weeks;
+  };
+
+  const formatWeekRange = (start: Date, end: Date) => {
+    const startMonth = start.toLocaleDateString('en-US', { month: 'short' });
+    const startDay = start.getDate();
+    const endDay = end.getDate();
+    if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+      return `${startMonth} ${startDay} – ${endDay}`;
+    }
+
+    const endMonth = end.toLocaleDateString('en-US', { month: 'short' });
+    return `${startMonth} ${startDay} – ${endMonth} ${endDay}`;
+  };
+
+  const WeekPicker = () => {
+    const weeks = getMonthWeeks(weekPickerMonthDate);
+    const monthLabel = weekPickerMonthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    const changeWeekPickerMonth = (delta: number) => {
+      setWeekPickerMonthDate(prev => {
+        const next = new Date(prev);
+        next.setMonth(next.getMonth() + delta);
+        next.setDate(1);
+        next.setHours(0, 0, 0, 0);
+        return next;
+      });
+    };
+
+    return (
+      <Modal
+        visible={isWeekPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsWeekPickerVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setIsWeekPickerVisible(false)}
+        >
+          <ThemedView style={styles.weekPickerContainer}>
+            <View style={styles.weekPickerHeader}>
+              <TouchableOpacity onPress={() => changeWeekPickerMonth(-1)} style={styles.yearNavButton}>
+                <Ionicons name="chevron-back" size={24} color={theme.primary} />
+              </TouchableOpacity>
+              <ThemedText style={styles.yearText}>{monthLabel}</ThemedText>
+              <TouchableOpacity onPress={() => changeWeekPickerMonth(1)} style={styles.yearNavButton}>
+                <Ionicons name="chevron-forward" size={24} color={theme.primary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.weekList}>
+              {weeks.map((week, index) => {
+                const selected = new Date(selectedDate);
+                const selectedWeekStart = new Date(selected);
+                selectedWeekStart.setDate(selected.getDate() - selected.getDay());
+                selectedWeekStart.setHours(0, 0, 0, 0);
+                const isSelected = week.start.toDateString() === selectedWeekStart.toDateString();
+                return (
+                  <TouchableOpacity
+                    key={`${week.start.toISOString()}-${index}`}
+                    style={[
+                      styles.weekRow,
+                      { backgroundColor: isSelected ? theme.primary + '1A' : theme.surface },
+                    ]}
+                    onPress={() => handleDateSelect(week.start.toISOString().split('T')[0])}
+                  >
+                    <ThemedText style={[styles.weekRowLabel, { color: theme.textSecondary }]}>
+                      {`Week ${index + 1}:`}
+                    </ThemedText>
+                    <ThemedText
+                      style={[
+                        styles.weekRowValue,
+                        { color: isSelected ? theme.primary : theme.textPrimary },
+                      ]}
+                    >
+                      {formatWeekRange(week.start, week.end)}
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </ThemedView>
+        </Pressable>
+      </Modal>
+    );
   };
 
   const MonthPicker = () => {
@@ -582,6 +695,12 @@ export default function HomeScreen() {
             onPress={() => {
               if (viewMode === 'daily') {
                 setIsModalVisible(true);
+              } else if (viewMode === 'weekly') {
+                const pickerMonth = new Date(selectedDate);
+                pickerMonth.setDate(1);
+                pickerMonth.setHours(0, 0, 0, 0);
+                setWeekPickerMonthDate(pickerMonth);
+                setIsWeekPickerVisible(true);
               } else {
                 setIsMonthPickerVisible(true);
               }
@@ -594,7 +713,9 @@ export default function HomeScreen() {
             >
               {getHeaderTitle()}
             </ThemedText>
-            <Ionicons name="chevron-down-outline" size={16} color={theme.textPrimary} style={styles.chevron} />
+            {viewMode !== 'daily' && (
+              <Ionicons name="chevron-down-outline" size={16} color={theme.textPrimary} style={styles.chevron} />
+            )}
           </TouchableOpacity>
         </View>
         <Animated.View
@@ -647,6 +768,7 @@ export default function HomeScreen() {
       />
 
       <MonthPicker />
+      <WeekPicker />
 
       <AddEventModal
         isVisible={isModalVisible}
@@ -1005,6 +1127,41 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  weekPickerContainer: {
+    width: '85%',
+    padding: 20,
+    borderRadius: 16,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  weekPickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  weekList: {
+    gap: 10,
+  },
+  weekRow: {
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  weekRowLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  weekRowValue: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   yearSelector: {
     flexDirection: 'row',
