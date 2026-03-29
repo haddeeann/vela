@@ -21,14 +21,15 @@ interface QuickAddSheetProps {
   onDraftCreated: (draft: QuickAddDraft) => void;
   onOpenFullForm: () => void;
   theme: ReturnType<typeof getTheme>;
-  initialType?: EntryType;
-  placeholderText?: string;
+  prefilledType?: EntryType;
+  prefilledPlaceholder?: string;
   prefilledDate?: string;
   prefilledStartTime?: string;
   prefilledEndTime?: string;
 }
 
 const SHEET_HEIGHT = 320;
+const defaultPlaceholder = "Example: 'dentist Thursday 2pm'";
 
 export function QuickAddSheet({
   visible,
@@ -36,20 +37,16 @@ export function QuickAddSheet({
   onDraftCreated,
   onOpenFullForm,
   theme,
-  initialType,
-  placeholderText,
+  prefilledType,
+  prefilledPlaceholder,
   prefilledDate,
   prefilledStartTime,
   prefilledEndTime,
 }: QuickAddSheetProps) {
-  console.log('[QuickAddSheet] Rendered, visible:', visible);
-  console.log('[QuickAddSheet] Props:', {
-    prefilledDate,
-    prefilledType: initialType,
-  });
 
   const [input, setInput] = useState('');
-  const [selectedType, setSelectedType] = useState<EntryType | null>(prefilledStartTime ? 'event' : (initialType || null));
+  const [selectedType, setSelectedType] = useState<EntryType | null>(null);
+  const [placeholder, setPlaceholder] = useState(defaultPlaceholder);
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
 
   const resolvedPrefilledEndTime = React.useMemo(() => {
@@ -82,11 +79,6 @@ export function QuickAddSheet({
         duration: 300,
         useNativeDriver: true,
       }).start();
-      if (prefilledStartTime) {
-        setSelectedType('event');
-      } else if (initialType) {
-        setSelectedType(initialType);
-      }
     } else {
       Animated.timing(translateY, {
         toValue: SHEET_HEIGHT,
@@ -94,12 +86,32 @@ export function QuickAddSheet({
         useNativeDriver: true,
       }).start();
     }
-  }, [visible, initialType, prefilledStartTime]);
+  }, [visible, prefilledStartTime, translateY]);
+
+  useEffect(() => {
+    if (visible) {
+      if (prefilledStartTime) {
+        setSelectedType('event');
+      } else if (prefilledType) {
+        setSelectedType(prefilledType);
+      }
+    }
+    if (!visible) {
+      setSelectedType(null);
+      setInput('');
+    }
+  }, [visible, prefilledStartTime, prefilledType]);
+
+  useEffect(() => {
+    if (visible && prefilledPlaceholder) {
+      setPlaceholder(prefilledPlaceholder);
+    }
+    if (!visible) {
+      setPlaceholder(defaultPlaceholder);
+    }
+  }, [visible, prefilledPlaceholder]);
 
   const handleSubmit = () => {
-    console.log('[QuickAddSheet] Submit pressed');
-    const inputText = input;
-    console.log('[QuickAddSheet] Raw input:', inputText);
     if (!input.trim()) return;
 
     const draft = parseQuickAdd(input);
@@ -115,11 +127,9 @@ export function QuickAddSheet({
       draft.entryType = selectedType;
     }
 
-    console.log('[QuickAddSheet] Draft created:', draft);
-
     onDraftCreated(draft);
     setInput('');
-    setSelectedType(prefilledStartTime ? 'event' : (initialType || null));
+    setSelectedType(null);
     onClose();
   };
 
@@ -169,79 +179,84 @@ export function QuickAddSheet({
       onRequestClose={onClose}
       animationType="none"
     >
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Animated.View
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: theme.surface,
-              transform: [{ translateY }],
-            },
-          ]}
-        >
-          <Pressable style={{ flex: 1 }}>
-            <View style={styles.dragHandleContainer}>
-              <View style={[styles.dragHandle, { backgroundColor: theme.border }]} />
+      <Pressable style={styles.overlay} onPress={onClose} />
+      <Animated.View
+        style={[
+          styles.sheet,
+          {
+            backgroundColor: theme.surface,
+            transform: [{ translateY }],
+          },
+        ]}
+      >
+        <View style={styles.dragHandleContainer}>
+          <View style={[styles.dragHandle, { backgroundColor: theme.border }]} />
+        </View>
+
+        <View style={styles.content}>
+          <TextInput
+            style={[styles.input, { color: theme.textPrimary }]}
+            placeholder={placeholder}
+            placeholderTextColor={theme.textSecondary + '80'}
+            value={input}
+            onChangeText={setInput}
+            autoFocus
+            multiline={false}
+            returnKeyType="done"
+            onSubmitEditing={handleSubmit}
+          />
+
+          {!input.trim() && prefilledType && (
+            <ThemedText style={[styles.helperText, { color: theme.textSecondary }]}>
+              Type your {prefilledType} above, then tap Add
+            </ThemedText>
+          )}
+
+          {prefilledDate ? (
+            <View style={[styles.prefilledDateContainer, { backgroundColor: theme.background }]}>
+              <Ionicons name="calendar-outline" size={14} color={theme.textSecondary} />
+              <ThemedText style={[styles.prefilledDateText, { color: theme.textPrimary }]}>
+                {formattedPrefilledDate}
+              </ThemedText>
             </View>
+          ) : null}
 
-            <View style={styles.content}>
-              <TextInput
-                style={[styles.input, { color: theme.textPrimary }]}
-                placeholder={placeholderText || "Example: 'dentist Thursday 2pm'"}
-                placeholderTextColor={theme.textSecondary + '80'}
-                value={input}
-                onChangeText={setInput}
-                autoFocus
-                multiline={false}
-                returnKeyType="done"
-                onSubmitEditing={handleSubmit}
-              />
-
-              {prefilledDate ? (
-                <View style={[styles.prefilledDateContainer, { backgroundColor: theme.background }]}>
-                  <Ionicons name="calendar-outline" size={14} color={theme.textSecondary} />
-                  <ThemedText style={[styles.prefilledDateText, { color: theme.textPrimary }]}>
-                    {formattedPrefilledDate}
-                  </ThemedText>
-                </View>
-              ) : null}
-
-              {prefilledStartTime ? (
-                <View style={[styles.prefilledDateContainer, { backgroundColor: theme.background }]}>
-                  <Ionicons name="time-outline" size={14} color={theme.textSecondary} />
-                  <ThemedText style={[styles.prefilledDateText, { color: theme.textPrimary }]}>
-                    {prefilledStartTime} - {resolvedPrefilledEndTime}
-                  </ThemedText>
-                </View>
-              ) : null}
-
-              <View style={styles.pillRow}>
-                {renderTypePill('anchor', 'Anchor', 'infinite-outline')}
-                {renderTypePill('event', 'Event', 'calendar-outline')}
-                {renderTypePill('task', 'Task', 'checkbox-outline')}
-              </View>
-
-              <TouchableOpacity
-                style={[
-                  styles.addButton,
-                  { backgroundColor: theme.primary },
-                  !input.trim() && { opacity: 0.5 },
-                ]}
-                onPress={handleSubmit}
-                disabled={!input.trim()}
-              >
-                <ThemedText style={styles.addButtonText}>Add</ThemedText>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.fullFormLink} onPress={onOpenFullForm}>
-                <ThemedText style={[styles.fullFormText, { color: theme.textSecondary }]}>
-                  Need more options? Use full form →
-                </ThemedText>
-              </TouchableOpacity>
+          {prefilledStartTime ? (
+            <View style={[styles.prefilledDateContainer, { backgroundColor: theme.background }]}>
+              <Ionicons name="time-outline" size={14} color={theme.textSecondary} />
+              <ThemedText style={[styles.prefilledDateText, { color: theme.textPrimary }]}>
+                {prefilledStartTime} - {resolvedPrefilledEndTime}
+              </ThemedText>
             </View>
-          </Pressable>
-        </Animated.View>
-      </Pressable>
+          ) : null}
+
+          <View style={styles.pillRow}>
+            {renderTypePill('anchor', 'Anchor', 'infinite-outline')}
+            {renderTypePill('event', 'Event', 'calendar-outline')}
+            {renderTypePill('task', 'Task', 'checkbox-outline')}
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.addButton,
+              { backgroundColor: theme.primary },
+              !input.trim() && { opacity: 0.5 },
+            ]}
+            onPress={handleSubmit}
+            disabled={!input.trim()}
+          >
+            <ThemedText style={[styles.addButtonText, !input.trim() && prefilledType && styles.addButtonTextHint]}>
+              {!input.trim() && prefilledType ? 'Type something above first' : 'Add'}
+            </ThemedText>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.fullFormLink} onPress={onOpenFullForm}>
+            <ThemedText style={[styles.fullFormText, { color: theme.textSecondary }]}>
+              Need more options? Use full form →
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
     </Modal>
   );
 }
@@ -276,6 +291,12 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     paddingVertical: 12,
     marginBottom: 16,
+  },
+  helperText: {
+    fontSize: 13,
+    marginTop: -8,
+    marginBottom: 12,
+    opacity: 0.7,
   },
   prefilledDateContainer: {
     flexDirection: 'row',
@@ -319,6 +340,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
+  },
+  addButtonTextHint: {
+    fontSize: 14,
   },
   fullFormLink: {
     alignItems: 'center',

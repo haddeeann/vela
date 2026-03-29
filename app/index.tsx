@@ -27,6 +27,9 @@ import { useReminderResponseListener } from '../notifications/useReminderRespons
 import { scheduleReminderSequence } from '../notifications/scheduleReminderSequence';
 import { saveNotificationIds } from '../db/reminderQueries';
 import { useCalendarSettings } from '../utils/calendarSettings';
+
+import { InteractionManager } from 'react-native';
+
 import {
   formatDateString,
   formatWeekRangeLabel,
@@ -67,7 +70,10 @@ if (!isExpoGoOnAndroid) {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ quickAddType?: string; quickAddPlaceholder?: string }>();
+  const { quickAddType, quickAddPlaceholder } = useLocalSearchParams<{
+    quickAddType?: string;
+    quickAddPlaceholder?: string;
+  }>();
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const [selectedDate, setSelectedDate] = useState(formatDateString(new Date()));
@@ -90,11 +96,11 @@ export default function HomeScreen() {
   });
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [isQuickAddVisible, setIsQuickAddVisible] = useState(false);
+  const [quickAddPrefilledType, setQuickAddPrefilledType] = useState<'anchor' | 'event' | 'task' | undefined>(undefined);
+  const [quickAddPrefilledPlaceholder, setQuickAddPrefilledPlaceholder] = useState<string | undefined>(undefined);
   const [quickAddPrefilledDate, setQuickAddPrefilledDate] = useState<string | undefined>(undefined);
   const [quickAddPrefilledStartTime, setQuickAddPrefilledStartTime] = useState<string | undefined>(undefined);
   const [quickAddPrefilledEndTime, setQuickAddPrefilledEndTime] = useState<string | undefined>(undefined);
-  const [quickAddInitialType, setQuickAddInitialType] = useState<EntryType | undefined>(undefined);
-  const [quickAddPlaceholderText, setQuickAddPlaceholderText] = useState<string | undefined>(undefined);
   const [currentDraft, setCurrentDraft] = useState<QuickAddDraft | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<CalendarEvent | null>(null);
   const [isEntryDetailVisible, setIsEntryDetailVisible] = useState(false);
@@ -191,18 +197,29 @@ export default function HomeScreen() {
     }).start();
   }, [isViewingToday, todayButtonOpacity]);
 
-  useEffect(() => {
-    if (!params.quickAddType || params.quickAddType !== 'anchor') {
-      return;
-    }
+  const consumedQuickAddRef = useRef(false);
 
-    setQuickAddInitialType('anchor');
-    if (typeof params.quickAddPlaceholder === 'string' && params.quickAddPlaceholder.length > 0) {
-      setQuickAddPlaceholderText(params.quickAddPlaceholder);
-    }
-    setIsQuickAddVisible(true);
-    router.replace('/');
-  }, [params.quickAddPlaceholder, params.quickAddType, router]);
+  useEffect(() => {
+    if (typeof quickAddType !== 'string') return;
+    if (consumedQuickAddRef.current) return;
+
+    consumedQuickAddRef.current = true;
+
+    setQuickAddPrefilledType(quickAddType as 'anchor' | 'event' | 'task');
+    setQuickAddPrefilledPlaceholder(
+        typeof quickAddPlaceholder === 'string' ? quickAddPlaceholder : undefined
+    );
+
+    const task = InteractionManager.runAfterInteractions(() => {
+      setTimeout(() => {
+        setIsQuickAddVisible(true);
+      }, 80);
+    });
+
+    return () => {
+      task.cancel?.();
+    };
+  }, [quickAddType, quickAddPlaceholder]);
 
   useEffect(() => {
     if (isDrawerOpen) {
@@ -947,37 +964,40 @@ export default function HomeScreen() {
         existingEntry={editingEntry || undefined}
         onSaved={handleEditSaved}
       />
-
+      <ThemedText>hello</ThemedText>
       <QuickAddSheet
         visible={isQuickAddVisible}
         onClose={() => {
           setIsQuickAddVisible(false);
-          setQuickAddInitialType(undefined);
-          setQuickAddPlaceholderText(undefined);
+          setQuickAddPrefilledType(undefined);
+          setQuickAddPrefilledPlaceholder(undefined);
           setQuickAddPrefilledDate(undefined);
           setQuickAddPrefilledStartTime(undefined);
           setQuickAddPrefilledEndTime(undefined);
+          consumedQuickAddRef.current = false;
         }}
         onDraftCreated={(draft) => {
           setCurrentDraft(draft);
-          setQuickAddInitialType(undefined);
-          setQuickAddPlaceholderText(undefined);
+          setQuickAddPrefilledType(undefined);
+          setQuickAddPrefilledPlaceholder(undefined);
           setQuickAddPrefilledDate(undefined);
           setQuickAddPrefilledStartTime(undefined);
           setQuickAddPrefilledEndTime(undefined);
+          consumedQuickAddRef.current = false;
         }}
         onOpenFullForm={() => {
           setIsQuickAddVisible(false);
-          setQuickAddInitialType(undefined);
-          setQuickAddPlaceholderText(undefined);
+          setQuickAddPrefilledType(undefined);
+          setQuickAddPrefilledPlaceholder(undefined);
           setQuickAddPrefilledDate(undefined);
           setQuickAddPrefilledStartTime(undefined);
           setQuickAddPrefilledEndTime(undefined);
+          consumedQuickAddRef.current = false;
           setIsModalVisible(true);
         }}
         theme={theme}
-        initialType={quickAddInitialType}
-        placeholderText={quickAddPlaceholderText}
+        prefilledType={quickAddPrefilledType}
+        prefilledPlaceholder={quickAddPrefilledPlaceholder}
         prefilledDate={quickAddPrefilledDate}
         prefilledStartTime={quickAddPrefilledStartTime}
         prefilledEndTime={quickAddPrefilledEndTime}

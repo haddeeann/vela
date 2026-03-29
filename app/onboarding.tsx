@@ -43,11 +43,8 @@ export default function OnboardingScreen() {
   };
 
   const handleAddSleepAnchor = async () => {
-    console.log('[Onboarding] Button pressed');
-    console.log('[Onboarding] Calling setHasOnboarded');
     await setHasOnboarded();
-    console.log('[Onboarding] Navigating to home');
-    console.log('[Onboarding] Opening QuickAddSheet with:', { prefilledType: 'anchor' });
+
     router.replace({
       pathname: '/',
       params: {

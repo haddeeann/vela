@@ -1,7 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import 'react-native-reanimated';
 import { View } from 'react-native';
@@ -19,12 +19,16 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
   const segments = useSegments();
-  const [hasOnboarded, setHasOnboardedState] = React.useState<boolean | null>(null);
-  const [isRouteReady, setIsRouteReady] = React.useState(false);
+
+  const [isBootstrapped, setIsBootstrapped] = useState(false);
+  const [isRouteReady, setIsRouteReady] = useState(false);
+
   const isExpoGoOnAndroid =
-    Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+      Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
   useEffect(() => {
+    let cancelled = false;
+
     const bootstrapApp = async () => {
       try {
         if (!isExpoGoOnAndroid) {
@@ -40,45 +44,66 @@ export default function RootLayout() {
 
       await initDB();
 
-      const onboarded = await getHasOnboarded();
-      setHasOnboardedState(onboarded);
+      if (!cancelled) {
+        setIsBootstrapped(true);
+      }
     };
 
-    bootstrapApp().catch(err => {
+    bootstrapApp().catch((err) => {
       console.error('Error initializing app:', err);
-      setHasOnboardedState(true);
-      setIsRouteReady(true);
+      if (!cancelled) {
+        setIsBootstrapped(true);
+      }
     });
+
+    return () => {
+      cancelled = true;
+    };
   }, [isExpoGoOnAndroid]);
 
   useEffect(() => {
-    if (hasOnboarded === null) {
-      return;
-    }
+    if (!isBootstrapped) return;
 
-    const isOnboardingRoute = segments[0] === 'onboarding';
+    let cancelled = false;
 
-    if (!hasOnboarded && !isOnboardingRoute) {
-      router.replace('/onboarding');
-    } else if (hasOnboarded && isOnboardingRoute) {
-      router.replace('/');
-    }
+    const syncOnboardingAndRoute = async () => {
+      const onboarded = await getHasOnboarded();
+      if (cancelled) return;
 
-    setIsRouteReady(true);
-  }, [hasOnboarded, router, segments]);
+      const isOnboardingRoute = segments[0] === 'onboarding';
 
-  if (!isRouteReady) {
+      if (!onboarded && !isOnboardingRoute) {
+        router.replace('/onboarding');
+        return;
+      }
+
+      setIsRouteReady(true);
+    };
+
+    setIsRouteReady(false);
+
+    syncOnboardingAndRoute().catch((err) => {
+      console.error('Error syncing onboarding state:', err);
+      setIsRouteReady(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isBootstrapped, segments, router]);
+
+  if (!isBootstrapped || !isRouteReady) {
     return <View style={{ flex: 1 }} />;
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <Stack>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        </Stack>
+        <StatusBar style="auto" />
+      </ThemeProvider>
   );
 }
