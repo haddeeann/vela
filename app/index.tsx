@@ -964,7 +964,6 @@ export default function HomeScreen() {
         existingEntry={editingEntry || undefined}
         onSaved={handleEditSaved}
       />
-      <ThemedText>hello</ThemedText>
       <QuickAddSheet
         visible={isQuickAddVisible}
         onClose={() => {
