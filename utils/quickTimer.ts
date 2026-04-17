@@ -9,6 +9,7 @@ export async function scheduleQuickTimer(
     content: {
       title: 'Timer',
       body: message.trim() || 'Your timer is up!',
+      data: { isQuickTimer: true },
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,

@@ -22,6 +22,7 @@ import { EntryWithMeta } from '../types';
 import { EntryType, QuickAddDraft } from '../types/quickAdd.types';
 import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
 import { QuickTimerSheet } from '../components/QuickTimerSheet';
+import { TimerBadge } from '../components/TimerBadge';
 import { QuickAddBar } from '../components/QuickAddBar';
 import { EntryDetailSheet } from '../components/EntryDetailSheet';
 import { useReminderResponseListener } from '../notifications/useReminderResponseListener';
@@ -270,10 +271,8 @@ export default function HomeScreen() {
 
   useEffect(() => {
     const subscription = Notifications.addNotificationReceivedListener((notification) => {
-      if (!activeTimer) return;
-
-      const receivedId = notification.request.identifier;
-      if (receivedId === activeTimer.notificationId) {
+      const data = notification.request.content.data as { isQuickTimer?: boolean } | undefined;
+      if (data?.isQuickTimer) {
         setActiveTimer(null);
         AsyncStorage.removeItem('vela_active_timer').catch(() => {});
       }
@@ -282,7 +281,7 @@ export default function HomeScreen() {
     return () => {
       subscription.remove();
     };
-  }, [activeTimer]);
+  }, []);
 
   const consumedQuickAddRef = useRef(false);
 
@@ -972,18 +971,32 @@ export default function HomeScreen() {
             <Ionicons name="chevron-down-outline" size={16} color={theme.textPrimary} style={styles.chevron} />
           </TouchableOpacity>
         </View>
-        <Animated.View
-          pointerEvents={isViewingToday ? 'none' : 'auto'}
-          style={[styles.todayButtonWrapper, { opacity: todayButtonOpacity }]}
-        >
-          <TouchableOpacity
-            style={[styles.todayButton, { backgroundColor: theme.primary + '1A' }]}
-            onPress={handleTodayPress}
-            activeOpacity={0.7}
+        {activeTimer ? (
+          <View style={styles.timerBadgeWrapper}>
+            <TimerBadge
+              firesAt={activeTimer.firesAt}
+              onCancel={async () => {
+                await cancelQuickTimer(activeTimer.notificationId).catch(() => {});
+                await AsyncStorage.removeItem('vela_active_timer');
+                setActiveTimer(null);
+              }}
+              theme={theme}
+            />
+          </View>
+        ) : (
+          <Animated.View
+            pointerEvents={isViewingToday ? 'none' : 'auto'}
+            style={[styles.todayButtonWrapper, { opacity: todayButtonOpacity }]}
           >
-            <ThemedText style={[styles.todayButtonText, { color: theme.primary }]}>Today</ThemedText>
-          </TouchableOpacity>
-        </Animated.View>
+            <TouchableOpacity
+              style={[styles.todayButton, { backgroundColor: theme.primary + '1A' }]}
+              onPress={handleTodayPress}
+              activeOpacity={0.7}
+            >
+              <ThemedText style={[styles.todayButtonText, { color: theme.primary }]}>Today</ThemedText>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
         <ThemedView style={styles.headerIcons}>
           <TouchableOpacity
             style={styles.headerIconButton}
@@ -1408,6 +1421,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   todayButtonWrapper: {
+    marginRight: 6,
+  },
+  timerBadgeWrapper: {
     marginRight: 6,
   },
   todayButton: {

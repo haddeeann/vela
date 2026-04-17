@@ -3,9 +3,12 @@ import {
   ActivityIndicator,
   Animated,
   Dimensions,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   TextInput,
   TouchableOpacity,
@@ -213,85 +216,97 @@ export const AlarmEditSheet: React.FC<Props> = ({ visible, existingAlarm, onClos
           ]}
         >
           <Pressable style={styles.sheetInner} onPress={() => {}}>
-            <View style={[styles.handle, { backgroundColor: theme.border }]} />
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ paddingBottom: 24 }}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={[styles.handle, { backgroundColor: theme.border }]} />
 
-            <View style={styles.headerRow}>
-              <ThemedText style={[styles.title, { color: theme.textPrimary }]}>
-                {isEditMode ? 'Edit Alarm' : 'New Alarm'}
-              </ThemedText>
-              <TouchableOpacity onPress={onClose}>
-                <Ionicons name="close" size={24} color={theme.textSecondary} />
-              </TouchableOpacity>
-            </View>
+                <View style={styles.headerRow}>
+                  <ThemedText style={[styles.title, { color: theme.textPrimary }]}>
+                    {isEditMode ? 'Edit Alarm' : 'New Alarm'}
+                  </ThemedText>
+                  <TouchableOpacity onPress={onClose}>
+                    <Ionicons name="close" size={24} color={theme.textSecondary} />
+                  </TouchableOpacity>
+                </View>
 
-            <TouchableOpacity style={styles.timeDisplayWrap} onPress={openTimePicker}>
-              <ThemedText style={[styles.timeDisplay, { color: theme.textPrimary }]}>{formatTimeDisplay(timeDate)}</ThemedText>
-            </TouchableOpacity>
+                <TouchableOpacity style={styles.timeDisplayWrap} onPress={openTimePicker}>
+                  <ThemedText style={[styles.timeDisplay, { color: theme.textPrimary }]}>{formatTimeDisplay(timeDate)}</ThemedText>
+                </TouchableOpacity>
 
-            {Platform.OS === 'ios' && showTimePicker && (
-              <DateTimePicker value={timeDate} mode="time" display="spinner" onChange={onTimeChange} />
-            )}
+                {Platform.OS === 'ios' && showTimePicker && (
+                  <DateTimePicker value={timeDate} mode="time" display="spinner" onChange={onTimeChange} />
+                )}
 
-            <ThemedView style={styles.section}>
-              <ThemedText style={[styles.sectionLabel, { color: theme.textSecondary }]}>Label</ThemedText>
-              <TextInput
-                value={title}
-                onChangeText={setTitle}
-                placeholder="Alarm"
-                placeholderTextColor={theme.textSecondary}
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: theme.background,
-                    color: theme.textPrimary,
-                    borderColor: theme.border,
-                  },
-                ]}
-                maxLength={60}
-              />
-            </ThemedView>
+                <ThemedView style={styles.section}>
+                  <ThemedText style={[styles.sectionLabel, { color: theme.textSecondary }]}>Label</ThemedText>
+                  <TextInput
+                    value={title}
+                    onChangeText={setTitle}
+                    placeholder="Alarm"
+                    placeholderTextColor={theme.textSecondary}
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: theme.background,
+                        color: theme.textPrimary,
+                        borderColor: theme.border,
+                      },
+                    ]}
+                    maxLength={60}
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                  />
+                </ThemedView>
 
-            <ThemedView style={styles.section}>
-              <ThemedText style={[styles.sectionLabel, { color: theme.textSecondary }]}>Repeat</ThemedText>
-              <View style={styles.dayRow}>
-                {DAY_LABELS.map((label, index) => {
-                  const selected = selectedDays.includes(index);
-                  return (
-                    <TouchableOpacity
-                      key={label + index}
-                      style={[
-                        styles.dayCircle,
-                        {
-                          backgroundColor: selected ? theme.primary : theme.background,
-                          borderColor: selected ? theme.primary : theme.border,
-                        },
-                      ]}
-                      onPress={() => toggleDay(index)}
-                    >
-                      <ThemedText style={{ color: selected ? '#FFFFFF' : theme.textSecondary, fontWeight: '600' }}>{label[0]}</ThemedText>
-                    </TouchableOpacity>
-                  );
-                })}
+                <ThemedView style={styles.section}>
+                  <ThemedText style={[styles.sectionLabel, { color: theme.textSecondary }]}>Repeat</ThemedText>
+                  <View style={styles.dayRow}>
+                    {DAY_LABELS.map((label, index) => {
+                      const selected = selectedDays.includes(index);
+                      return (
+                        <TouchableOpacity
+                          key={label + index}
+                          style={[
+                            styles.dayCircle,
+                            {
+                              backgroundColor: selected ? theme.primary : theme.background,
+                              borderColor: selected ? theme.primary : theme.border,
+                            },
+                          ]}
+                          onPress={() => toggleDay(index)}
+                        >
+                          <ThemedText style={{ color: selected ? '#FFFFFF' : theme.textSecondary, fontWeight: '600' }}>{label[0]}</ThemedText>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  <ThemedText style={[styles.repeatSummary, { color: theme.textSecondary }]}>{repeatSummary}</ThemedText>
+                </ThemedView>
+              </ScrollView>
+
+              <View style={styles.saveButtonContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.saveButton,
+                    {
+                      backgroundColor: selectedDays.length === 0 || isSaving ? theme.border : theme.primary,
+                    },
+                  ]}
+                  disabled={selectedDays.length === 0 || isSaving}
+                  onPress={handleSave}
+                >
+                  {isSaving ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <ThemedText style={styles.saveButtonText}>Save Alarm</ThemedText>
+                  )}
+                </TouchableOpacity>
               </View>
-              <ThemedText style={[styles.repeatSummary, { color: theme.textSecondary }]}>{repeatSummary}</ThemedText>
-            </ThemedView>
-
-            <TouchableOpacity
-              style={[
-                styles.saveButton,
-                {
-                  backgroundColor: selectedDays.length === 0 || isSaving ? theme.border : theme.primary,
-                },
-              ]}
-              disabled={selectedDays.length === 0 || isSaving}
-              onPress={handleSave}
-            >
-              {isSaving ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <ThemedText style={styles.saveButtonText}>Save Alarm</ThemedText>
-              )}
-            </TouchableOpacity>
+            </KeyboardAvoidingView>
           </Pressable>
         </Animated.View>
       </Pressable>
@@ -372,12 +387,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   saveButton: {
-    marginTop: 'auto',
     height: 50,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+  },
+  saveButtonContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
   saveButtonText: {
     color: '#FFFFFF',
