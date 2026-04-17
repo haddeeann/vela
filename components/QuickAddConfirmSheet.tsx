@@ -12,6 +12,7 @@ import {
   ScrollView,
   Pressable,
 } from 'react-native';
+import DateTimePicker, { DateTimePickerAndroid, DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { QuickAddDraft, QuickAddSaveInput, EntryType } from '../types/quickAdd.types';
 import { getTheme } from '../constants/theme';
@@ -40,8 +41,38 @@ export const QuickAddConfirmSheet: React.FC<Props> = ({
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+  const [editedStartTime, setEditedStartTime] = useState(draft?.startTime ?? '');
+  const [editedEndTime, setEditedEndTime] = useState(draft?.endTime ?? '');
   const [entryType, setEntryType] = useState<EntryType>('event');
   const [isSaving, setIsSaving] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+
+  const [startTimeDate, setStartTimeDate] = useState<Date>(() => {
+    if (draft?.startTime) {
+      const [time, period] = draft.startTime.split(' ');
+      let [hours, minutes] = time.split(':').map(Number);
+      if (period === 'PM' && hours < 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+      const d = new Date();
+      d.setHours(hours, minutes, 0, 0);
+      return d;
+    }
+    return new Date();
+  });
+
+  const [endTimeDate, setEndTimeDate] = useState<Date>(() => {
+    if (draft?.endTime) {
+      const [time, period] = draft.endTime.split(' ');
+      let [hours, minutes] = time.split(':').map(Number);
+      if (period === 'PM' && hours < 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+      const d = new Date();
+      d.setHours(hours, minutes, 0, 0);
+      return d;
+    }
+    return new Date();
+  });
 
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
@@ -51,7 +82,35 @@ export const QuickAddConfirmSheet: React.FC<Props> = ({
       setDate(draft.date || formatDateString(new Date()));
       setStartTime(draft.startTime || '');
       setEndTime(draft.endTime || '');
+      setEditedStartTime(draft.startTime ?? '');
+      setEditedEndTime(draft.endTime ?? '');
       setEntryType(draft.entryType);
+
+      if (draft.startTime) {
+        const [time, period] = draft.startTime.split(' ');
+        let [hours, minutes] = time.split(':').map(Number);
+        if (period === 'PM' && hours < 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        const d = new Date();
+        d.setHours(hours, minutes, 0, 0);
+        setStartTimeDate(d);
+      } else {
+        setStartTimeDate(new Date());
+      }
+
+      if (draft.endTime) {
+        const [time, period] = draft.endTime.split(' ');
+        let [hours, minutes] = time.split(':').map(Number);
+        if (period === 'PM' && hours < 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        const d = new Date();
+        d.setHours(hours, minutes, 0, 0);
+        setEndTimeDate(d);
+      } else {
+        setEndTimeDate(new Date());
+      }
+      setShowStartTimePicker(false);
+      setShowEndTimePicker(false);
 
       Animated.timing(translateY, {
         toValue: 0,
@@ -64,6 +123,8 @@ export const QuickAddConfirmSheet: React.FC<Props> = ({
         duration: 200,
         useNativeDriver: true,
       }).start();
+      setShowStartTimePicker(false);
+      setShowEndTimePicker(false);
     }
   }, [visible, draft]);
 
@@ -78,8 +139,8 @@ export const QuickAddConfirmSheet: React.FC<Props> = ({
       title,
       entry_type: entryType,
       date,
-      start_time: startTime || undefined,
-      end_time: endTime || undefined,
+      start_time: editedStartTime || undefined,
+      end_time: editedEndTime || undefined,
       category: 'personal', // Default as per requirements
       recurrence: draft?.recurrence,
     };
@@ -118,6 +179,59 @@ export const QuickAddConfirmSheet: React.FC<Props> = ({
       default:
         return theme.textSecondary;
     }
+  };
+
+  const formatTimeString = (selectedDate: Date) => selectedDate.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  const handleStartTimePress = () => {
+    console.log('[ConfirmSheet] Start time tapped');
+    console.log('[ConfirmSheet] Current startTime:', editedStartTime);
+
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: startTimeDate,
+        mode: 'time',
+        is24Hour: false,
+        display: 'clock',
+        onChange: (_event, selectedDate) => {
+          if (selectedDate) {
+            setStartTimeDate(selectedDate);
+            setEditedStartTime(formatTimeString(selectedDate));
+            setStartTime(formatTimeString(selectedDate));
+          }
+        },
+      });
+      return;
+    }
+
+    setShowStartTimePicker(true);
+    setShowEndTimePicker(false);
+  };
+
+  const handleEndTimePress = () => {
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: endTimeDate,
+        mode: 'time',
+        is24Hour: false,
+        display: 'clock',
+        onChange: (_event, selectedDate) => {
+          if (selectedDate) {
+            setEndTimeDate(selectedDate);
+            setEditedEndTime(formatTimeString(selectedDate));
+            setEndTime(formatTimeString(selectedDate));
+          }
+        },
+      });
+      return;
+    }
+
+    setShowEndTimePicker(true);
+    setShowStartTimePicker(false);
   };
 
   const iconInfo = getEntryTypeIcon(entryType);
@@ -188,30 +302,62 @@ export const QuickAddConfirmSheet: React.FC<Props> = ({
                     <ThemedText style={{ color: theme.textPrimary }}>{date}</ThemedText>
                   </TouchableOpacity>
                 </View>
-                <View style={[styles.fieldGroup, { flex: 1, marginLeft: 8 }]}>
+                <View style={[styles.fieldGroup, { flex: 1, marginLeft: 8 }]}> 
                   <ThemedText style={styles.fieldLabel}>Start Time</ThemedText>
                   <TouchableOpacity
                     style={[styles.input, { borderColor: theme.border, backgroundColor: theme.surface, justifyContent: 'center' }]}
                     activeOpacity={0.7}
+                    onPress={handleStartTimePress}
                   >
-                    <ThemedText style={{ color: startTime ? theme.textPrimary : theme.textSecondary }}>
-                      {startTime || 'Not set'}
+                    <ThemedText style={{ color: editedStartTime ? theme.textPrimary : theme.textSecondary }}>
+                      {editedStartTime || 'Not set'}
                     </ThemedText>
                   </TouchableOpacity>
+                  {Platform.OS === 'ios' && showStartTimePicker && (
+                    <DateTimePicker
+                      value={startTimeDate}
+                      mode="time"
+                      display="spinner"
+                      onChange={(_event: DateTimePickerEvent, selectedDate?: Date) => {
+                        if (selectedDate) {
+                          setStartTimeDate(selectedDate);
+                          const formatted = formatTimeString(selectedDate);
+                          setEditedStartTime(formatted);
+                          setStartTime(formatted);
+                        }
+                      }}
+                    />
+                  )}
                 </View>
               </View>
 
               <View style={styles.row}>
-                <View style={[styles.fieldGroup, { flex: 1, marginRight: 8 }]}>
+                <View style={[styles.fieldGroup, { flex: 1, marginRight: 8 }]}> 
                   <ThemedText style={styles.fieldLabel}>End Time (Optional)</ThemedText>
                   <TouchableOpacity
                     style={[styles.input, { borderColor: theme.border, backgroundColor: theme.surface, justifyContent: 'center' }]}
                     activeOpacity={0.7}
+                    onPress={handleEndTimePress}
                   >
-                    <ThemedText style={{ color: endTime ? theme.textPrimary : theme.textSecondary }}>
-                      {endTime || 'Not set'}
+                    <ThemedText style={{ color: editedEndTime ? theme.textPrimary : theme.textSecondary }}>
+                      {editedEndTime || 'Not set'}
                     </ThemedText>
                   </TouchableOpacity>
+                  {Platform.OS === 'ios' && showEndTimePicker && (
+                    <DateTimePicker
+                      value={endTimeDate}
+                      mode="time"
+                      display="spinner"
+                      onChange={(_event: DateTimePickerEvent, selectedDate?: Date) => {
+                        if (selectedDate) {
+                          setEndTimeDate(selectedDate);
+                          const formatted = formatTimeString(selectedDate);
+                          setEditedEndTime(formatted);
+                          setEndTime(formatted);
+                        }
+                      }}
+                    />
+                  )}
                 </View>
                 <View style={{ flex: 1, marginLeft: 8 }} />
               </View>
