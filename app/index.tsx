@@ -21,7 +21,7 @@ import { createEntry, deleteEntry, updateEntry, createRecurrenceRule, createRemi
 import { EntryWithMeta } from '../types';
 import { EntryType, QuickAddDraft } from '../types/quickAdd.types';
 import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
-import { QuickAddSheet } from '../components/QuickAddSheet';
+import { QuickAddBar } from '../components/QuickAddBar';
 import { EntryDetailSheet } from '../components/EntryDetailSheet';
 import { useReminderResponseListener } from '../notifications/useReminderResponseListener';
 import { scheduleReminderSequence } from '../notifications/scheduleReminderSequence';
@@ -964,7 +964,7 @@ export default function HomeScreen() {
         existingEntry={editingEntry || undefined}
         onSaved={handleEditSaved}
       />
-      <QuickAddSheet
+      <QuickAddBar
         visible={isQuickAddVisible}
         onClose={() => {
           setIsQuickAddVisible(false);

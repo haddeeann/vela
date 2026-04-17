@@ -10,7 +10,7 @@ import { getAllEntries, updateEntry, deleteEntry, createEntry, saveQuickAddEntry
 import { EntryWithMeta } from '../types';
 import { QuickAddDraft } from '../types/quickAdd.types';
 import { AddEventModal } from '@/components/add-event-modal';
-import { QuickAddSheet } from '../components/QuickAddSheet';
+import { QuickAddBar } from '../components/QuickAddBar';
 import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
 import { CATEGORIES } from '@/constants/categories';
 import { EmptyState } from '@/components/EmptyState';
@@ -167,7 +167,7 @@ export default function TasksScreen() {
         initialEntryType="task"
       />
 
-      <QuickAddSheet
+      <QuickAddBar
         visible={isQuickAddVisible}
         onClose={() => setIsQuickAddVisible(false)}
         onDraftCreated={(draft) => setCurrentDraft(draft)}
@@ -176,7 +176,7 @@ export default function TasksScreen() {
           setIsModalVisible(true);
         }}
         theme={theme}
-        initialType="task"
+        prefilledType="task"
       />
 
       <QuickAddConfirmSheet

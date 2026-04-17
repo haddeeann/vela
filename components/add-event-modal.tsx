@@ -80,8 +80,6 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [showDueTimePicker, setShowDueTimePicker] = useState(false);
-  const [androidTimeField, setAndroidTimeField] = useState<null | 'start' | 'end' | 'due'>(null);
-
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [categoryId, setCategoryId] = useState<CategoryId>('personal');
   const [recurrence, setRecurrence] = useState<RecurrenceType>('none');
@@ -107,6 +105,35 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
+    });
+  };
+
+  const openAndroidTimePicker = (field: 'start' | 'end' | 'due') => {
+    DateTimePickerAndroid.open({
+      value: field === 'start' ? startTimeDate : field === 'end' ? endTimeDate : dueTimeDate || getNextRoundHour(),
+      mode: 'time',
+      is24Hour: false,
+      display: 'clock',
+      onChange: (_event, selectedDate) => {
+        if (!selectedDate) return;
+
+        if (field === 'due') {
+          setDueTimeDate(selectedDate);
+          return;
+        }
+
+        if (field === 'start') {
+          setStartTimeDate(selectedDate);
+          const minEndTime = new Date(selectedDate.getTime() + 30 * 60 * 1000);
+          if (endTimeDate < minEndTime) {
+            setEndTimeDate(minEndTime);
+          }
+          return;
+        }
+
+        const minEndTime = new Date(startTimeDate.getTime() + 30 * 60 * 1000);
+        setEndTimeDate(selectedDate < minEndTime ? minEndTime : selectedDate);
+      },
     });
   };
 
@@ -356,7 +383,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
                   style={[styles.input, styles.dateButton, { borderColor: theme.border }]}
                   onPress={() => {
                     if (Platform.OS === 'android') {
-                      setAndroidTimeField('due');
+                      openAndroidTimePicker('due');
                     } else {
                       setShowDueTimePicker(!showDueTimePicker);
                       setShowStartTimePicker(false);
@@ -410,10 +437,11 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
                 <TouchableOpacity
                   style={[styles.input, styles.dateButton, { borderColor: theme.border }]}
                   onPress={() => {
+                    console.log('[Events] Start time field tapped');
                     if (Platform.OS === 'android') {
-                      setAndroidTimeField('start');
+                      openAndroidTimePicker('start');
                     } else {
-                      setShowStartTimePicker(!showStartTimePicker);
+                      setShowStartTimePicker(true);
                       setShowEndTimePicker(false);
                       setShowDueTimePicker(false);
                     }
@@ -449,7 +477,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
                   style={[styles.input, styles.dateButton, { borderColor: theme.border }]}
                   onPress={() => {
                     if (Platform.OS === 'android') {
-                      setAndroidTimeField('end');
+                      openAndroidTimePicker('end');
                     } else {
                       setShowEndTimePicker(!showEndTimePicker);
                       setShowStartTimePicker(false);
@@ -585,45 +613,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
             </TouchableOpacity>
           </ThemedView>
 
-          {Platform.OS === 'android' && androidTimeField && (
-            <DateTimePicker
-              value={
-                androidTimeField === 'start'
-                  ? startTimeDate
-                  : androidTimeField === 'end'
-                  ? endTimeDate
-                  : dueTimeDate || getNextRoundHour()
-              }
-              mode="time"
-              display="default"
-              is24Hour={false}
-              onChange={(_event, selectedDate) => {
-                const field = androidTimeField;
-                setAndroidTimeField(null);
 
-                if (!selectedDate) return;
-
-                if (field === 'due') {
-                  setDueTimeDate(selectedDate);
-                  return;
-                }
-
-                if (field === 'start') {
-                  setStartTimeDate(selectedDate);
-                  const minEndTime = new Date(selectedDate.getTime() + 30 * 60 * 1000);
-                  if (endTimeDate < minEndTime) {
-                    setEndTimeDate(minEndTime);
-                  }
-                  return;
-                }
-
-                if (field === 'end') {
-                  const minEndTime = new Date(startTimeDate.getTime() + 30 * 60 * 1000);
-                  setEndTimeDate(selectedDate < minEndTime ? minEndTime : selectedDate);
-                }
-              }}
-            />
-          )}
         </ThemedView>
       </KeyboardAvoidingView>
     </Modal>

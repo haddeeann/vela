@@ -10,7 +10,7 @@ import { getAllEntries, createEntry, saveQuickAddEntry } from '../db';
 import { EntryWithMeta } from '../types';
 import { QuickAddDraft } from '../types/quickAdd.types';
 import { AddEventModal } from '@/components/add-event-modal';
-import { QuickAddSheet } from '../components/QuickAddSheet';
+import { QuickAddBar } from '../components/QuickAddBar';
 import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
 import { CATEGORIES } from '@/constants/categories';
 import { EmptyState } from '@/components/EmptyState';
@@ -119,7 +119,7 @@ export default function AnchorsScreen() {
         initialEntryType="anchor"
       />
 
-      <QuickAddSheet
+      <QuickAddBar
         visible={isQuickAddVisible}
         onClose={() => setIsQuickAddVisible(false)}
         onDraftCreated={(draft) => setCurrentDraft(draft)}
@@ -128,7 +128,7 @@ export default function AnchorsScreen() {
           setIsModalVisible(true);
         }}
         theme={theme}
-        initialType="anchor"
+        prefilledType="anchor"
       />
 
       <QuickAddConfirmSheet

@@ -10,7 +10,7 @@ import { getAllEntries, createEntry, saveQuickAddEntry } from '../db';
 import { EntryWithMeta } from '../types';
 import { QuickAddDraft } from '../types/quickAdd.types';
 import { AddEventModal } from '@/components/add-event-modal';
-import { QuickAddSheet } from '../components/QuickAddSheet';
+import { QuickAddBar } from '../components/QuickAddBar';
 import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
 import { CATEGORIES } from '@/constants/categories';
 import { EmptyState } from '@/components/EmptyState';
@@ -20,6 +20,7 @@ export default function EventsScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
+  console.log('[Events] Screen rendered');
   const [events, setEvents] = useState<EntryWithMeta[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isQuickAddVisible, setIsQuickAddVisible] = useState(false);
@@ -129,7 +130,7 @@ export default function EventsScreen() {
         initialEntryType="event"
       />
 
-      <QuickAddSheet
+      <QuickAddBar
         visible={isQuickAddVisible}
         onClose={() => setIsQuickAddVisible(false)}
         onDraftCreated={(draft) => setCurrentDraft(draft)}
@@ -138,7 +139,7 @@ export default function EventsScreen() {
           setIsModalVisible(true);
         }}
         theme={theme}
-        initialType="event"
+        prefilledType="event"
       />
 
       <QuickAddConfirmSheet
