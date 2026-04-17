@@ -8,7 +8,9 @@ import { View } from 'react-native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { initDB } from '../db';
+import { getAllAlarms, updateAlarm } from '../db';
 import { registerReminderCategories } from '../notifications/registerReminderCategories';
+import { rescheduleAlarm } from '../utils/alarmScheduler';
 import { getHasOnboarded } from '../utils/calendarSettings';
 
 export const unstable_settings = {
@@ -36,6 +38,14 @@ export default function RootLayout() {
           const { status } = await Notifications.requestPermissionsAsync();
           if (status === 'granted') {
             await registerReminderCategories();
+
+            const alarms = await getAllAlarms();
+            for (const alarm of alarms) {
+              if (!alarm.is_active) continue;
+              if (alarm.notification_ids.length > 0) continue;
+              const notificationIds = await rescheduleAlarm(alarm);
+              await updateAlarm(alarm.id, { notification_ids: notificationIds });
+            }
           }
         }
       } catch (error) {
@@ -101,6 +111,7 @@ export default function RootLayout() {
         <Stack>
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+          <Stack.Screen name="alarms" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style="auto" />

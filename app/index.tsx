@@ -21,12 +21,14 @@ import { createEntry, deleteEntry, updateEntry, createRecurrenceRule, createRemi
 import { EntryWithMeta } from '../types';
 import { EntryType, QuickAddDraft } from '../types/quickAdd.types';
 import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
+import { QuickTimerSheet } from '../components/QuickTimerSheet';
 import { QuickAddBar } from '../components/QuickAddBar';
 import { EntryDetailSheet } from '../components/EntryDetailSheet';
 import { useReminderResponseListener } from '../notifications/useReminderResponseListener';
 import { scheduleReminderSequence } from '../notifications/scheduleReminderSequence';
 import { saveNotificationIds } from '../db/reminderQueries';
 import { useCalendarSettings } from '../utils/calendarSettings';
+import { cancelQuickTimer } from '../utils/quickTimer';
 
 import { InteractionManager } from 'react-native';
 
@@ -102,6 +104,9 @@ export default function HomeScreen() {
   const [quickAddPrefilledStartTime, setQuickAddPrefilledStartTime] = useState<string | undefined>(undefined);
   const [quickAddPrefilledEndTime, setQuickAddPrefilledEndTime] = useState<string | undefined>(undefined);
   const [currentDraft, setCurrentDraft] = useState<QuickAddDraft | null>(null);
+  const [activeTimer, setActiveTimer] = useState<{ notificationId: string; firesAt: Date } | null>(null);
+  const [isTimerSheetVisible, setIsTimerSheetVisible] = useState(false);
+  const [timerTick, setTimerTick] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<CalendarEvent | null>(null);
   const [isEntryDetailVisible, setIsEntryDetailVisible] = useState(false);
   const [editingEntry, setEditingEntry] = useState<EditableEntry | null>(null);
@@ -119,6 +124,19 @@ export default function HomeScreen() {
   const todayButtonOpacity = useRef(new Animated.Value(0)).current;
 
   const todayDate = useMemo(() => formatDateString(new Date()), []);
+
+  const timerMinutesRemaining = useMemo(() => {
+    if (!activeTimer) return null;
+    const diff = activeTimer.firesAt.getTime() - Date.now();
+    if (diff <= 0) return null;
+    return Math.ceil(diff / 60000);
+  }, [activeTimer, timerTick]);
+
+  const timerRemainingLabel = useMemo(() => {
+    if (!timerMinutesRemaining) return null;
+    if (timerMinutesRemaining === 1) return '1 min remaining';
+    return `${timerMinutesRemaining} min remaining`;
+  }, [timerMinutesRemaining]);
 
   const isViewingToday = useMemo(() => {
     const selected = parseDateString(selectedDate);
@@ -196,6 +214,75 @@ export default function HomeScreen() {
       useNativeDriver: true,
     }).start();
   }, [isViewingToday, todayButtonOpacity]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadActiveTimer = async () => {
+      try {
+        const raw = await AsyncStorage.getItem('vela_active_timer');
+        if (!raw || !mounted) return;
+
+        const parsed = JSON.parse(raw) as { notificationId?: string; firesAt?: string };
+        if (!parsed?.notificationId || !parsed?.firesAt) {
+          await AsyncStorage.removeItem('vela_active_timer');
+          return;
+        }
+
+        const firesAt = new Date(parsed.firesAt);
+        if (Number.isNaN(firesAt.getTime()) || firesAt.getTime() <= Date.now()) {
+          await AsyncStorage.removeItem('vela_active_timer');
+          return;
+        }
+
+        if (mounted) {
+          setActiveTimer({ notificationId: parsed.notificationId, firesAt });
+        }
+      } catch {
+        await AsyncStorage.removeItem('vela_active_timer');
+      }
+    };
+
+    loadActiveTimer();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!activeTimer) return;
+
+    setTimerTick((prev) => prev + 1);
+    const intervalId = setInterval(() => {
+      setTimerTick((prev) => prev + 1);
+    }, 60000);
+
+    return () => clearInterval(intervalId);
+  }, [activeTimer]);
+
+  useEffect(() => {
+    if (!activeTimer || timerMinutesRemaining !== null) return;
+
+    setActiveTimer(null);
+    AsyncStorage.removeItem('vela_active_timer').catch(() => {});
+  }, [activeTimer, timerMinutesRemaining]);
+
+  useEffect(() => {
+    const subscription = Notifications.addNotificationReceivedListener((notification) => {
+      if (!activeTimer) return;
+
+      const receivedId = notification.request.identifier;
+      if (receivedId === activeTimer.notificationId) {
+        setActiveTimer(null);
+        AsyncStorage.removeItem('vela_active_timer').catch(() => {});
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [activeTimer]);
 
   const consumedQuickAddRef = useRef(false);
 
@@ -1038,6 +1125,29 @@ export default function HomeScreen() {
         theme={theme}
       />
 
+      <QuickTimerSheet
+        visible={isTimerSheetVisible}
+        onClose={() => setIsTimerSheetVisible(false)}
+        activeTimer={activeTimer}
+        onTimerSet={async (notificationId, firesAt) => {
+          setActiveTimer({ notificationId, firesAt });
+          await AsyncStorage.setItem(
+            'vela_active_timer',
+            JSON.stringify({ notificationId, firesAt: firesAt.toISOString() })
+          );
+          setIsTimerSheetVisible(false);
+        }}
+        onTimerCancelled={async () => {
+          if (activeTimer) {
+            await cancelQuickTimer(activeTimer.notificationId).catch(() => {});
+          }
+          setActiveTimer(null);
+          await AsyncStorage.removeItem('vela_active_timer');
+          setIsTimerSheetVisible(false);
+        }}
+        theme={theme}
+      />
+
       <Modal
         transparent
         visible={isDropdownVisible}
@@ -1078,6 +1188,14 @@ export default function HomeScreen() {
             >
               <Ionicons name="infinite-outline" size={22} color={theme.primary} />
               <ThemedText style={styles.dropdownItemText}>Anchors</ThemedText>
+            </TouchableOpacity>
+            <View style={[styles.dropdownDivider, { backgroundColor: theme.border }]} />
+            <TouchableOpacity
+              style={styles.dropdownItem}
+              onPress={() => navigateFromDropdown('/alarms')}
+            >
+              <Ionicons name="alarm-outline" size={22} color={theme.primary} />
+              <ThemedText style={styles.dropdownItemText}>Alarms</ThemedText>
             </TouchableOpacity>
           </Animated.View>
         </Pressable>
@@ -1174,6 +1292,44 @@ export default function HomeScreen() {
                   >
                     Daily
                   </ThemedText>
+                </TouchableOpacity>
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+              <View style={styles.drawerSection}>
+                <ThemedText style={styles.sectionLabel}>Timer</ThemedText>
+
+                <TouchableOpacity
+                  style={[
+                    styles.drawerItem,
+                    activeTimer && { backgroundColor: theme.primary + '1A' },
+                  ]}
+                  onPress={() => {
+                    closeDrawer();
+                    setTimeout(() => setIsTimerSheetVisible(true), 300);
+                  }}
+                >
+                  <Ionicons
+                    name="alarm-outline"
+                    size={22}
+                    color={activeTimer ? theme.primary : theme.textSecondary}
+                  />
+                  <View style={styles.timerItemTextWrap}>
+                    <ThemedText
+                      style={[
+                        styles.drawerItemText,
+                        { color: activeTimer ? theme.primary : theme.textSecondary },
+                      ]}
+                    >
+                      {activeTimer ? 'Timer active — tap to cancel' : 'Set a quick timer'}
+                    </ThemedText>
+                  </View>
+                  {activeTimer && timerRemainingLabel ? (
+                    <ThemedText style={[styles.timerRemainingText, { color: theme.primary }]}>
+                      {timerRemainingLabel}
+                    </ThemedText>
+                  ) : null}
                 </TouchableOpacity>
               </View>
 

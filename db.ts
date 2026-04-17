@@ -6,6 +6,7 @@ import { QuickAddSaveInput } from './types/quickAdd.types';
 import { scheduleReminderSequence, cancelReminderNotifications } from './notifications/scheduleReminderSequence';
 import { handleDbError } from './utils/errorHandler';
 import { parseDateString } from './utils/dateUtils';
+import { Alarm } from './types/alarms.types';
 
 /**
  * Generate a basic UUID using Math.random() as per requirements.
@@ -110,6 +111,18 @@ export const initDB = async (): Promise<SQLite.SQLiteDatabase> => {
           end_date TEXT,
           max_occurrences INTEGER,
           FOREIGN KEY (entry_id) REFERENCES entries(id) ON DELETE CASCADE
+        );
+      `);
+
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS alarms (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          time TEXT NOT NULL,
+          days TEXT NOT NULL,
+          is_active INTEGER DEFAULT 1,
+          notification_ids TEXT,
+          created_at INTEGER
         );
       `);
 
@@ -567,6 +580,105 @@ export const saveQuickAddEntry = async (input: QuickAddSaveInput): Promise<strin
     handleDbError(error, 'saveQuickAddEntry');
     throw error;
   }
+};
+
+type DbAlarmRow = {
+  id: string;
+  title: string;
+  time: string;
+  days: string;
+  is_active: number;
+  notification_ids: string | null;
+  created_at: number;
+};
+
+const mapAlarmRow = (row: DbAlarmRow): Alarm => {
+  return {
+    id: row.id,
+    title: row.title,
+    time: row.time,
+    days: JSON.parse(row.days || '[]'),
+    is_active: row.is_active === 1,
+    notification_ids: row.notification_ids ? JSON.parse(row.notification_ids) : [],
+    created_at: row.created_at,
+  };
+};
+
+export const createAlarm = async (alarm: {
+  title: string;
+  time: string;
+  days: number[];
+  is_active: number;
+}): Promise<string> => {
+  const sqlite = await getDB();
+  const id = generateUUID();
+  const createdAt = Date.now();
+
+  await sqlite.runAsync(
+    `INSERT INTO alarms (id, title, time, days, is_active, notification_ids, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?);`,
+    [id, alarm.title, alarm.time, JSON.stringify(alarm.days), alarm.is_active, JSON.stringify([]), createdAt]
+  );
+
+  return id;
+};
+
+export const getAllAlarms = async (): Promise<Alarm[]> => {
+  const sqlite = await getDB();
+  const rows = await sqlite.getAllAsync<DbAlarmRow>('SELECT * FROM alarms ORDER BY created_at DESC;');
+  return rows.map(mapAlarmRow);
+};
+
+export const updateAlarm = async (id: string, fields: Partial<Alarm>): Promise<void> => {
+  const sqlite = await getDB();
+
+  const updates: string[] = [];
+  const values: Array<string | number | null> = [];
+
+  if (typeof fields.title === 'string') {
+    updates.push('title = ?');
+    values.push(fields.title);
+  }
+
+  if (typeof fields.time === 'string') {
+    updates.push('time = ?');
+    values.push(fields.time);
+  }
+
+  if (Array.isArray(fields.days)) {
+    updates.push('days = ?');
+    values.push(JSON.stringify(fields.days));
+  }
+
+  if (typeof fields.is_active === 'boolean') {
+    updates.push('is_active = ?');
+    values.push(fields.is_active ? 1 : 0);
+  }
+
+  if (Array.isArray(fields.notification_ids)) {
+    updates.push('notification_ids = ?');
+    values.push(JSON.stringify(fields.notification_ids));
+  }
+
+  if (typeof fields.created_at === 'number') {
+    updates.push('created_at = ?');
+    values.push(fields.created_at);
+  }
+
+  if (updates.length === 0) return;
+
+  values.push(id);
+  await sqlite.runAsync(`UPDATE alarms SET ${updates.join(', ')} WHERE id = ?;`, values);
+};
+
+export const deleteAlarm = async (id: string): Promise<void> => {
+  const sqlite = await getDB();
+  await sqlite.runAsync('DELETE FROM alarms WHERE id = ?;', [id]);
+};
+
+export const setAlarmActive = async (id: string, isActive: boolean): Promise<void> => {
+  const sqlite = await getDB();
+  await sqlite.runAsync('UPDATE alarms SET is_active = ? WHERE id = ?;', [isActive ? 1 : 0, id]);
 };
 
 export { db, generateUUID };
