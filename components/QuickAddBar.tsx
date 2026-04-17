@@ -1,8 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   TextInput,
@@ -154,10 +152,7 @@ export function QuickAddBar({
   return (
     <View style={styles.overlayContainer} pointerEvents="box-none">
       <Pressable style={styles.overlay} onPress={onClose} />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardContainer}
-      >
+      <View style={styles.keyboardContainer}>
         <View
           style={[
             styles.bar,
@@ -193,7 +188,7 @@ export function QuickAddBar({
             </TouchableOpacity>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </View>
   );
 }

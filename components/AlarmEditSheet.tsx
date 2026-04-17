@@ -4,7 +4,6 @@ import {
   Animated,
   Dimensions,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -216,10 +215,10 @@ export const AlarmEditSheet: React.FC<Props> = ({ visible, existingAlarm, onClos
           ]}
         >
           <Pressable style={styles.sheetInner} onPress={() => {}}>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+            <View style={{ flex: 1 }}>
               <ScrollView
                 keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ paddingBottom: 24 }}
+                contentContainerStyle={{ paddingBottom: 40 }}
                 showsVerticalScrollIndicator={false}
               >
                 <View style={[styles.handle, { backgroundColor: theme.border }]} />
@@ -306,7 +305,7 @@ export const AlarmEditSheet: React.FC<Props> = ({ visible, existingAlarm, onClos
                   )}
                 </TouchableOpacity>
               </View>
-            </KeyboardAvoidingView>
+            </View>
           </Pressable>
         </Animated.View>
       </Pressable>
