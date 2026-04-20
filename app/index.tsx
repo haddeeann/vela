@@ -17,7 +17,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES, CategoryId } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
 import { ReminderType, REMINDER_OPTIONS } from '@/constants/reminders';
-import { createEntry, deleteEntry, updateEntry, createRecurrenceRule, createReminder, getAllEntries, saveQuickAddEntry } from '../db';
+import { createEntry, deleteEntry, updateEntry, createRecurrenceRule, createReminder, getAllEntries, getDatabase, saveQuickAddEntry } from '../db';
 import { EntryWithMeta } from '../types';
 import { EntryType, QuickAddDraft } from '../types/quickAdd.types';
 import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
@@ -339,28 +339,48 @@ export default function HomeScreen() {
   };
 
   const handleDevReset = async () => {
-    try {
-      await AsyncStorage.removeItem('vela_has_onboarded');
-      await AsyncStorage.removeItem('vela_show_anchors_month');
-      await AsyncStorage.removeItem('vela_show_anchors_week');
+    Alert.alert(
+      'Reset everything?',
+      'This will delete all entries, alarms, and reset onboarding. Cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem('vela_has_onboarded');
+              await AsyncStorage.removeItem('vela_show_anchors_month');
+              await AsyncStorage.removeItem('vela_show_anchors_week');
 
-      let didReload = false;
-      try {
-        const Updates = require('expo-updates');
-        if (Updates?.reloadAsync) {
-          await Updates.reloadAsync();
-          didReload = true;
-        }
-      } catch {
-        // expo-updates is optional in this project
-      }
+              const db = await getDatabase();
+              await db.execAsync('DELETE FROM entries');
+              await db.execAsync('DELETE FROM entry_meta');
+              await db.execAsync('DELETE FROM recurrence_rules');
+              await db.execAsync('DELETE FROM reminders');
+              await db.execAsync('DELETE FROM alarms');
 
-      if (!didReload) {
-        DevSettings.reload();
-      }
-    } catch (error) {
-      console.error('[DevReset] Failed to reset onboarding state:', error);
-    }
+              let didReload = false;
+              try {
+                const Updates = require('expo-updates');
+                if (Updates?.reloadAsync) {
+                  await Updates.reloadAsync();
+                  didReload = true;
+                }
+              } catch {
+                // expo-updates is optional in this project
+              }
+
+              if (!didReload) {
+                DevSettings.reload();
+              }
+            } catch (error) {
+              console.error('[DevReset] Failed to reset onboarding state:', error);
+            }
+          },
+        },
+      ]
+    );
   };
 
   interface CalendarEvent {
