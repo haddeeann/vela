@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { StyleSheet, ScrollView, TouchableOpacity, View, Pressable, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,28 +74,55 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
     return () => clearTimeout(timer);
   }, [selectedDate]);
 
-  const filteredEvents = events.filter(event => {
-    // Direct match
-    if (event.date === selectedDate) return true;
+  const isSameCalendarDay = (left: Date, right: Date) => {
+    return (
+      left.getFullYear() === right.getFullYear() &&
+      left.getMonth() === right.getMonth() &&
+      left.getDate() === right.getDate()
+    );
+  };
 
-    // Don't show recurring events before their start date
-    if (event.date > selectedDate) return false;
-
-    const eventDate = parseDateString(event.date);
+  const filteredEvents = useMemo(() => {
     const selected = parseDateString(selectedDate);
+    selected.setHours(0, 0, 0, 0);
 
-    if (event.recurrence === 'daily') {
-      return true;
-    }
-    if (event.recurrence === 'weekly') {
-      return eventDate.getDay() === selected.getDay();
-    }
-    if (event.recurrence === 'monthly') {
-      return eventDate.getDate() === selected.getDate();
-    }
+    return events.filter(event => {
+      const eventDate = parseDateString(event.date);
+      eventDate.setHours(0, 0, 0, 0);
 
-    return false;
-  });
+      if (isSameCalendarDay(eventDate, selected)) return true;
+
+      // Don't show recurring events before their start date
+      if (eventDate > selected) return false;
+
+      if (event.recurrence === 'daily') {
+        return true;
+      }
+      if (event.recurrence === 'weekly') {
+        return eventDate.getDay() === selected.getDay();
+      }
+      if (event.recurrence === 'monthly') {
+        return eventDate.getDate() === selected.getDate();
+      }
+
+      return false;
+    });
+  }, [events, selectedDate]);
+
+  console.log('[DailyView] selectedDate:', selectedDate);
+  console.log('[DailyView] all events:', events.length);
+  console.log('[DailyView] filtered for day:', filteredEvents.length);
+  console.log('[DailyView] event dates:', events.map(e => e.date));
+
+  const timelessEvents = useMemo(
+    () => filteredEvents.filter((event) => !event.startTime || !event.endTime),
+    [filteredEvents]
+  );
+
+  const timedEvents = useMemo(
+    () => filteredEvents.filter((event) => !!event.startTime && !!event.endTime),
+    [filteredEvents]
+  );
 
   const parseTime = (timeStr: string) => {
     const [time, period] = timeStr.split(' ');
@@ -124,7 +151,7 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
     const hourStart = hour;
     const hourEnd = hour + 1;
 
-    return filteredEvents
+    return timedEvents
       .flatMap(getSegmentsForEvent)
       .some(segment => segment.start < hourEnd && segment.end > hourStart);
   };
@@ -152,10 +179,10 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
   };
 
   const getSegmentsForEvent = (event: Event): EventSegment[] => {
-    if (!event.startTime) return [];
+    if (!event.startTime || !event.endTime) return [];
 
     const start = parseTime(event.startTime);
-    const end = event.endTime ? parseTime(event.endTime) : start + 0.5;
+    const end = parseTime(event.endTime);
     const isAnchor = event.entryType === 'anchor';
 
     if (!isAnchor) {
@@ -216,7 +243,7 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
   };
 
   const renderEventBlocks = (hour: number) => {
-    return filteredEvents
+    return timedEvents
       .flatMap(getSegmentsForEvent)
       .filter(segment => Math.floor(segment.start) === hour)
       .map(segment => {
@@ -314,6 +341,31 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
+          {timelessEvents.length > 0 ? (
+            <View style={styles.timelessPillsContainer}>
+              {timelessEvents.map((event) => {
+                const category = CATEGORIES.find(c => c.id === event.categoryId) || CATEGORIES[4];
+
+                return (
+                  <TouchableOpacity
+                    key={`${event.id}-timeless`}
+                    style={[
+                      styles.timelessPill,
+                      {
+                        borderColor: category.color,
+                        backgroundColor: category.color + '1A',
+                      },
+                    ]}
+                    onPress={() => handleEventPress(event)}
+                  >
+                    <ThemedText style={styles.timelessPillText} numberOfLines={1}>
+                      {event.title}
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : null}
           {HOURS.map(hour => (
             <View key={hour} style={styles.hourRow}>
               <View style={styles.timeLabelContainer}>
@@ -355,6 +407,22 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingRight: 16,
+  },
+  timelessPillsContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+    gap: 6,
+  },
+  timelessPill: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    alignSelf: 'flex-start',
+  },
+  timelessPillText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   hourRow: {
     flexDirection: 'row',

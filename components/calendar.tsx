@@ -56,6 +56,11 @@ export default function Calendar({
   view,
   style,
 }: CalendarProps) {
+  console.log('[Calendar] view:', view);
+  console.log('[Calendar] events received:', events.length);
+  console.log('[Calendar] selectedDate:', selectedDate);
+  console.log('[Calendar] sample event:', events[0]);
+
   const { height } = useWindowDimensions();
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);

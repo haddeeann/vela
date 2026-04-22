@@ -9,7 +9,15 @@ export async function scheduleQuickTimer(
     content: {
       title: 'Timer',
       body: message.trim() || 'Your timer is up!',
+      sound: 'default',
+      priority: Notifications.AndroidNotificationPriority.MAX,
       data: { isQuickTimer: true },
+      android: {
+        channelId: 'vela-timers',
+        priority: 'max',
+        sound: 'default',
+        vibrate: [0, 250, 250, 250],
+      },
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,

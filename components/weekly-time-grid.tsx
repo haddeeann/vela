@@ -73,6 +73,20 @@ export function WeeklyTimeGrid({
     return getWeekStart(parseDateString(selectedDate));
   }, [selectedDate]);
 
+  const endOfWeek = useMemo(() => {
+    const date = new Date(startOfWeek);
+    date.setDate(startOfWeek.getDate() + 6);
+    return date;
+  }, [startOfWeek]);
+
+  const isSameCalendarDay = (left: Date, right: Date) => {
+    return (
+      left.getFullYear() === right.getFullYear() &&
+      left.getMonth() === right.getMonth() &&
+      left.getDate() === right.getDate()
+    );
+  };
+
   const weekDays = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
       const date = new Date(startOfWeek);
@@ -107,21 +121,40 @@ export function WeeklyTimeGrid({
   };
 
   const getEventsForDay = (date: Date) => {
-    const dateStr = formatDateString(date);
+    const targetDate = parseDateString(formatDateString(date));
+    targetDate.setHours(0, 0, 0, 0);
+
     return events.filter(event => {
-      if (event.date === dateStr) return true;
-      if (event.date > dateStr) return false;
+      const eventDate = parseDateString(event.date);
+      eventDate.setHours(0, 0, 0, 0);
+
+      if (isSameCalendarDay(eventDate, targetDate)) return true;
+      if (eventDate > targetDate) return false;
 
       if (event.recurrence === 'daily') return true;
       if (event.recurrence === 'weekly') {
-        return parseDateString(event.date).getDay() === date.getDay();
+        return eventDate.getDay() === targetDate.getDay();
       }
       if (event.recurrence === 'monthly') {
-        return parseDateString(event.date).getDate() === date.getDate();
+        return eventDate.getDate() === targetDate.getDate();
       }
       return false;
     });
   };
+
+  const weekEvents = useMemo(() => {
+    return events.filter((event) => {
+      const eventDate = parseDateString(event.date);
+      eventDate.setHours(0, 0, 0, 0);
+      return eventDate >= startOfWeek && eventDate <= endOfWeek;
+    });
+  }, [events, startOfWeek, endOfWeek]);
+
+  console.log('[WeeklyView] weekStart:', formatDateString(startOfWeek));
+  console.log('[WeeklyView] weekEnd:', formatDateString(endOfWeek));
+  console.log('[WeeklyView] all events:', events.length);
+  console.log('[WeeklyView] filtered for week:', weekEvents.length);
+  console.log('[WeeklyView] sample event date:', events[0]?.date);
 
   const flashedCellRef = useRef<string | null>(null);
   const flashOpacity = useRef(new Animated.Value(0)).current;
@@ -249,6 +282,9 @@ export function WeeklyTimeGrid({
             const dayDate = formatDateString(day);
             const isSelectedColumn = dayDate === selectedDate;
             const visibleSegments = getVisibleSegmentsForDay(day);
+            const dayEvents = getEventsForDay(day);
+            const timelessEvents = dayEvents.filter((event) => !event.startTime || !event.endTime);
+            const timedEvents = dayEvents.filter((event) => !!event.startTime && !!event.endTime);
 
             return (
             <View key={dayIndex} style={[styles.dayColumn, { width: columnWidth, borderLeftColor: theme.border }]}>
@@ -280,10 +316,39 @@ export function WeeklyTimeGrid({
                   </Pressable>
                 );
               })}
+              {timelessEvents.length > 0 ? (
+                <View style={styles.timelessPillsContainer}>
+                  {timelessEvents.map((event) => {
+                    const category = CATEGORIES.find(c => c.id === event.categoryId) || CATEGORIES[4];
+
+                    return (
+                      <TouchableOpacity
+                        key={`${event.id}-timeless`}
+                        style={[styles.timelessPill, { borderColor: category.color, backgroundColor: hexToRgba(category.color, 0.15) }]}
+                        onPress={() => handleEventPress(event)}
+                      >
+                        <ThemedText style={styles.timelessPillText} numberOfLines={1}>
+                          {event.title}
+                        </ThemedText>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : null}
               {/* Events for this day */}
-              {getEventsForDay(day).map(event => {
+              {timedEvents.map(event => {
+                console.log('[WeeklyView] rendering event:', {
+                  title: event.title,
+                  startTime: event.startTime,
+                  date: event.date,
+                  entryType: event.entryType,
+                });
+                if (!event.startTime || !event.endTime) {
+                  return null;
+                }
+
                 const start = parseTime(event.startTime);
-                const end = event.endTime ? parseTime(event.endTime) : start + 0.5;
+                const end = parseTime(event.endTime);
                 if (start < 6 || start > 23) return null; // Outside visible range
 
                 const category = CATEGORIES.find(c => c.id === event.categoryId) || CATEGORIES[4];
@@ -422,6 +487,24 @@ const styles = StyleSheet.create({
   dayColumn: {
     borderLeftWidth: 1,
     position: 'relative',
+  },
+  timelessPillsContainer: {
+    position: 'absolute',
+    top: 6,
+    left: 4,
+    right: 4,
+    zIndex: 3,
+    gap: 4,
+  },
+  timelessPill: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  timelessPillText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
   selectedColumnTint: {
     ...StyleSheet.absoluteFillObject,

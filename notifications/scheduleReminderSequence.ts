@@ -61,6 +61,11 @@ export const scheduleReminderSequence = async (params: {
         : REMINDER_MESSAGES[entryType].now(entryTitle),
       categoryIdentifier,
       data: nowData,
+      android: {
+        channelId: 'vela-reminders',
+        priority: 'high',
+        sound: 'default',
+      },
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -81,6 +86,11 @@ export const scheduleReminderSequence = async (params: {
           ...nowData,
           stage: 'warning',
         },
+        android: {
+          channelId: 'vela-reminders',
+          priority: 'high',
+          sound: 'default',
+        },
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -99,6 +109,11 @@ export const scheduleReminderSequence = async (params: {
         data: {
           ...nowData,
           stage: 'soon',
+        },
+        android: {
+          channelId: 'vela-reminders',
+          priority: 'high',
+          sound: 'default',
         },
       },
       trigger: {

@@ -81,22 +81,29 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
     return calendarDays;
   }, [selectedDate]);
 
-  const getEventsForDate = (date: Date) => {
-    const dateStr = formatDateString(date);
-    const dayEvents: Event[] = [];
+  const eventsByDate = useMemo(() => {
+    const map: Record<string, Event[]> = {};
 
-    events.forEach(event => {
-      if (event.recurrence === 'none') {
-        if (event.date === dateStr) {
-          dayEvents.push(event);
+    days.forEach((dayObj) => {
+      const dateStr = formatDateString(dayObj.date);
+      const dayEvents: Event[] = [];
+
+      events.forEach((event) => {
+        if (event.recurrence === 'none') {
+          if (event.date === dateStr) {
+            dayEvents.push(event);
+          }
+          return;
         }
-      } else {
+
         const eventStartDate = parseDateString(event.date);
         eventStartDate.setHours(0, 0, 0, 0);
-        const currentDate = new Date(date);
+        const currentDate = new Date(dayObj.date);
         currentDate.setHours(0, 0, 0, 0);
 
-        if (currentDate < eventStartDate) return;
+        if (currentDate < eventStartDate) {
+          return;
+        }
 
         if (event.recurrence === 'daily') {
           dayEvents.push(event);
@@ -109,11 +116,13 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
             dayEvents.push(event);
           }
         }
-      }
+      });
+
+      map[dateStr] = dayEvents;
     });
 
-    return dayEvents;
-  };
+    return map;
+  }, [days, events]);
 
   const renderEntryPill = (
     entry: Event,
@@ -137,11 +146,11 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
     return (
       <View key={entry.id + entry.date} style={[styles.pill, typeof pillOpacity === 'number' ? { opacity: pillOpacity } : null]}>
         {icon}
-        <ThemedText 
+        <ThemedText
           style={[
-            styles.pillText, 
+            styles.pillText,
             !isCurrentMonth && { opacity: 0.3 }
-          ]} 
+          ]}
           numberOfLines={1}
         >
           {entry.title}
@@ -202,7 +211,7 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
         {days.map((dayObj, index) => {
           const dateStr = formatDateString(dayObj.date);
           const isToday = dateStr === todayStr;
-          const dayEvents = getEventsForDate(dayObj.date);
+          const dayEvents = eventsByDate[dateStr] || [];
           const anchors = dayEvents.filter((e) => e.entryType === 'anchor');
           const foregroundEntries = dayEvents.filter((e) => e.entryType !== 'anchor');
           const entriesForPills = showAnchorsOnMonth

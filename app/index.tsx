@@ -403,6 +403,7 @@ export default function HomeScreen() {
     try {
       // Fetch all events for calendar dots
       const allDbEntries = await getAllEntries();
+      console.log('[index] fetchEvents called, count:', allDbEntries.length);
       const mappedAllEvents: CalendarEvent[] = allDbEntries.map((entry: EntryWithMeta) => ({
         id: entry.id,
         title: entry.title,
@@ -492,6 +493,7 @@ export default function HomeScreen() {
       }
 
       setIsModalVisible(false);
+      console.log('[index] handleAddEvent complete, refreshing...');
       await fetchEvents();
     } catch (error) {
       console.error('Error adding event:', error);
@@ -560,7 +562,7 @@ export default function HomeScreen() {
   const handleEditSaved = useCallback(async () => {
     setEditingEntry(null);
     await fetchEvents();
-  }, []);
+  }, [fetchEvents]);
 
   const handleDeleteEvent = async (id: string) => {
     Alert.alert(
@@ -1041,6 +1043,7 @@ export default function HomeScreen() {
       </ThemedView>
 
       <Calendar
+        key={allEvents.length}
         selectedDate={selectedDate}
         onDateSelect={handleDateSelect}
         onMonthDayPress={handleMonthDayPress}

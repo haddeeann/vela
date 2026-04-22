@@ -34,6 +34,11 @@ export const scheduleAlarm = async (alarm: Alarm): Promise<string[]> => {
         title: alarm.title,
         body,
         sound: true,
+        android: {
+          channelId: 'vela-alarms',
+          priority: 'max',
+          sound: 'default',
+        },
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
