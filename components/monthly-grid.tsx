@@ -31,6 +31,8 @@ interface MonthlyGridProps {
   availableHeight: number;
 }
 
+const DAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
 export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, onDayLongPress, availableHeight }: MonthlyGridProps) {
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
@@ -41,20 +43,31 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
   const cellHeight = availableHeight / 6;
   const cellWidth = screenWidth / 7;
 
+  console.log('[MonthGrid] day headers:', DAY_HEADERS);
+
   const days = useMemo(() => {
     const date = parseDateString(selectedDate);
     const year = date.getFullYear();
     const month = date.getMonth();
 
-    const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 is Sunday
+    const firstOfMonth = new Date(year, month, 1);
+    const firstDayOfMonth = firstOfMonth.getDay();
+    const startOffset = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
     const lastDateOfMonth = new Date(year, month + 1, 0).getDate();
+
+    console.log('[MonthGrid] firstOfMonth:', firstOfMonth.toDateString());
+    console.log('[MonthGrid] firstOfMonth.getDay():', firstDayOfMonth);
+    console.log('[MonthGrid] startOffset:', startOffset);
+    if (year === 2026 && month === 3) {
+      console.log('[MonthGrid] April 1 offset should be 2, got:', startOffset);
+    }
 
     // Fill the 6x7 grid (42 days)
     const calendarDays = [];
 
     // Previous month days
     const prevMonthLastDate = new Date(year, month, 0).getDate();
-    for (let i = firstDayOfMonth - 1; i >= 0; i--) {
+    for (let i = startOffset - 1; i >= 0; i--) {
       calendarDays.push({
         date: new Date(year, month - 1, prevMonthLastDate - i),
         isCurrentMonth: false,
@@ -77,6 +90,8 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
         isCurrentMonth: false,
       });
     }
+
+    console.log('[MonthGrid] total cells generated:', calendarDays.length);
 
     return calendarDays;
   }, [selectedDate]);
@@ -200,7 +215,7 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
     <ThemedView style={styles.container} {...panResponder.panHandlers}>
       {/* Day headers */}
       <View style={styles.headerRow}>
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
+        {DAY_HEADERS.map((day, i) => (
           <ThemedText key={i} style={[styles.headerText, { width: cellWidth }]}>
             {day}
           </ThemedText>
