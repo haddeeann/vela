@@ -400,7 +400,7 @@ export default function HomeScreen() {
     recurrence: RecurrenceType;
     recurrenceEndDate?: string | null;
     entryType?: 'event' | 'task' | 'anchor' | 'custom';
-    notes?: string | null;
+    notes?: string | undefined;
   }
 
   const [allEvents, setAllEvents] = useState<CalendarEvent[]>([]);
@@ -421,7 +421,7 @@ export default function HomeScreen() {
         recurrence: entry.frequency || 'none',
         recurrenceEndDate: entry.end_date,
         entryType: entry.entry_type,
-        notes: entry.notes,
+        notes: entry.notes ?? undefined,
       }));
       setAllEvents(mappedAllEvents);
     } catch (error) {
@@ -430,11 +430,15 @@ export default function HomeScreen() {
   }, []);
 
   useReminderResponseListener(() => {
-    fetchEvents();
+    fetchEvents().catch((error) => {
+      console.error('[HomeScreen] fetchEvents failed in reminder listener:', error)
+    })
   });
 
   useEffect(() => {
-    fetchEvents();
+    fetchEvents().catch((error) => {
+      console.error('[HomeScreen] fetchEvents failed on mount:', error)
+    })
   }, [fetchEvents]);
 
   const getEntryDateTimeMs = (date: string, startTime?: string): number => {
@@ -1154,7 +1158,9 @@ export default function HomeScreen() {
         visible={isEntryDetailVisible}
         onClose={closeEntryDetail}
         onEditPressed={handleEditEntry}
-        onDeleted={fetchEvents}
+        onDeleted={() => {
+          fetchEvents().catch(console.error)
+        }}
         theme={theme}
       />
 

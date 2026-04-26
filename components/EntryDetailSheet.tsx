@@ -27,6 +27,10 @@ type EntryDetail = {
   end_time?: string;
   category: string;
   notes?: string;
+  recurrence?: {
+    frequency: 'daily' | 'weekly' | 'monthly';
+    end_date?: string;
+  };
 };
 
 interface EntryDetailSheetProps {
