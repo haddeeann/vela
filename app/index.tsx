@@ -171,7 +171,7 @@ export default function HomeScreen() {
         dropdownScaleAnim.setValue(0.95);
       });
     }
-  }, [isDropdownVisible]);
+  }, [isDropdownVisible, dropdownFadeAnim, dropdownScaleAnim]);
 
   useEffect(() => {
     const isAnyPickerVisible = isMonthPickerVisible || isWeekPickerVisible || isDayPickerVisible;
