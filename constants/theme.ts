@@ -24,6 +24,7 @@ export const COLORS = {
     selectedText: '#2D3B8E',
     dayText: '#1C1B18',
     dayTextMuted: '#B4B2A9',
+    error: '#D94F3D',
   },
   dark: {
     background: '#1A1A2E',
@@ -40,6 +41,7 @@ export const COLORS = {
     selectedText: '#4A5FCC',
     dayText: '#F0EDE8',
     dayTextMuted: '#9B98A8',
+    error: '#FF6B5B',
   },
   work: '#4A5FCC',
   personal: '#E8A23C',

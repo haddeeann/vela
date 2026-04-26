@@ -367,19 +367,10 @@ export default function HomeScreen() {
               await db.execAsync('DELETE FROM reminders');
               await db.execAsync('DELETE FROM alarms');
 
-              let didReload = false;
               try {
-                const Updates = await import('expo-updates');
-                if (Updates?.reloadAsync) {
-                  await Updates.reloadAsync();
-                  didReload = true;
-                }
-              } catch {
-                // expo-updates is optional in this project
-              }
-
-              if (!didReload) {
                 DevSettings.reload();
+              } catch {
+                // DevSettings not available in production
               }
             } catch (error) {
               console.error('[DevReset] Failed to reset onboarding state:', error);
@@ -574,72 +565,6 @@ export default function HomeScreen() {
     setEditingEntry(null);
     await fetchEvents();
   }, [fetchEvents]);
-
-  const handleDeleteEvent = async (id: string) => {
-    Alert.alert(
-      'Delete Event',
-      'Are you sure you want to delete this event?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteEntry(id);
-              await fetchEvents();
-            } catch (error) {
-              console.error('Error deleting event:', error);
-              Alert.alert('Error', 'Failed to delete event.');
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const scheduleNotification = async (event: any) => {
-    // Skip if running in Expo Go on Android for SDK 53+
-    if (isExpoGoOnAndroid) {
-      return;
-    }
-
-    const reminderOption = REMINDER_OPTIONS.find(r => r.id === event.reminder);
-    if (!reminderOption || reminderOption.minutesBefore === null) return;
-
-    const triggerDate = parseDateString(event.date);
-    if (event.startTime && event.startTime.trim() !== '') {
-      // Parse time
-      const [time, period] = event.startTime.split(' ');
-      let [hours, minutes] = time.split(':').map(Number);
-      if (period === 'PM' && hours < 12) hours += 12;
-      if (period === 'AM' && hours === 12) hours = 0;
-
-      triggerDate.setHours(hours, minutes, 0, 0);
-    } else {
-      // Fallback to start of day
-      triggerDate.setHours(0, 0, 0, 0);
-    }
-    triggerDate.setMinutes(triggerDate.getMinutes() - reminderOption.minutesBefore);
-
-    // If trigger date is in the past, don't schedule
-    if (triggerDate.getTime() <= Date.now()) {
-      return;
-    }
-
-    try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Event Reminder',
-          body: `${event.title} starts at ${event.startTime}`,
-          data: { eventId: event.id },
-        },
-        trigger: triggerDate as any,
-      });
-    } catch (error) {
-      console.error('Error scheduling notification:', error);
-    }
-  };
 
   const handleDateSelect = (date: string) => {
     setSelectedDate(date);
@@ -1411,7 +1336,7 @@ export default function HomeScreen() {
 
               {__DEV__ && (
                 <TouchableOpacity style={styles.devResetButton} onPress={handleDevReset}>
-                  <Text style={[styles.devResetText, { color: theme.error || '#D32F2F' }]}>Reset onboarding (dev only)</Text>
+                  <Text style={[styles.devResetText, { color: theme.error }]}>Reset onboarding (dev only)</Text>
                 </TouchableOpacity>
               )}
             </Pressable>
@@ -1742,5 +1667,13 @@ const styles = StyleSheet.create({
   dropdownDivider: {
     height: 1,
     width: '100%',
+  },
+  timerItemTextWrap: {
+    flex: 1,
+  },
+  timerRemainingText: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 8,
   },
 });
