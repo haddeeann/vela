@@ -33,7 +33,7 @@ export default function TasksScreen() {
   }, []);
 
   useEffect(() => {
-    fetchTasks().catch((error) => {
+    fetchTasks().then(r => console.log('Tasks fetched successfully', r)).catch((error) => {
       console.error('[TasksScreen] fetchTasks failed on mount:', error)
     })
   }, [fetchTasks]);

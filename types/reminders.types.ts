@@ -26,7 +26,7 @@ export interface ReminderNotificationData {
   entryId: string
   entryType: 'event' | 'task' | 'anchor'
   reminderId: string
-  stage: ReminderSequenceStage
+  stage?: ReminderSequenceStage
   entryTitle: string
 }
 

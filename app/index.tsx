@@ -17,7 +17,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CategoryId } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
 import { ReminderType, REMINDER_OPTIONS } from '@/constants/reminders';
-import { createEntry, deleteEntry, createRecurrenceRule, createReminder, getAllEntries, initDB } from '@/db';
+import { createEntry, createRecurrenceRule, createReminder, getAllEntries, initDB } from '@/db';
 import { EntryWithMeta } from '@/types';
 import { QuickTimerSheet } from '@/components/QuickTimerSheet';
 import { TimerBadge } from '@/components/TimerBadge';
