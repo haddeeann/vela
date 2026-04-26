@@ -1,21 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, FlatList, TouchableOpacity, View, SectionList } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, SectionList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getAllEntries, updateEntry, createEntry, createRecurrenceRule } from '../db';
-import { EntryWithMeta } from '../types';
+import { getAllEntries, updateEntry, createEntry, createRecurrenceRule } from '@/db';
+import { EntryWithMeta } from '@/types';
 import { AddEventModal } from '@/components/add-event-modal';
-import { QuickAddBar } from '../components/QuickAddBar';
-import { CATEGORIES } from '@/constants/categories';
+import { QuickAddBar } from '@/components/QuickAddBar';
 import { EmptyState } from '@/components/EmptyState';
 import { formatDateString, parseDateString } from '@/utils/dateUtils';
 
 export default function TasksScreen() {
-  const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const [tasks, setTasks] = useState<EntryWithMeta[]>([]);
@@ -35,7 +33,9 @@ export default function TasksScreen() {
   }, []);
 
   useEffect(() => {
-    fetchTasks();
+    fetchTasks().catch((error) => {
+      console.error('[TasksScreen] fetchTasks failed on mount:', error)
+    })
   }, [fetchTasks]);
 
   const handleToggleTaskCompletion = async (item: EntryWithMeta) => {
@@ -97,7 +97,9 @@ export default function TasksScreen() {
     if (item.notes) {
       try {
         priority = JSON.parse(item.notes).priority;
-      } catch (e) {}
+      } catch (e) {
+        console.error('Failed to parse task notes', e);
+      }
     }
 
     const d = parseDateString(item.date);
