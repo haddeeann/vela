@@ -235,7 +235,9 @@ export default function HomeScreen() {
       }
     };
 
-    loadActiveTimer();
+    loadActiveTimer().catch((error) => {
+      console.error('[HomeScreen] Failed to load active timer:', error);
+    });
 
     return () => {
       mounted = false;
@@ -262,32 +264,31 @@ export default function HomeScreen() {
     computeRemaining();
     const interval = setInterval(computeRemaining, 60000);
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTimer]);
 
   useEffect(() => {
     const sub = Notifications.addNotificationReceivedListener(
       async (notification) => {
         const content = notification.request.content
-        const data = content.data
+        const notifData = content.data as Record<string, unknown> | undefined
 
         router.push({
           pathname: '/alarm-screen',
           params: {
-            title: content.title ?? 'Reminder',
-            body: content.body ?? '',
-            type: data?.isQuickTimer ? 'timer'
-              : data?.isAlarm ? 'alarm'
+            title: String(content.title ?? 'Reminder'),
+            body: String(content.body ?? ''),
+            type: notifData?.isQuickTimer ? 'timer'
+              : notifData?.isAlarm ? 'alarm'
               : 'reminder',
-            entryId: data?.entryId ?? '',
-            reminderId: data?.reminderId ?? '',
-            notificationId: notification.request.identifier,
+            entryId: String(notifData?.entryId ?? ''),
+            reminderId: String(notifData?.reminderId ?? ''),
+            notificationId: String(notification.request.identifier ?? ''),
           }
         })
       }
     )
     return () => sub.remove()
-  }, [])
+  }, [router])
 
   const consumedQuickAddRef = useRef(false);
 
@@ -327,7 +328,7 @@ export default function HomeScreen() {
         useNativeDriver: true,
       }).start();
     }
-  }, [isDrawerOpen]);
+  }, [isDrawerOpen, slideAnim]);
 
   const toggleDrawer = () => setIsDrawerOpen(!isDrawerOpen);
   const closeDrawer = () => setIsDrawerOpen(false);

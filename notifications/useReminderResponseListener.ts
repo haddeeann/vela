@@ -17,7 +17,7 @@ export const useReminderResponseListener = (
       response: Notifications.NotificationResponse
     ): Promise<void> => {
       const actionIdentifier = response.actionIdentifier;
-      const data = response.notification.request.content.data as any;
+      const notifData = response.notification.request.content.data as Record<string, unknown> | undefined;
       const content = response.notification.request.content;
 
       if (actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
@@ -25,14 +25,14 @@ export const useReminderResponseListener = (
         router.push({
           pathname: '/alarm-screen',
           params: {
-            title: content.title ?? 'Reminder',
-            body: content.body ?? '',
-            type: data?.isQuickTimer ? 'timer'
-              : data?.isAlarm ? 'alarm'
+            title: String(content.title ?? 'Reminder'),
+            body: String(content.body ?? ''),
+            type: notifData?.isQuickTimer ? 'timer'
+              : notifData?.isAlarm ? 'alarm'
               : 'reminder',
-            entryId: data?.entryId ?? '',
-            reminderId: data?.reminderId ?? '',
-            notificationId: response.notification.request.identifier,
+            entryId: String(notifData?.entryId ?? ''),
+            reminderId: String(notifData?.reminderId ?? ''),
+            notificationId: String(response.notification.request.identifier ?? ''),
           }
         });
         return;
@@ -41,7 +41,7 @@ export const useReminderResponseListener = (
       // If it's a specific action button (like DONE, SNOOZE)
       const result = await handleReminderAction({
         actionId: actionIdentifier as ReminderActionId,
-        data,
+        data: notifData as any,
         currentNotificationId: response.notification.request.identifier,
       });
 
