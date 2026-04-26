@@ -959,6 +959,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.headerIconButton}
             onPress={() => {
+              console.log('[index] clearing quickAddPrefilledDate at: + button');
               setQuickAddPrefilledDate(undefined);
               setQuickAddPrefilledStartTime(undefined);
               setQuickAddPrefilledEndTime(undefined);
@@ -1001,6 +1002,7 @@ export default function HomeScreen() {
         isVisible={isModalVisible}
         onClose={() => {
           setIsModalVisible(false);
+          console.log('[index] clearing quickAddPrefilledDate at: AddEventModal onClose');
           setQuickAddPrefilledDate(undefined);
           setQuickAddPrefilledType(undefined);
           setQuickAddPrefilledStartTime(undefined);
@@ -1039,14 +1041,17 @@ export default function HomeScreen() {
           setIsQuickAddVisible(false);
           setQuickAddPrefilledType(undefined);
           setQuickAddPrefilledPlaceholder(undefined);
-          setQuickAddPrefilledDate(undefined);
           setQuickAddPrefilledStartTime(undefined);
           setQuickAddPrefilledEndTime(undefined);
           consumedQuickAddRef.current = false;
         }}
         onOpenFullForm={(date, draft, type) => {
+          console.log('[index] onOpenFullForm received date:', date);
+          console.log('[index] selectedDate state:', selectedDate);
+          console.log('[index] dateToUse:', date ?? selectedDate);
           setIsQuickAddVisible(false);
           setQuickAddPrefilledDate(date ?? selectedDate);
+          console.log('[index] quickAddPrefilledDate set to:', date ?? selectedDate);
           setQuickAddPrefilledType(type);
           if (draft) {
             setQuickAddPrefilledStartTime(draft.startTime);
@@ -1054,6 +1059,8 @@ export default function HomeScreen() {
             setModalPrefillTitle(draft.title);
           }
           setIsModalVisible(true);
+          console.log('[index] isModalVisible set to true');
+          console.log('[index] editingEntry is:', editingEntry);
         }}
         theme={theme}
         prefilledType={quickAddPrefilledType}

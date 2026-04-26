@@ -64,10 +64,9 @@ interface AddEventModalProps {
 }
 
 export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initialEntryType, existingEntry, onSaved, initialValues, prefilledDate, prefilledStartTime, prefilledEndTime, prefilledType, prefilledTitle }: AddEventModalProps) {
-  console.log('[AddEventModal] RENDERED with props:', {
+  console.log('[AddEventModal] render — props:', {
     isVisible,
     prefilledDate,
-    selectedDate,
   });
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
@@ -193,10 +192,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
 
   useEffect(() => {
     if (isVisible) {
-      console.log('[AddEventModal] useEffect triggered:', {
-        isVisible,
-        prefilledDate,
-      });
+      console.log('[AddEventModal] useEffect — isVisible:', isVisible, 'prefilledDate:', prefilledDate);
       if (existingEntry) {
         setTitle(existingEntry.title);
         setDate(existingEntry.date);
@@ -233,6 +229,11 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
           prefilledTitle ??
           ''
         );
+        const dateValue = existingEntry?.date ??
+          initialValues?.date ??
+          prefilledDate ??
+          formatDateString(new Date());
+        console.log('[AddEventModal] setting entryDate to:', dateValue);
         setDate(
           prefilledDate ??
           selectedDate ??
