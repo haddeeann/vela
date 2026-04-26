@@ -6,12 +6,10 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getAllEntries, createEntry, saveQuickAddEntry } from '../db';
+import { getAllEntries, createEntry } from '../db';
 import { EntryWithMeta } from '../types';
-import { QuickAddDraft } from '../types/quickAdd.types';
 import { AddEventModal } from '@/components/add-event-modal';
 import { QuickAddBar } from '../components/QuickAddBar';
-import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
 import { CATEGORIES } from '@/constants/categories';
 import { EmptyState } from '@/components/EmptyState';
 import { formatDateString } from '@/utils/dateUtils';
@@ -23,8 +21,8 @@ export default function AnchorsScreen() {
   const [anchors, setAnchors] = useState<EntryWithMeta[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isQuickAddVisible, setIsQuickAddVisible] = useState(false);
-  const [currentDraft, setCurrentDraft] = useState<QuickAddDraft | null>(null);
   const [prefilledDate, setPrefilledDate] = useState<string | undefined>(undefined);
+  const [modalPrefillTitle, setModalPrefillTitle] = useState<string | undefined>(undefined);
 
   const fetchAnchors = useCallback(async () => {
     try {
@@ -117,19 +115,21 @@ export default function AnchorsScreen() {
         onClose={() => {
           setIsModalVisible(false);
           setPrefilledDate(undefined);
+          setModalPrefillTitle(undefined);
         }}
         onSave={handleAddEvent}
         selectedDate={formatDateString(new Date())}
         prefilledDate={prefilledDate}
+        prefilledTitle={modalPrefillTitle}
         initialEntryType="anchor"
       />
 
       <QuickAddBar
         visible={isQuickAddVisible}
         onClose={() => setIsQuickAddVisible(false)}
-        onDraftCreated={(draft) => setCurrentDraft(draft)}
-        onOpenFullForm={(date) => {
+        onOpenFullForm={(date, draft) => {
           setPrefilledDate(date);
+          setModalPrefillTitle(draft?.title);
           setIsQuickAddVisible(false);
           setIsModalVisible(true);
         }}
@@ -137,17 +137,6 @@ export default function AnchorsScreen() {
         prefilledType="anchor"
       />
 
-      <QuickAddConfirmSheet
-        draft={currentDraft}
-        visible={currentDraft !== null}
-        onConfirm={async (edited) => {
-          await saveQuickAddEntry(edited);
-          setCurrentDraft(null);
-          await fetchAnchors();
-        }}
-        onCancel={() => setCurrentDraft(null)}
-        theme={theme}
-      />
     </ThemedView>
   );
 }

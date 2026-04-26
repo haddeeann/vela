@@ -20,7 +20,6 @@ import { ReminderType, REMINDER_OPTIONS } from '@/constants/reminders';
 import { createEntry, deleteEntry, createRecurrenceRule, createReminder, getAllEntries, getDatabase, saveQuickAddEntry } from '@/db';
 import { EntryWithMeta } from '@/types';
 import { QuickAddDraft } from '@/types/quickAdd.types';
-import { QuickAddConfirmSheet } from '@/components/QuickAddConfirmSheet';
 import { QuickTimerSheet } from '@/components/QuickTimerSheet';
 import { TimerBadge } from '@/components/TimerBadge';
 import { QuickAddBar } from '@/components/QuickAddBar';
@@ -103,7 +102,7 @@ export default function HomeScreen() {
   const [quickAddPrefilledDate, setQuickAddPrefilledDate] = useState<string | undefined>(undefined);
   const [quickAddPrefilledStartTime, setQuickAddPrefilledStartTime] = useState<string | undefined>(undefined);
   const [quickAddPrefilledEndTime, setQuickAddPrefilledEndTime] = useState<string | undefined>(undefined);
-  const [currentDraft, setCurrentDraft] = useState<QuickAddDraft | null>(null);
+  const [modalPrefillTitle, setModalPrefillTitle] = useState<string | undefined>(undefined);
   const [activeTimer, setActiveTimer] = useState<{ notificationId: string; firesAt: Date } | null>(null);
   const [isTimerSheetVisible, setIsTimerSheetVisible] = useState(false);
   const [timerTick, setTimerTick] = useState(0);
@@ -1074,6 +1073,11 @@ export default function HomeScreen() {
         isVisible={isModalVisible}
         onClose={() => {
           setIsModalVisible(false);
+          setQuickAddPrefilledDate(undefined);
+          setQuickAddPrefilledType(undefined);
+          setQuickAddPrefilledStartTime(undefined);
+          setQuickAddPrefilledEndTime(undefined);
+          setModalPrefillTitle(undefined);
         }}
         onSave={handleAddEvent}
         selectedDate={viewMode === 'daily' ? selectedDate : formatDateString(new Date())}
@@ -1090,6 +1094,7 @@ export default function HomeScreen() {
         prefilledStartTime={quickAddPrefilledStartTime}
         prefilledEndTime={quickAddPrefilledEndTime}
         prefilledType={quickAddPrefilledType}
+        prefilledTitle={modalPrefillTitle}
       />
 
       <AddEventModal
@@ -1100,7 +1105,6 @@ export default function HomeScreen() {
         existingEntry={editingEntry || undefined}
         onSaved={handleEditSaved}
       />
-      console.log('[index] rendering QuickAddBar with selectedDate:', selectedDate)
       <QuickAddBar
         visible={isQuickAddVisible}
         onClose={() => {
@@ -1112,27 +1116,16 @@ export default function HomeScreen() {
           setQuickAddPrefilledEndTime(undefined);
           consumedQuickAddRef.current = false;
         }}
-        onDraftCreated={(draft) => {
-          if (!draft.date) {
-            draft.date = selectedDate;
+        onOpenFullForm={(date, draft, type) => {
+          setIsQuickAddVisible(false);
+          setQuickAddPrefilledDate(date ?? selectedDate);
+          setQuickAddPrefilledType(type);
+          if (draft) {
+            setQuickAddPrefilledStartTime(draft.startTime);
+            setQuickAddPrefilledEndTime(draft.endTime);
+            setModalPrefillTitle(draft.title);
           }
-          setCurrentDraft(draft);
-          setQuickAddPrefilledType(undefined);
-          setQuickAddPrefilledPlaceholder(undefined);
-          setQuickAddPrefilledDate(undefined);
-          setQuickAddPrefilledStartTime(undefined);
-          setQuickAddPrefilledEndTime(undefined);
-          consumedQuickAddRef.current = false;
-        }}
-        onOpenFullForm={(date) => {
-          console.log('[index] onOpenFullForm FIRED')
-          console.log('[index] date param received:', date)
-          console.log('[index] selectedDate state:', selectedDate)
-          const dateToUse = date ?? selectedDate
-          console.log('[index] dateToUse final:', dateToUse)
-          setIsQuickAddVisible(false)
-          setQuickAddPrefilledDate(dateToUse)
-          setIsModalVisible(true)
+          setIsModalVisible(true);
         }}
         theme={theme}
         prefilledType={quickAddPrefilledType}
@@ -1166,17 +1159,6 @@ export default function HomeScreen() {
         theme={theme}
       />
 
-      <QuickAddConfirmSheet
-        draft={currentDraft}
-        visible={currentDraft !== null}
-        onConfirm={async (edited) => {
-          await saveQuickAddEntry(edited);
-          setCurrentDraft(null);
-          await fetchEvents();
-        }}
-        onCancel={() => setCurrentDraft(null)}
-        theme={theme}
-      />
 
       <QuickTimerSheet
         visible={isTimerSheetVisible}

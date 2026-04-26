@@ -60,9 +60,10 @@ interface AddEventModalProps {
   prefilledStartTime?: string;
   prefilledEndTime?: string;
   prefilledType?: 'event' | 'task' | 'anchor';
+  prefilledTitle?: string;
 }
 
-export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initialEntryType, existingEntry, onSaved, initialValues, prefilledDate, prefilledStartTime, prefilledEndTime, prefilledType }: AddEventModalProps) {
+export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initialEntryType, existingEntry, onSaved, initialValues, prefilledDate, prefilledStartTime, prefilledEndTime, prefilledType, prefilledTitle }: AddEventModalProps) {
   console.log('[AddEventModal] RENDERED with props:', {
     isVisible,
     prefilledDate,
@@ -228,9 +229,13 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
         }
       } else {
         setEntryType(prefilledType || initialEntryType || 'event');
+        setTitle(
+          prefilledTitle ??
+          ''
+        );
         setDate(
-          prefilledDate ?? 
-          selectedDate ?? 
+          prefilledDate ??
+          selectedDate ??
           formatDateString(new Date())
         );
         
@@ -248,7 +253,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
       setShowDueTimePicker(false);
       setIsDatePickerVisible(false);
     }
-  }, [isVisible, prefilledDate, selectedDate, existingEntry, initialValues, initialEntryType, prefilledType, prefilledStartTime, prefilledEndTime]);
+  }, [isVisible, prefilledDate, selectedDate, existingEntry, initialValues, initialEntryType, prefilledType, prefilledStartTime, prefilledEndTime, prefilledTitle]);
 
   useEffect(() => {
     if (entryType === 'anchor') {

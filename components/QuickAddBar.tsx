@@ -16,8 +16,8 @@ import { getTheme } from '../constants/theme';
 interface QuickAddBarProps {
   visible: boolean;
   onClose: () => void;
-  onDraftCreated: (draft: QuickAddDraft) => void;
-  onOpenFullForm: (date?: string) => void;
+  onDraftCreated?: (draft: QuickAddDraft) => void;
+  onOpenFullForm: (date?: string, draft?: QuickAddDraft, type?: EntryType) => void;
   theme: ReturnType<typeof getTheme>;
   prefilledType?: EntryType;
   prefilledPlaceholder?: string;
@@ -31,7 +31,7 @@ const defaultPlaceholder = "Add anything... 'dentist Thursday 2pm'";
 export function QuickAddBar({
   visible,
   onClose,
-  onDraftCreated,
+  onDraftCreated: _onDraftCreated,
   onOpenFullForm,
   theme,
   prefilledType,
@@ -100,12 +100,18 @@ export function QuickAddBar({
   }, [visible, onClose]);
 
   const handleSubmit = () => {
-    if (!input.trim()) return;
-
     isSubmittingRef.current = true;
+    Keyboard.dismiss();
+
+    if (!input.trim()) {
+      onOpenFullForm(prefilledDate, undefined, selectedType ?? undefined);
+      onClose();
+      return;
+    }
+
     const draft = parseQuickAdd(input);
 
-    if (prefilledDate) {
+    if (prefilledDate && !draft.date) {
       draft.date = prefilledDate;
     }
     if (prefilledStartTime) {
@@ -117,10 +123,13 @@ export function QuickAddBar({
       draft.entryType = selectedType;
     }
 
-    onDraftCreated(draft);
+    onOpenFullForm(
+      draft.date ?? prefilledDate,
+      draft,
+      selectedType ?? undefined
+    );
     setInput('');
     setSelectedType(null);
-    Keyboard.dismiss();
     onClose();
   };
 
@@ -163,21 +172,6 @@ export function QuickAddBar({
             },
           ]}
         >
-          <Pressable
-            onPress={() => {
-              console.log('[QuickAddBar] FULL FORM TAPPED');
-              console.log('[QuickAddBar] prefilledDate prop:', prefilledDate);
-              console.log('[QuickAddBar] calling onOpenFullForm');
-              onOpenFullForm(prefilledDate);
-            }}
-            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-            style={styles.fullFormLink}
-          >
-            <ThemedText style={[styles.fullFormLinkText, { color: theme.textSecondary }]}>
-              Need more options? Use full form →
-            </ThemedText>
-          </Pressable>
-
           <View style={styles.typeRow}>
             {renderTypePill('anchor', 'Anchor')}
             {renderTypePill('event', 'Event')}
@@ -267,14 +261,5 @@ const styles = StyleSheet.create({
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  fullFormLink: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    alignItems: 'center',
-  },
-  fullFormLinkText: {
-    fontSize: 13,
-    textDecorationLine: 'underline',
   },
 });
