@@ -44,3 +44,4 @@ app-example
 .idea/*
 
 package-lock.json
+/identifier.sqlite
