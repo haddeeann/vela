@@ -40,6 +40,7 @@ export function QuickAddBar({
   prefilledStartTime,
   prefilledEndTime,
 }: QuickAddBarProps) {
+  console.log('[QuickAddBar] MOUNTED with prefilledDate:', prefilledDate);
   const [input, setInput] = useState('');
   const [selectedType, setSelectedType] = useState<EntryType | null>(null);
   const isSubmittingRef = useRef(false);
@@ -152,7 +153,7 @@ export function QuickAddBar({
   return (
     <View style={styles.overlayContainer} pointerEvents="box-none">
       <Pressable style={styles.overlay} onPress={onClose} />
-      <View style={styles.keyboardContainer}>
+      <View style={styles.keyboardContainer} pointerEvents="box-none">
         <View
           style={[
             styles.bar,
@@ -162,6 +163,21 @@ export function QuickAddBar({
             },
           ]}
         >
+          <Pressable
+            onPress={() => {
+              console.log('[QuickAddBar] FULL FORM TAPPED');
+              console.log('[QuickAddBar] prefilledDate prop:', prefilledDate);
+              console.log('[QuickAddBar] calling onOpenFullForm');
+              onOpenFullForm(prefilledDate);
+            }}
+            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            style={styles.fullFormLink}
+          >
+            <ThemedText style={[styles.fullFormLinkText, { color: theme.textSecondary }]}>
+              Need more options? Use full form →
+            </ThemedText>
+          </Pressable>
+
           <View style={styles.typeRow}>
             {renderTypePill('anchor', 'Anchor')}
             {renderTypePill('event', 'Event')}
@@ -184,14 +200,6 @@ export function QuickAddBar({
               <Ionicons name="arrow-forward-circle" size={28} color={theme.primary} />
             </TouchableOpacity>
           </View>
-          <TouchableOpacity 
-            onPress={() => onOpenFullForm(prefilledDate)} 
-            style={styles.fullFormLink}
-          >
-            <ThemedText style={[styles.fullFormLinkText, { color: theme.textSecondary }]}>
-              Need more options? Use full form →
-            </ThemedText>
-          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -204,7 +212,11 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 140, // Stops before the bar
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   keyboardContainer: {
@@ -212,10 +224,8 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   bar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    height: 140, // Fixed height to allow overlay to stop above it
+    backgroundColor: 'white',
     borderTopWidth: 1,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
@@ -260,7 +270,7 @@ const styles = StyleSheet.create({
   },
   fullFormLink: {
     paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingTop: 8,
     alignItems: 'center',
   },
   fullFormLinkText: {

@@ -24,6 +24,7 @@ export default function AnchorsScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isQuickAddVisible, setIsQuickAddVisible] = useState(false);
   const [currentDraft, setCurrentDraft] = useState<QuickAddDraft | null>(null);
+  const [prefilledDate, setPrefilledDate] = useState<string | undefined>(undefined);
 
   const fetchAnchors = useCallback(async () => {
     try {
@@ -113,9 +114,13 @@ export default function AnchorsScreen() {
 
       <AddEventModal
         isVisible={isModalVisible}
-        onClose={() => setIsModalVisible(false)}
+        onClose={() => {
+          setIsModalVisible(false);
+          setPrefilledDate(undefined);
+        }}
         onSave={handleAddEvent}
         selectedDate={formatDateString(new Date())}
+        prefilledDate={prefilledDate}
         initialEntryType="anchor"
       />
 
@@ -123,7 +128,8 @@ export default function AnchorsScreen() {
         visible={isQuickAddVisible}
         onClose={() => setIsQuickAddVisible(false)}
         onDraftCreated={(draft) => setCurrentDraft(draft)}
-        onOpenFullForm={() => {
+        onOpenFullForm={(date) => {
+          setPrefilledDate(date);
           setIsQuickAddVisible(false);
           setIsModalVisible(true);
         }}

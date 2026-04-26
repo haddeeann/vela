@@ -8,6 +8,7 @@ import { ThemedText } from './themed-text';
 import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
+import { formatDateString } from '@/utils/dateUtils';
 import { CATEGORIES, CategoryId } from '@/constants/categories';
 import { RecurrenceType, RECURRENCE_OPTIONS } from '@/constants/recurrence';
 import { ReminderType, REMINDER_OPTIONS } from '@/constants/reminders';
@@ -62,6 +63,11 @@ interface AddEventModalProps {
 }
 
 export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initialEntryType, existingEntry, onSaved, initialValues, prefilledDate, prefilledStartTime, prefilledEndTime, prefilledType }: AddEventModalProps) {
+  console.log('[AddEventModal] RENDERED with props:', {
+    isVisible,
+    prefilledDate,
+    selectedDate,
+  });
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const { height: screenHeight } = useWindowDimensions();
@@ -72,7 +78,8 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
     existingEntry?.date ?? 
     initialValues?.date ?? 
     prefilledDate ??
-    selectedDate
+    selectedDate ??
+    formatDateString(new Date())
   );
 
   const getNextRoundHour = () => {
@@ -185,6 +192,10 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
 
   useEffect(() => {
     if (isVisible) {
+      console.log('[AddEventModal] useEffect triggered:', {
+        isVisible,
+        prefilledDate,
+      });
       if (existingEntry) {
         setTitle(existingEntry.title);
         setDate(existingEntry.date);
@@ -217,7 +228,11 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
         }
       } else {
         setEntryType(prefilledType || initialEntryType || 'event');
-        setDate(prefilledDate || selectedDate);
+        setDate(
+          prefilledDate ?? 
+          selectedDate ?? 
+          formatDateString(new Date())
+        );
         
         if (prefilledStartTime) {
           const parsed = parseTimeLabel(prefilledStartTime);
@@ -233,7 +248,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
       setShowDueTimePicker(false);
       setIsDatePickerVisible(false);
     }
-  }, [isVisible, selectedDate, initialEntryType, initialValues, existingEntry, prefilledDate, prefilledStartTime, prefilledEndTime, prefilledType]);
+  }, [isVisible, prefilledDate, selectedDate, existingEntry, initialValues, initialEntryType, prefilledType, prefilledStartTime, prefilledEndTime]);
 
   useEffect(() => {
     if (entryType === 'anchor') {

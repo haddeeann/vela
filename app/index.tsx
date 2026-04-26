@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, FlatList, TouchableOpacity, Platform, Alert, View, Animated, Modal, Pressable, Switch, Dimensions, DevSettings, Text } from 'react-native';
+import { StyleSheet, TouchableOpacity, InteractionManager, Platform, Alert, View, Animated, Modal, Pressable, Switch, Dimensions, DevSettings, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
@@ -14,24 +14,22 @@ import { AddEventModal } from '@/components/add-event-modal';
 import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-import { CATEGORIES, CategoryId } from '@/constants/categories';
+import { CategoryId } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
 import { ReminderType, REMINDER_OPTIONS } from '@/constants/reminders';
-import { createEntry, deleteEntry, updateEntry, createRecurrenceRule, createReminder, getAllEntries, getDatabase, saveQuickAddEntry } from '../db';
-import { EntryWithMeta } from '../types';
-import { EntryType, QuickAddDraft } from '../types/quickAdd.types';
-import { QuickAddConfirmSheet } from '../components/QuickAddConfirmSheet';
-import { QuickTimerSheet } from '../components/QuickTimerSheet';
-import { TimerBadge } from '../components/TimerBadge';
-import { QuickAddBar } from '../components/QuickAddBar';
-import { EntryDetailSheet } from '../components/EntryDetailSheet';
-import { useReminderResponseListener } from '../notifications/useReminderResponseListener';
-import { scheduleReminderSequence } from '../notifications/scheduleReminderSequence';
-import { saveNotificationIds } from '../db/reminderQueries';
-import { useCalendarSettings } from '../utils/calendarSettings';
-import { cancelQuickTimer } from '../utils/quickTimer';
-
-import { InteractionManager } from 'react-native';
+import { createEntry, deleteEntry, createRecurrenceRule, createReminder, getAllEntries, getDatabase, saveQuickAddEntry } from '@/db';
+import { EntryWithMeta } from '@/types';
+import { QuickAddDraft } from '@/types/quickAdd.types';
+import { QuickAddConfirmSheet } from '@/components/QuickAddConfirmSheet';
+import { QuickTimerSheet } from '@/components/QuickTimerSheet';
+import { TimerBadge } from '@/components/TimerBadge';
+import { QuickAddBar } from '@/components/QuickAddBar';
+import { EntryDetailSheet } from '@/components/EntryDetailSheet';
+import { useReminderResponseListener } from '@/notifications/useReminderResponseListener';
+import { scheduleReminderSequence } from '@/notifications/scheduleReminderSequence';
+import { saveNotificationIds } from '@/db/reminderQueries';
+import { useCalendarSettings } from '@/utils/calendarSettings';
+import { cancelQuickTimer } from '@/utils/quickTimer';
 
 import {
   formatDateString,
@@ -40,7 +38,7 @@ import {
   getWeekStart,
   getWeeksInMonth,
   parseDateString,
-} from '../utils/dateUtils';
+} from '@/utils/dateUtils';
 
 type EditableEntry = {
   id: string;
@@ -1102,6 +1100,7 @@ export default function HomeScreen() {
         existingEntry={editingEntry || undefined}
         onSaved={handleEditSaved}
       />
+      console.log('[index] rendering QuickAddBar with selectedDate:', selectedDate)
       <QuickAddBar
         visible={isQuickAddVisible}
         onClose={() => {
@@ -1126,14 +1125,14 @@ export default function HomeScreen() {
           consumedQuickAddRef.current = false;
         }}
         onOpenFullForm={(date) => {
-          setIsQuickAddVisible(false);
-          setQuickAddPrefilledType(undefined);
-          setQuickAddPrefilledPlaceholder(undefined);
-          setQuickAddPrefilledDate(date);
-          setQuickAddPrefilledStartTime(undefined);
-          setQuickAddPrefilledEndTime(undefined);
-          consumedQuickAddRef.current = false;
-          setIsModalVisible(true);
+          console.log('[index] onOpenFullForm FIRED')
+          console.log('[index] date param received:', date)
+          console.log('[index] selectedDate state:', selectedDate)
+          const dateToUse = date ?? selectedDate
+          console.log('[index] dateToUse final:', dateToUse)
+          setIsQuickAddVisible(false)
+          setQuickAddPrefilledDate(dateToUse)
+          setIsModalVisible(true)
         }}
         theme={theme}
         prefilledType={quickAddPrefilledType}
