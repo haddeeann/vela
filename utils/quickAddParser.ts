@@ -20,10 +20,15 @@ export function parseQuickAdd(rawInput: string): QuickAddDraft {
   let title = trimmedInput
 
   // Tokens to remove (case-insensitive)
-  const tokensToRemove = [
-    // Dates
-    "today", "tomorrow",
-    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+  const dateTokens = [
+    /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g,  // 4/27/26
+    /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+\d{1,2}\b/gi,
+    /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi,
+    /\btomorrow\b/gi,
+    /\btoday\b/gi,
+  ]
+
+  const otherTokensToRemove = [
     // Recurrence
     "every day", "daily", "each morning", "each night", "every week", "every month",
     "weekdays", "weekends",
@@ -36,7 +41,11 @@ export function parseQuickAdd(rawInput: string): QuickAddDraft {
     /\b\d{1,2}(?:am|pm)\b/gi
   ]
 
-  tokensToRemove.forEach(token => {
+  dateTokens.forEach(pattern => {
+    title = title.replace(pattern, "")
+  })
+
+  otherTokensToRemove.forEach(token => {
     if (typeof token === 'string') {
       const regex = new RegExp("\\b" + token + "\\b", "gi")
       title = title.replace(regex, "")
@@ -47,7 +56,7 @@ export function parseQuickAdd(rawInput: string): QuickAddDraft {
 
   // 4. Clean up leftover prepositions and extra spaces
   // dangling "at", "on", "every", "from", "to", "until"
-  const prepositions = ["at", "on", "every", "from", "to", "until"]
+  const prepositions = ["at", "on", "every", "from", "to", "until", "for", "in"]
   prepositions.forEach(prep => {
     const regex = new RegExp("\\b" + prep + "\\b", "gi")
     title = title.replace(regex, "")
@@ -55,6 +64,9 @@ export function parseQuickAdd(rawInput: string): QuickAddDraft {
 
   // Clean up extra whitespace
   title = title.replace(/\s+/g, " ").trim()
+
+  // Remove leading prepositions specifically (often left over)
+  title = title.replace(/^\s*(at|on|for|in)\s*/i, '')
 
   // 5. Capitalize the first letter
   if (title.length > 0) {

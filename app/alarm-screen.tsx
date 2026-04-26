@@ -12,7 +12,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { useAudioPlayer } from 'expo-audio';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { handleReminderAction } from '../notifications/reminderActionHandler';
@@ -89,31 +89,13 @@ export default function AlarmScreen() {
     ).start();
   }, []);
 
+  const player = useAudioPlayer({ uri: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3' });
+
   useEffect(() => {
-    let sound: Audio.Sound;
-
-    const playSound = async () => {
-      try {
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: true,
-        });
-        const { sound: s } = await Audio.Sound.createAsync(
-          { uri: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3' },
-          { shouldPlay: true, isLooping: true, volume: 1.0 }
-        );
-        sound = s;
-      } catch (error) {
-        console.error('Failed to play sound', error);
-      }
-    };
-
-    playSound();
-
-    return () => {
-      if (sound) sound.unloadAsync();
-    };
-  }, []);
+    player.loop = true;
+    player.volume = 1.0;
+    player.play();
+  }, [player]);
 
   useEffect(() => {
     const pattern = [0, 500, 200, 500, 200, 500];

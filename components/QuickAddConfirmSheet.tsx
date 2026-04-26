@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -14,11 +14,12 @@ import {
 } from 'react-native';
 import DateTimePicker, { DateTimePickerAndroid, DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
+import { Calendar } from 'react-native-calendars';
 import { QuickAddDraft, QuickAddSaveInput, EntryType } from '../types/quickAdd.types';
 import { getTheme } from '../constants/theme';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
-import { formatDateString } from '@/utils/dateUtils';
+import { formatDateString, parseDateString } from '@/utils/dateUtils';
 
 interface Props {
   draft: QuickAddDraft | null;
@@ -47,6 +48,44 @@ export const QuickAddConfirmSheet: React.FC<Props> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const calendarTheme = useMemo(() => ({
+    backgroundColor: theme.surface,
+    calendarBackground: theme.surface,
+    textSectionTitleColor: theme.textSecondary,
+    selectedDayBackgroundColor: theme.primary,
+    selectedDayTextColor: '#FFFFFF',
+    todayTextColor: theme.primary,
+    dayTextColor: theme.textPrimary,
+    textDisabledColor: theme.textSecondary + '40',
+    dotColor: theme.primary,
+    selectedDotColor: '#ffffff',
+    arrowColor: theme.primary,
+    disabledArrowColor: theme.textSecondary + '40',
+    monthTextColor: theme.textPrimary,
+    indicatorColor: theme.primary,
+    textDayFontWeight: '600' as const,
+    textMonthFontWeight: 'bold' as const,
+    textDayHeaderFontWeight: '600' as const,
+    textDayFontSize: 16,
+    textMonthFontSize: 18,
+    textDayHeaderFontSize: 14,
+  }), [theme]);
+
+  const formatFriendlyDate = (dateStr: string) => {
+    try {
+      const d = parseDateString(dateStr);
+      return d.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch (e) {
+      return dateStr;
+    }
+  };
 
   const [startTimeDate, setStartTimeDate] = useState<Date>(() => {
     if (draft?.startTime) {
@@ -85,6 +124,7 @@ export const QuickAddConfirmSheet: React.FC<Props> = ({
       setEditedStartTime(draft.startTime ?? '');
       setEditedEndTime(draft.endTime ?? '');
       setEntryType(draft.entryType);
+      setShowDatePicker(false);
 
       if (draft.startTime) {
         const [time, period] = draft.startTime.split(' ');
@@ -296,13 +336,50 @@ export const QuickAddConfirmSheet: React.FC<Props> = ({
                 <View style={[styles.fieldGroup, { flex: 1, marginRight: 8 }]}>
                   <ThemedText style={styles.fieldLabel}>Date</ThemedText>
                   <TouchableOpacity
-                    style={[styles.input, { borderColor: theme.border, backgroundColor: theme.surface, justifyContent: 'center' }]}
+                    onPress={() => setShowDatePicker(true)}
+                    style={[styles.input, { borderColor: theme.border, backgroundColor: theme.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
                     activeOpacity={0.7}
                   >
-                    <ThemedText style={{ color: theme.textPrimary }}>{date}</ThemedText>
+                    <ThemedText style={{ color: theme.textPrimary }}>
+                      {formatFriendlyDate(date)}
+                    </ThemedText>
+                    <Ionicons name="chevron-forward" size={14} color={theme.textSecondary} />
                   </TouchableOpacity>
+
+                  <Modal
+                    visible={showDatePicker}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setShowDatePicker(false)}
+                  >
+                    <TouchableOpacity
+                      style={styles.datePickerOverlay}
+                      activeOpacity={1}
+                      onPress={() => setShowDatePicker(false)}
+                    >
+                      <ThemedView style={[styles.datePickerContent, { backgroundColor: theme.surface }]}>
+                        <Calendar
+                          current={date}
+                          onDayPress={(day) => {
+                            setDate(day.dateString);
+                            setShowDatePicker(false);
+                          }}
+                          markedDates={{
+                            [date]: { selected: true, disableTouchEvent: true }
+                          }}
+                          theme={calendarTheme}
+                        />
+                        <TouchableOpacity
+                          style={[styles.closeDatePickerButton, { backgroundColor: theme.primary }]}
+                          onPress={() => setShowDatePicker(false)}
+                        >
+                          <ThemedText style={styles.closeDatePickerText}>Close</ThemedText>
+                        </TouchableOpacity>
+                      </ThemedView>
+                    </TouchableOpacity>
+                  </Modal>
                 </View>
-                <View style={[styles.fieldGroup, { flex: 1, marginLeft: 8 }]}> 
+                <View style={[styles.fieldGroup, { flex: 1, marginLeft: 8 }]}>
                   <ThemedText style={styles.fieldLabel}>Start Time</ThemedText>
                   <TouchableOpacity
                     style={[styles.input, { borderColor: theme.border, backgroundColor: theme.surface, justifyContent: 'center' }]}
@@ -332,7 +409,7 @@ export const QuickAddConfirmSheet: React.FC<Props> = ({
               </View>
 
               <View style={styles.row}>
-                <View style={[styles.fieldGroup, { flex: 1, marginRight: 8 }]}> 
+                <View style={[styles.fieldGroup, { flex: 1, marginRight: 8 }]}>
                   <ThemedText style={styles.fieldLabel}>End Time (Optional)</ThemedText>
                   <TouchableOpacity
                     style={[styles.input, { borderColor: theme.border, backgroundColor: theme.surface, justifyContent: 'center' }]}
@@ -538,5 +615,33 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     marginLeft: 10,
+  },
+  datePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  datePickerContent: {
+    width: '90%',
+    borderRadius: 20,
+    padding: 20,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  closeDatePickerButton: {
+    marginTop: 20,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeDatePickerText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

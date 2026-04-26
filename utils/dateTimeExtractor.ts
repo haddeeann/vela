@@ -1,4 +1,5 @@
 import { ParsedRecurrence } from "../types/quickAdd.types"
+import { formatDateString } from "./dateUtils"
 
 /**
  * Extracts date, time, and recurrence from a string input.
@@ -22,27 +23,53 @@ export function extractDateTime(input: string): {
   // --- Date Extraction ---
   const today = new Date()
 
-  if (normalizedInput.includes("today")) {
-    result.date = formatDate(today)
+  // Match formats: 4/27/26, 4/27/2026, 04/27/26
+  const slashDatePattern = /\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/
+  const slashMatch = normalizedInput.match(slashDatePattern)
+
+  if (slashMatch) {
+    let year = parseInt(slashMatch[3], 10)
+    if (year < 100) year += 2000
+    const month = parseInt(slashMatch[1], 10) - 1
+    const day = parseInt(slashMatch[2], 10)
+    result.date = formatDateString(new Date(year, month, day))
   } else if (normalizedInput.includes("tomorrow")) {
     const tomorrow = new Date(today)
     tomorrow.setDate(today.getDate() + 1)
-    result.date = formatDate(tomorrow)
+    result.date = formatDateString(tomorrow)
+  } else if (normalizedInput.includes("today")) {
+    result.date = formatDateString(today)
   } else {
-    const daysMap: Record<string, number> = {
-      sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6
-    }
+    // Check for "Apr 27", "April 27"
+    const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+    const monthDayPattern = new RegExp(`\\b(${monthNames.join('|')})\\w*\\s+(\\d{1,2})\\b`, 'i')
+    const monthDayMatch = normalizedInput.match(monthDayPattern)
 
-    // Check for day names: "Monday", "Thursday" etc → resolve to the next upcoming occurrence
-    // Do not return past dates when resolving day names
-    for (const [dayName, dayIndex] of Object.entries(daysMap)) {
-      if (new RegExp("\\b" + dayName + "\\b", "i").test(normalizedInput)) {
-        const nextDate = new Date(today)
-        let diff = dayIndex - today.getDay()
-        if (diff <= 0) diff += 7
-        nextDate.setDate(today.getDate() + diff)
-        result.date = formatDate(nextDate)
-        break
+    if (monthDayMatch) {
+      const monthIndex = monthNames.indexOf(monthDayMatch[1].toLowerCase().substring(0, 3))
+      const day = parseInt(monthDayMatch[2], 10)
+      const year = today.getFullYear()
+      const extractedDate = new Date(year, monthIndex, day)
+      // If the date is in the past, assume next year
+      if (extractedDate < new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
+        extractedDate.setFullYear(year + 1)
+      }
+      result.date = formatDateString(extractedDate)
+    } else {
+      const daysMap: Record<string, number> = {
+        sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6
+      }
+
+      // Check for day names: "Monday", "Thursday" etc → resolve to the next upcoming occurrence
+      for (const [dayName, dayIndex] of Object.entries(daysMap)) {
+        if (new RegExp("\\b" + dayName + "\\b", "i").test(normalizedInput)) {
+          const nextDate = new Date(today)
+          let diff = dayIndex - today.getDay()
+          if (diff <= 0) diff += 7
+          nextDate.setDate(today.getDate() + diff)
+          result.date = formatDateString(nextDate)
+          break
+        }
       }
     }
   }
@@ -91,13 +118,6 @@ export function extractDateTime(input: string): {
   }
 
   return result
-}
-
-function formatDate(date: Date): string {
-  const yyyy = date.getFullYear()
-  const mm = String(date.getMonth() + 1).padStart(2, "0")
-  const dd = String(date.getDate()).padStart(2, "0")
-  return `${yyyy}-${mm}-${dd}`
 }
 
 function parseTimeString(timeStr: string): string | undefined {
