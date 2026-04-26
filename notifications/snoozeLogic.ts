@@ -38,6 +38,10 @@ const getSnoozeTime = (actionId: ReminderActionId): number | null => {
     return Date.now() + 5 * MINUTE;
   }
 
+  if (actionId === 'SNOOZE_10_MIN') {
+    return Date.now() + 10 * MINUTE;
+  }
+
   if (actionId === 'SNOOZE_15_MIN' || actionId === 'RUNNING_LATE') {
     return Date.now() + 15 * MINUTE;
   }

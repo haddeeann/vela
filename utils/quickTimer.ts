@@ -15,8 +15,9 @@ export async function scheduleQuickTimer(
       android: {
         channelId: 'vela-timers',
         priority: 'max',
+        fullScreenIntent: true,
         sound: 'default',
-        vibrate: [0, 250, 250, 250],
+        vibrate: [0, 500, 200, 500, 200, 500],
       },
     },
     trigger: {

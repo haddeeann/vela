@@ -681,4 +681,28 @@ export const setAlarmActive = async (id: string, isActive: boolean): Promise<voi
   await sqlite.runAsync('UPDATE alarms SET is_active = ? WHERE id = ?;', [isActive ? 1 : 0, id]);
 };
 
+export const markAlarmDismissed = async (notificationId: string): Promise<void> => {
+  const sqlite = await getDB();
+  // We need to find the alarm that has this notification ID in its JSON array
+  // SQLite doesn't have great JSON support in older versions, but here we can use LIKE
+  const rows = await sqlite.getAllAsync<DbAlarmRow>(
+    "SELECT * FROM alarms WHERE notification_ids LIKE ?;",
+    [`%${notificationId}%`]
+  );
+
+  for (const row of rows) {
+    const alarm = mapAlarmRow(row);
+    if (alarm.notification_ids.includes(notificationId)) {
+      // If it's a one-time alarm (no days), we might want to disable it.
+      // But the requirement just says "call markAlarmDismissed".
+      // Usually, dismissing an alarm just stops the current sound.
+      // If it's recurring, it stays active for the next day.
+      // If it's one-time, it should probably be marked inactive.
+      if (alarm.days.length === 0) {
+        await setAlarmActive(alarm.id, false);
+      }
+    }
+  }
+};
+
 export { db, generateUUID };

@@ -8,34 +8,53 @@ type ReminderCategoryAction = {
 };
 
 export const registerReminderCategories = async (): Promise<void> => {
-  await Notifications.setNotificationChannelAsync('vela-timers', {
-    name: 'Quick Timers',
-    importance: Notifications.AndroidImportance.MAX,
-    sound: 'default',
-    vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#4A5FCC',
-    enableVibrate: true,
-    showBadge: true,
-  });
+  await Notifications.setNotificationChannelAsync(
+    'vela-alarms', {
+      name: 'Alarms',
+      importance: Notifications.AndroidImportance.MAX,
+      sound: 'default',
+      vibrationPattern: [0, 500, 200, 500, 200, 500],
+      enableVibrate: true,
+      enableLights: true,
+      lightColor: '#4A5FCC',
+      showBadge: true,
+      bypassDnd: true,
+      lockscreenVisibility: 
+        Notifications.AndroidNotificationVisibility.PUBLIC,
+    }
+  )
 
-  await Notifications.setNotificationChannelAsync('vela-reminders', {
-    name: 'Entry Reminders',
-    importance: Notifications.AndroidImportance.HIGH,
-    sound: 'default',
-    vibrationPattern: [0, 250, 250, 250],
-    enableVibrate: true,
-    showBadge: true,
-  });
+  await Notifications.setNotificationChannelAsync(
+    'vela-timers', {
+      name: 'Quick Timers',
+      importance: Notifications.AndroidImportance.MAX,
+      sound: 'default',
+      vibrationPattern: [0, 500, 200, 500, 200, 500],
+      enableVibrate: true,
+      enableLights: true,
+      lightColor: '#E8A23C',
+      showBadge: true,
+      bypassDnd: false,
+      lockscreenVisibility:
+        Notifications.AndroidNotificationVisibility.PUBLIC,
+    }
+  )
 
-  await Notifications.setNotificationChannelAsync('vela-alarms', {
-    name: 'Alarms',
-    importance: Notifications.AndroidImportance.MAX,
-    sound: 'default',
-    vibrationPattern: [0, 500, 250, 500],
-    enableVibrate: true,
-    showBadge: true,
-    bypassDnd: false,
-  });
+  await Notifications.setNotificationChannelAsync(
+    'vela-reminders', {
+      name: 'Event and Task Reminders',
+      importance: Notifications.AndroidImportance.MAX,
+      sound: 'default',
+      vibrationPattern: [0, 400, 200, 400],
+      enableVibrate: true,
+      enableLights: true,
+      lightColor: '#2BA888',
+      showBadge: true,
+      bypassDnd: false,
+      lockscreenVisibility:
+        Notifications.AndroidNotificationVisibility.PUBLIC,
+    }
+  )
 
   await Notifications.setNotificationCategoryAsync('REMINDER_EVENT', [
     { identifier: 'SNOOZE_5_MIN', buttonTitle: '5 more min' },

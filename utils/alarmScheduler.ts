@@ -34,10 +34,16 @@ export const scheduleAlarm = async (alarm: Alarm): Promise<string[]> => {
         title: alarm.title,
         body,
         sound: true,
+        data: {
+          isAlarm: true,
+          alarmId: alarm.id,
+        },
         android: {
           channelId: 'vela-alarms',
           priority: 'max',
+          fullScreenIntent: true,
           sound: 'default',
+          vibrate: [0, 500, 200, 500, 200, 500],
         },
       },
       trigger: {

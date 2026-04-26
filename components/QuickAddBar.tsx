@@ -17,7 +17,7 @@ interface QuickAddBarProps {
   visible: boolean;
   onClose: () => void;
   onDraftCreated: (draft: QuickAddDraft) => void;
-  onOpenFullForm: () => void;
+  onOpenFullForm: (date?: string) => void;
   theme: ReturnType<typeof getTheme>;
   prefilledType?: EntryType;
   prefilledPlaceholder?: string;
@@ -180,13 +180,18 @@ export function QuickAddBar({
               returnKeyType="done"
               onSubmitEditing={handleSubmit}
             />
-            <TouchableOpacity onPress={onOpenFullForm} style={styles.iconButton}>
-              <Ionicons name="expand-outline" size={22} color={theme.textSecondary} />
-            </TouchableOpacity>
             <TouchableOpacity onPress={handleSubmit} style={styles.iconButton}>
               <Ionicons name="arrow-forward-circle" size={28} color={theme.primary} />
             </TouchableOpacity>
           </View>
+          <TouchableOpacity 
+            onPress={() => onOpenFullForm(prefilledDate)} 
+            style={styles.fullFormLink}
+          >
+            <ThemedText style={[styles.fullFormLinkText, { color: theme.textSecondary }]}>
+              Need more options? Use full form →
+            </ThemedText>
+          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -214,6 +219,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
+    paddingBottom: 8,
   },
   typeRow: {
     height: 44,
@@ -237,7 +243,7 @@ const styles = StyleSheet.create({
   inputRow: {
     height: 52,
     paddingHorizontal: 12,
-    paddingBottom: 8,
+    paddingBottom: 4,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -251,5 +257,14 @@ const styles = StyleSheet.create({
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  fullFormLink: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    alignItems: 'center',
+  },
+  fullFormLinkText: {
+    fontSize: 13,
+    textDecorationLine: 'underline',
   },
 });

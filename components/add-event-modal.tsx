@@ -55,16 +55,25 @@ interface AddEventModalProps {
     recurrence?: RecurrenceType;
     entryType?: 'event' | 'task' | 'anchor';
   };
+  prefilledDate?: string;
+  prefilledStartTime?: string;
+  prefilledEndTime?: string;
+  prefilledType?: 'event' | 'task' | 'anchor';
 }
 
-export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initialEntryType, existingEntry, onSaved, initialValues }: AddEventModalProps) {
+export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initialEntryType, existingEntry, onSaved, initialValues, prefilledDate, prefilledStartTime, prefilledEndTime, prefilledType }: AddEventModalProps) {
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const { height: screenHeight } = useWindowDimensions();
 
-  const [entryType, setEntryType] = useState<'event' | 'task' | 'anchor'>(initialEntryType || 'event');
+  const [entryType, setEntryType] = useState<'event' | 'task' | 'anchor'>(initialEntryType || prefilledType || 'event');
   const [title, setTitle] = useState('');
-  const [date, setDate] = useState(selectedDate);
+  const [date, setDate] = useState(
+    existingEntry?.date ?? 
+    initialValues?.date ?? 
+    prefilledDate ??
+    selectedDate
+  );
 
   const getNextRoundHour = () => {
     const now = new Date();
@@ -207,17 +216,24 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
           setEndTimeDate(parsedEndTime);
         }
       } else {
-        if (initialEntryType) {
-          setEntryType(initialEntryType);
+        setEntryType(prefilledType || initialEntryType || 'event');
+        setDate(prefilledDate || selectedDate);
+        
+        if (prefilledStartTime) {
+          const parsed = parseTimeLabel(prefilledStartTime);
+          if (parsed) setStartTimeDate(parsed);
         }
-        setDate(selectedDate);
+        if (prefilledEndTime) {
+          const parsed = parseTimeLabel(prefilledEndTime);
+          if (parsed) setEndTimeDate(parsed);
+        }
       }
       setShowStartTimePicker(false);
       setShowEndTimePicker(false);
       setShowDueTimePicker(false);
       setIsDatePickerVisible(false);
     }
-  }, [isVisible, selectedDate, initialEntryType, initialValues, existingEntry]);
+  }, [isVisible, selectedDate, initialEntryType, initialValues, existingEntry, prefilledDate, prefilledStartTime, prefilledEndTime, prefilledType]);
 
   useEffect(() => {
     if (entryType === 'anchor') {

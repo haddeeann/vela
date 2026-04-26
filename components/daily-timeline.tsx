@@ -124,13 +124,52 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
     [filteredEvents]
   );
 
-  const parseTime = (timeStr: string) => {
-    const [time, period] = timeStr.split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
-    if (period === 'PM' && hours < 12) hours += 12;
-    if (period === 'AM' && hours === 12) hours = 0;
+  const parseTimeToHours = (time: string): number => {
+    if (!time || !time.trim()) return 0;
+    
+    const cleaned = time.trim().toUpperCase();
+    const isPM = cleaned.includes('PM');
+    const isAM = cleaned.includes('AM');
+    
+    const timePart = cleaned
+      .replace('AM', '')
+      .replace('PM', '')
+      .trim();
+    
+    const [hourStr, minuteStr] = timePart.split(':');
+    let hours = parseInt(hourStr, 10);
+    const minutes = parseInt(minuteStr ?? '0', 10);
+    
+    if (isNaN(hours) || isNaN(minutes)) return 0;
+    
+    if (isPM && hours < 12) hours += 12;
+    if (isAM && hours === 12) hours = 0;
+    
     return hours + minutes / 60;
   };
+
+  const getTopPosition = (time: string): number => {
+    const totalHours = parseTimeToHours(time);
+    const offsetFromStart = totalHours - TIMELINE_START_HOUR;
+    if (offsetFromStart < 0) return 0;
+    return offsetFromStart * ROW_HEIGHT;
+  };
+
+  const getBlockHeight = (
+    startTime: string,
+    endTime: string
+  ): number => {
+    const start = parseTimeToHours(startTime);
+    const end = parseTimeToHours(endTime);
+    
+    if (end <= start) {
+      return ROW_HEIGHT; // default 1 hour if invalid
+    }
+    
+    return (end - start) * ROW_HEIGHT;
+  };
+
+  console.log('[DailyView] 2:00 PM top position:', getTopPosition('2:00 PM'));
 
   const flashedHourRef = useRef<number | null>(null);
   const flashOpacity = useRef(new Animated.Value(0)).current;
@@ -181,8 +220,8 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
   const getSegmentsForEvent = (event: Event): EventSegment[] => {
     if (!event.startTime || !event.endTime) return [];
 
-    const start = parseTime(event.startTime);
-    const end = parseTime(event.endTime);
+    const start = parseTimeToHours(event.startTime);
+    const end = parseTimeToHours(event.endTime);
     const isAnchor = event.entryType === 'anchor';
 
     if (!isAnchor) {
@@ -255,6 +294,14 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
         const isAnchor = event.entryType === 'anchor';
         const isCompleted = !!event.completedAt;
 
+        const topPosition = (start - hour) * ROW_HEIGHT;
+        const blockHeight = duration * ROW_HEIGHT;
+
+        console.log('[DailyView] event:', event.title);
+        console.log('[DailyView] startTime raw:', event.startTime);
+        console.log('[DailyView] calculated top:', topPosition);
+        console.log('[DailyView] calculated height:', blockHeight);
+
         return (
           <TouchableOpacity
             key={segment.id}
@@ -264,8 +311,8 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
               {
                 backgroundColor: isTask ? theme.primary + '20' : (isAnchor ? category.color + '1F' : category.color + '40'),
                 borderLeftColor: isTask ? theme.primary : category.color,
-                top: (start - hour) * ROW_HEIGHT,
-                height: duration * ROW_HEIGHT,
+                top: topPosition,
+                height: blockHeight,
               },
               isAnchor && { borderLeftWidth: 3, opacity: 0.85 },
               isCompleted && { opacity: 0.5 }

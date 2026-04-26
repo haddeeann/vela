@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
+import { router } from 'expo-router';
 
 import {
   ReminderActionId,
-  ReminderNotificationData,
 } from '../types/reminders.types';
 import { handleReminderAction } from './reminderActionHandler';
 
@@ -17,23 +17,32 @@ export const useReminderResponseListener = (
       response: Notifications.NotificationResponse
     ): Promise<void> => {
       const actionIdentifier = response.actionIdentifier;
-      const data =
-        response.notification.request.content.data as ReminderNotificationData;
+      const data = response.notification.request.content.data as any;
+      const content = response.notification.request.content;
 
-      if (!data?.entryId || !data?.reminderId) {
-        console.log('Ignoring notification response with missing reminder data', {
-          actionIdentifier,
-          data,
+      if (actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
+        // Tapped on the notification itself
+        router.push({
+          pathname: '/alarm-screen',
+          params: {
+            title: content.title ?? 'Reminder',
+            body: content.body ?? '',
+            type: data?.isQuickTimer ? 'timer'
+              : data?.isAlarm ? 'alarm'
+              : 'reminder',
+            entryId: data?.entryId ?? '',
+            reminderId: data?.reminderId ?? '',
+            notificationId: response.notification.request.identifier,
+          }
         });
         return;
       }
 
-      const currentNotificationId = response.notification.request.identifier;
-
+      // If it's a specific action button (like DONE, SNOOZE)
       const result = await handleReminderAction({
         actionId: actionIdentifier as ReminderActionId,
         data,
-        currentNotificationId,
+        currentNotificationId: response.notification.request.identifier,
       });
 
       if (result.shouldRefreshUI) {

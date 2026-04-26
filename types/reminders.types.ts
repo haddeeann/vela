@@ -1,6 +1,7 @@
 export type ReminderActionId =
   | 'DONE'
   | 'SNOOZE_5_MIN'
+  | 'SNOOZE_10_MIN'
   | 'SNOOZE_15_MIN'
   | 'SNOOZE_30_MIN'
   | 'SNOOZE_TOMORROW'

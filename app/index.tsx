@@ -64,11 +64,12 @@ if (!isExpoGoOnAndroid) {
     handleNotification: async () => ({
       shouldShowAlert: true,
       shouldPlaySound: true,
-      shouldSetBadge: false,
+      shouldSetBadge: true,
       shouldShowBanner: true,
       shouldShowList: true,
+      priority: Notifications.AndroidNotificationPriority.MAX,
     }),
-  });
+  })
 }
 
 export default function HomeScreen() {
@@ -270,18 +271,28 @@ export default function HomeScreen() {
   }, [activeTimer, timerMinutesRemaining]);
 
   useEffect(() => {
-    const subscription = Notifications.addNotificationReceivedListener((notification) => {
-      const data = notification.request.content.data as { isQuickTimer?: boolean } | undefined;
-      if (data?.isQuickTimer) {
-        setActiveTimer(null);
-        AsyncStorage.removeItem('vela_active_timer').catch(() => {});
-      }
-    });
+    const sub = Notifications.addNotificationReceivedListener(
+      async (notification) => {
+        const content = notification.request.content
+        const data = content.data
 
-    return () => {
-      subscription.remove();
-    };
-  }, []);
+        router.push({
+          pathname: '/alarm-screen',
+          params: {
+            title: content.title ?? 'Reminder',
+            body: content.body ?? '',
+            type: data?.isQuickTimer ? 'timer'
+              : data?.isAlarm ? 'alarm'
+              : 'reminder',
+            entryId: data?.entryId ?? '',
+            reminderId: data?.reminderId ?? '',
+            notificationId: notification.request.identifier,
+          }
+        })
+      }
+    )
+    return () => sub.remove()
+  }, [])
 
   const consumedQuickAddRef = useRef(false);
 
@@ -1077,6 +1088,10 @@ export default function HomeScreen() {
           recurrence: selectedEntry.recurrence,
           entryType: (selectedEntry.entryType || 'event') as 'event' | 'task' | 'anchor',
         } : undefined}
+        prefilledDate={quickAddPrefilledDate}
+        prefilledStartTime={quickAddPrefilledStartTime}
+        prefilledEndTime={quickAddPrefilledEndTime}
+        prefilledType={quickAddPrefilledType}
       />
 
       <AddEventModal
@@ -1099,6 +1114,9 @@ export default function HomeScreen() {
           consumedQuickAddRef.current = false;
         }}
         onDraftCreated={(draft) => {
+          if (!draft.date) {
+            draft.date = selectedDate;
+          }
           setCurrentDraft(draft);
           setQuickAddPrefilledType(undefined);
           setQuickAddPrefilledPlaceholder(undefined);
@@ -1107,11 +1125,11 @@ export default function HomeScreen() {
           setQuickAddPrefilledEndTime(undefined);
           consumedQuickAddRef.current = false;
         }}
-        onOpenFullForm={() => {
+        onOpenFullForm={(date) => {
           setIsQuickAddVisible(false);
           setQuickAddPrefilledType(undefined);
           setQuickAddPrefilledPlaceholder(undefined);
-          setQuickAddPrefilledDate(undefined);
+          setQuickAddPrefilledDate(date);
           setQuickAddPrefilledStartTime(undefined);
           setQuickAddPrefilledEndTime(undefined);
           consumedQuickAddRef.current = false;
@@ -1120,7 +1138,7 @@ export default function HomeScreen() {
         theme={theme}
         prefilledType={quickAddPrefilledType}
         prefilledPlaceholder={quickAddPrefilledPlaceholder}
-        prefilledDate={quickAddPrefilledDate}
+        prefilledDate={selectedDate}
         prefilledStartTime={quickAddPrefilledStartTime}
         prefilledEndTime={quickAddPrefilledEndTime}
       />

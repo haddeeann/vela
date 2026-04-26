@@ -60,11 +60,16 @@ export const scheduleReminderSequence = async (params: {
         ? REMINDER_MESSAGES[entryType].escalated(entryTitle)
         : REMINDER_MESSAGES[entryType].now(entryTitle),
       categoryIdentifier,
-      data: nowData,
+      data: {
+        ...nowData,
+        type: 'reminder',
+      },
       android: {
         channelId: 'vela-reminders',
-        priority: 'high',
+        priority: 'max',
+        fullScreenIntent: true,
         sound: 'default',
+        vibrate: [0, 500, 200, 500, 200, 500],
       },
     },
     trigger: {
@@ -85,11 +90,14 @@ export const scheduleReminderSequence = async (params: {
         data: {
           ...nowData,
           stage: 'warning',
+          type: 'reminder',
         },
         android: {
           channelId: 'vela-reminders',
-          priority: 'high',
+          priority: 'max',
+          fullScreenIntent: true,
           sound: 'default',
+          vibrate: [0, 500, 200, 500, 200, 500],
         },
       },
       trigger: {
@@ -109,11 +117,14 @@ export const scheduleReminderSequence = async (params: {
         data: {
           ...nowData,
           stage: 'soon',
+          type: 'reminder',
         },
         android: {
           channelId: 'vela-reminders',
-          priority: 'high',
+          priority: 'max',
+          fullScreenIntent: true,
           sound: 'default',
+          vibrate: [0, 500, 200, 500, 200, 500],
         },
       },
       trigger: {
