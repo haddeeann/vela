@@ -104,7 +104,6 @@ export default function HomeScreen() {
   const [modalPrefillTitle, setModalPrefillTitle] = useState<string | undefined>(undefined);
   const [activeTimer, setActiveTimer] = useState<{ notificationId: string; firesAt: Date } | null>(null);
   const [isTimerSheetVisible, setIsTimerSheetVisible] = useState(false);
-  const [timerTick, setTimerTick] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<CalendarEvent | null>(null);
   const [isEntryDetailVisible, setIsEntryDetailVisible] = useState(false);
   const [editingEntry, setEditingEntry] = useState<EditableEntry | null>(null);
@@ -123,12 +122,7 @@ export default function HomeScreen() {
 
   const todayDate = useMemo(() => formatDateString(new Date()), []);
 
-  const timerMinutesRemaining = useMemo(() => {
-    if (!activeTimer) return null;
-    const diff = activeTimer.firesAt.getTime() - Date.now();
-    if (diff <= 0) return null;
-    return Math.ceil(diff / 60000);
-  }, [activeTimer, timerTick]);
+  const [timerMinutesRemaining, setTimerMinutesRemaining] = useState<number | null>(null);
 
   const timerRemainingLabel = useMemo(() => {
     if (!timerMinutesRemaining) return null;
@@ -249,22 +243,27 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    if (!activeTimer) return;
+    if (!activeTimer) {
+      setTimerMinutesRemaining(null);
+      return;
+    }
 
-    setTimerTick((prev) => prev + 1);
-    const intervalId = setInterval(() => {
-      setTimerTick((prev) => prev + 1);
-    }, 60000);
+    const computeRemaining = () => {
+      const diff = activeTimer.firesAt.getTime() - Date.now();
+      if (diff <= 0) {
+        setTimerMinutesRemaining(null);
+        setActiveTimer(null);
+        AsyncStorage.removeItem('vela_active_timer').catch(() => {});
+      } else {
+        setTimerMinutesRemaining(Math.ceil(diff / 60000));
+      }
+    };
 
-    return () => clearInterval(intervalId);
+    computeRemaining();
+    const interval = setInterval(computeRemaining, 60000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTimer]);
-
-  useEffect(() => {
-    if (!activeTimer || timerMinutesRemaining !== null) return;
-
-    setActiveTimer(null);
-    AsyncStorage.removeItem('vela_active_timer').catch(() => {});
-  }, [activeTimer, timerMinutesRemaining]);
 
   useEffect(() => {
     const sub = Notifications.addNotificationReceivedListener(
