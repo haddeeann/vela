@@ -13,15 +13,14 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useAudioPlayer } from 'expo-audio';
-import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { handleReminderAction } from '../notifications/reminderActionHandler';
-import { handleSnooze } from '../notifications/snoozeLogic';
-import { markAlarmDismissed } from '../db';
-import { snoozeFullScreen } from '../utils/snoozeFullScreen';
-import { ThemedText } from '../components/themed-text';
+import { handleReminderAction } from '@/notifications/reminderActionHandler';
+import { handleSnooze } from '@/notifications/snoozeLogic';
+import { markAlarmDismissed } from '@/db';
+import { snoozeFullScreen } from '@/utils/snoozeFullScreen';
+import { ThemedText } from '@/components/themed-text';
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 const NAVY = '#1C2566';
 const PRIMARY = '#4A5FCC';
@@ -106,25 +105,25 @@ export default function AlarmScreen() {
 
   const onSnoozePress = async () => {
     Vibration.cancel()
-    
+
     await snoozeFullScreen({
-      title,
-      body,
-      type,
-      entryId,
-      reminderId,
+      title: title ?? '',
+      body: body ?? '',
+      type: type ?? 'reminder',
+      entryId: entryId ?? '',
+      reminderId: reminderId ?? '',
     })
-    
+
     if (type === 'reminder' && reminderId) {
       await handleSnooze({
         actionId: 'SNOOZE_10_MIN',
-        reminderId,
-        entryId,
+        reminderId: reminderId,
+        entryId: entryId ?? '',
         entryType: 'event',
-        entryTitle: title,
+        entryTitle: title ?? '',
       })
     }
-    
+
     router.back()
   };
 
@@ -133,15 +132,15 @@ export default function AlarmScreen() {
       await handleReminderAction({
         actionId: 'DONE',
         data: {
-          entryId: params.entryId,
-          reminderId: params.reminderId,
+          entryId: params.entryId ?? '',
+          reminderId: params.reminderId ?? '',
           entryType: 'event', // fallback
-          entryTitle: params.title,
+          entryTitle: params.title ?? '',
         },
-        currentNotificationId: params.notificationId,
+        currentNotificationId: params.notificationId ?? '',
       });
     } else if (params.type === 'alarm') {
-      await markAlarmDismissed(params.notificationId);
+      await markAlarmDismissed(params.notificationId ?? '');
     } else if (params.type === 'timer') {
       await AsyncStorage.removeItem('vela_active_timer');
     }
@@ -174,7 +173,7 @@ export default function AlarmScreen() {
   return (
     <View style={styles.container}>
       <StatusBar hidden />
-      
+
       <View style={styles.pulseContainer}>
         <Animated.View
           style={[

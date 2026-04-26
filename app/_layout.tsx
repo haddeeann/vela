@@ -7,11 +7,10 @@ import 'react-native-reanimated';
 import { View } from 'react-native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { initDB } from '../db';
-import { getAllAlarms, updateAlarm } from '../db';
-import { registerReminderCategories } from '../notifications/registerReminderCategories';
-import { rescheduleAlarm } from '../utils/alarmScheduler';
-import { getHasOnboarded } from '../utils/calendarSettings';
+import { getAllAlarms, updateAlarm, initDB } from '@/db';
+import { registerReminderCategories } from '@/notifications/registerReminderCategories';
+import { rescheduleAlarm } from '@/utils/alarmScheduler';
+import { getHasOnboarded } from '@/utils/calendarSettings';
 
 export const unstable_settings = {
   anchor: 'index',

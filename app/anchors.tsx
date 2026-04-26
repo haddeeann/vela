@@ -6,16 +6,15 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getAllEntries, createEntry, createRecurrenceRule } from '../db';
-import { EntryWithMeta } from '../types';
+import { getAllEntries, createEntry, createRecurrenceRule } from '@/db';
+import { EntryWithMeta } from '@/types';
 import { AddEventModal } from '@/components/add-event-modal';
-import { QuickAddBar } from '../components/QuickAddBar';
+import { QuickAddBar } from '@/components/QuickAddBar';
 import { CATEGORIES } from '@/constants/categories';
 import { EmptyState } from '@/components/EmptyState';
 import { formatDateString } from '@/utils/dateUtils';
 
 export default function AnchorsScreen() {
-  const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const [anchors, setAnchors] = useState<EntryWithMeta[]>([]);

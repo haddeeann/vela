@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications'
+import { ReminderSequenceStage } from '../types/reminders.types'
 
 export async function snoozeFullScreen(params: {
   title: string
@@ -6,6 +7,7 @@ export async function snoozeFullScreen(params: {
   type: string
   entryId?: string
   reminderId?: string
+  stage?: ReminderSequenceStage
 }): Promise<string> {
 
   const firesAt = new Date(Date.now() + 10 * 60 * 1000)
