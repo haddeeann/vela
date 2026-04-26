@@ -6,7 +6,7 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getAllEntries, createEntry } from '../db';
+import { getAllEntries, createEntry, createRecurrenceRule } from '../db';
 import { EntryWithMeta } from '../types';
 import { AddEventModal } from '@/components/add-event-modal';
 import { QuickAddBar } from '../components/QuickAddBar';
@@ -42,16 +42,21 @@ export default function AnchorsScreen() {
 
   const handleAddEvent = async (eventData: any) => {
     try {
-      await createEntry({
+      const { id } = await createEntry({
         title: eventData.title,
         date: eventData.date,
         start_time: eventData.startTime,
         end_time: eventData.endTime,
         category: eventData.categoryId,
         entry_type: eventData.entryType,
-        frequency: eventData.recurrence,
         is_completable: 0,
+        notes: '',
       });
+
+      if (eventData.recurrence && eventData.recurrence !== 'none') {
+        await createRecurrenceRule(id, eventData.recurrence, null, null);
+      }
+
       setIsModalVisible(false);
       await fetchAnchors();
     } catch (error) {

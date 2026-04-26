@@ -1,21 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, FlatList, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getAllEntries, createEntry } from '../db';
-import { EntryWithMeta } from '../types';
+import { getAllEntries, createEntry, createRecurrenceRule } from '@/db';
+import { EntryWithMeta } from '@/types';
 import { AddEventModal } from '@/components/add-event-modal';
-import { QuickAddBar } from '../components/QuickAddBar';
+import { QuickAddBar } from '@/components/QuickAddBar';
 import { CATEGORIES } from '@/constants/categories';
 import { EmptyState } from '@/components/EmptyState';
 import { formatDateString, parseDateString } from '@/utils/dateUtils';
 
 export default function EventsScreen() {
-  const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   console.log('[Events] Screen rendered');
@@ -42,21 +41,28 @@ export default function EventsScreen() {
   }, []);
 
   useEffect(() => {
-    fetchEvents();
+    fetchEvents().catch((error) => {
+      console.error('[EventsScreen] fetchEvents failed on mount:', error)
+    })
   }, [fetchEvents]);
 
   const handleAddEvent = async (eventData: any) => {
     try {
-      await createEntry({
+      const { id } = await createEntry({
         title: eventData.title,
         date: eventData.date,
         start_time: eventData.startTime,
         end_time: eventData.endTime,
         category: eventData.categoryId,
         entry_type: eventData.entryType,
-        frequency: eventData.recurrence,
         is_completable: 0,
+        notes: '',
       });
+
+      if (eventData.recurrence && eventData.recurrence !== 'none') {
+        await createRecurrenceRule(id, eventData.recurrence, null, null);
+      }
+
       setIsModalVisible(false);
       await fetchEvents();
     } catch (error) {
