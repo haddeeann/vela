@@ -369,7 +369,7 @@ export default function HomeScreen() {
 
               let didReload = false;
               try {
-                const Updates = require('expo-updates');
+                const Updates = await import('expo-updates');
                 if (Updates?.reloadAsync) {
                   await Updates.reloadAsync();
                   didReload = true;
