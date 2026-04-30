@@ -28,6 +28,7 @@ const ACCENT = '#E8A23C';
 const TEAL = '#2BA888';
 
 export default function AlarmScreen() {
+  console.log('[AlarmScreen] Mounted at:', new Date().toISOString())
   const router = useRouter();
   const params = useLocalSearchParams<{
     title: string;

@@ -269,6 +269,8 @@ export default function HomeScreen() {
   useEffect(() => {
     const sub = Notifications.addNotificationReceivedListener(
       async (notification) => {
+        console.log('[index] Notification received at:', new Date().toISOString())
+        console.log('[index] Notification scheduled for:', notification.request.trigger)
         const content = notification.request.content
         const notifData = content.data as Record<string, unknown> | undefined
 

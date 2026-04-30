@@ -12,19 +12,17 @@ export async function scheduleQuickTimer(
       sound: 'default',
       priority: Notifications.AndroidNotificationPriority.MAX,
       data: { isQuickTimer: true },
-      android: {
-        channelId: 'vela-timers',
-        priority: 'max',
-        fullScreenIntent: true,
-        sound: 'default',
-        vibrate: [0, 500, 200, 500, 200, 500],
-      },
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,
       date: firesAt,
     },
   });
+
+  const scheduledAt = Date.now()
+  console.log('[QuickTimer] Scheduled at:', new Date(scheduledAt).toISOString())
+  console.log('[QuickTimer] Should fire at:', firesAt.toISOString())
+  console.log('[QuickTimer] Delta ms:', firesAt.getTime() - scheduledAt)
 
   return { notificationId, firesAt };
 }
