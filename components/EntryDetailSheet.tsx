@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { getTheme } from '../constants/theme';
+import { getTheme, getEntryColors } from '../constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '../constants/categories';
 import { deleteEntry } from '../db';
 import { parseDateString } from '../utils/dateUtils';
@@ -52,6 +53,7 @@ export const EntryDetailSheet: React.FC<EntryDetailSheetProps> = ({
   onDeleted,
   theme,
 }) => {
+  const colorScheme = useColorScheme();
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
   useEffect(() => {
@@ -138,12 +140,14 @@ export const EntryDetailSheet: React.FC<EntryDetailSheetProps> = ({
               <View style={[styles.handle, { backgroundColor: theme.border }]} />
             </View>
 
-            {entry ? (
+            {entry ? (() => {
+              const entryColors = getEntryColors(entry.entry_type, colorScheme);
+              return (
               <>
                 <View style={styles.typeRow}>
-                  <View style={[styles.typeBadge, { backgroundColor: theme.primary + '20' }]}>
-                    <Ionicons name={typeMeta.icon} size={14} color={theme.primary} />
-                    <ThemedText style={[styles.typeBadgeText, { color: theme.primary }]}>{typeMeta.label}</ThemedText>
+                  <View style={[styles.typeBadge, { backgroundColor: entryColors.badge }]}>
+                    <Ionicons name={typeMeta.icon} size={14} color={entryColors.primary} />
+                    <ThemedText style={[styles.typeBadgeText, { color: entryColors.badgeText }]}>{typeMeta.label}</ThemedText>
                   </View>
                   <View style={[styles.categoryDot, { backgroundColor: categoryColor }]} />
                 </View>
@@ -205,7 +209,8 @@ export const EntryDetailSheet: React.FC<EntryDetailSheetProps> = ({
                   </TouchableOpacity>
                 </View>
               </>
-            ) : null}
+              );
+            })() : null}
           </Pressable>
         </Animated.View>
       </Pressable>

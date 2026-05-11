@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
 import { AnchorStripe } from './AnchorStripe';
-import { getTheme } from '@/constants/theme';
+import { getTheme, getEntryColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
@@ -145,18 +145,17 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
     isCurrentMonth: boolean,
     options?: { opacity?: number }
   ) => {
-    const category = CATEGORIES.find(c => c.id === entry.categoryId) || CATEGORIES[4];
-    const color = category.color;
+    const entryColors = getEntryColors(entry.entryType, colorScheme);
     const opacity = isCurrentMonth ? 'FF' : '4D'; // 100% or 30%
     const pillOpacity = options?.opacity;
 
     let icon: React.ReactNode;
     if (entry.entryType === 'task') {
-      icon = <View style={[styles.hollowDot, { borderColor: color + opacity }]} />;
+      icon = <View style={[styles.hollowDot, { borderColor: entryColors.primary + opacity }]} />;
     } else if (entry.entryType === 'anchor') {
-      icon = <ThemedText style={[styles.anchorIcon, { color: color + opacity }]}>∞</ThemedText>;
+      icon = <ThemedText style={[styles.anchorIcon, { color: entryColors.primary + opacity }]}>∞</ThemedText>;
     } else {
-      icon = <View style={[styles.solidDot, { backgroundColor: color + opacity }]} />;
+      icon = <View style={[styles.solidDot, { backgroundColor: entryColors.primary + opacity }]} />;
     }
 
     return (
@@ -247,7 +246,7 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
                   borderColor: dayObj.isCurrentMonth ? theme.border : theme.border + '4D',
                   backgroundColor: dayObj.isCurrentMonth
                     ? 'transparent'
-                    : (colorScheme === 'dark' ? '#FFFFFF05' : '#00000005'),
+                    : (colorScheme === 'dark' ? theme.surfaceVariant : theme.surfaceVariant),
                 },
               ]}
               onPress={() => (onDayPress ?? onDateSelect)(dateStr)}

@@ -1,105 +1,111 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
+import { ColorSchemeName } from 'react-native'
 
-import { Platform } from 'react-native';
-
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
-
-export const COLORS = {
-  light: {
-    primary: '#2D3B8E',
-    accent: '#E8A23C',
-    background: '#FAFAF8',
-    surface: '#F0EDE8',
-    border: '#E2DED6',
-    textPrimary: '#1C1B18',
-    textSecondary: '#6B6860',
-    // Calendar grid
-    todayBg: '#2D3B8E',
-    todayText: '#FFFFFF',
-    selectedBg: '#F0EDE8',
-    selectedText: '#2D3B8E',
-    dayText: '#1C1B18',
-    dayTextMuted: '#B4B2A9',
-    error: '#D94F3D',
+export const ENTRY_COLORS = {
+  event: {
+    light: {
+      primary: '#D4793A',
+      background: '#FEF4EC',
+      badge: '#FEE8D4',
+      badgeText: '#854F0B',
+    },
+    dark: {
+      primary: '#EF9F27',
+      background: '#2E2218',
+      badge: '#3D2A0E',
+      badgeText: '#EF9F27',
+    },
   },
-  dark: {
-    background: '#1A1A2E',
-    surface: '#16213E',
-    border: '#2A2A4A',
-    textPrimary: '#F0EDE8',
-    textSecondary: '#9B98A8',
-    primary: '#4A5FCC',
-    accent: '#E8A23C',
-    // Calendar grid (using standard dark mode values for consistent grid behavior)
-    todayBg: '#4A5FCC',
-    todayText: '#FFFFFF',
-    selectedBg: '#16213E',
-    selectedText: '#4A5FCC',
-    dayText: '#F0EDE8',
-    dayTextMuted: '#9B98A8',
-    error: '#FF6B5B',
+  task: {
+    light: {
+      primary: '#378ADD',
+      background: '#EAF1FB',
+      badge: '#D4E6F7',
+      badgeText: '#185FA5',
+    },
+    dark: {
+      primary: '#6BAEE8',
+      background: '#19222E',
+      badge: '#1A2E42',
+      badgeText: '#6BAEE8',
+    },
   },
-  work: '#4A5FCC',
-  personal: '#E8A23C',
-  health: '#2ECC71',
-  social: '#9B59B6',
-  other: '#95A5A6',
-};
-
-export function getTheme(colorScheme: 'light' | 'dark' | null | undefined) {
-  const scheme = colorScheme === 'dark' ? 'dark' : 'light';
-  return COLORS[scheme];
+  anchor: {
+    light: {
+      primary: '#7F77DD',
+      background: '#EFEEFC',
+      badge: '#CECBF6',
+      badgeText: '#3C3489',
+    },
+    dark: {
+      primary: '#A9A4EE',
+      background: '#201F30',
+      badge: '#2A2845',
+      badgeText: '#A9A4EE',
+    },
+  },
 }
 
-// Keeping Colors for backward compatibility or direct access, but recommending getTheme()
-export const Colors = {
-  light: {
-    text: COLORS.light.textPrimary,
-    background: COLORS.light.background,
-    tint: COLORS.light.primary,
-    icon: COLORS.light.textSecondary,
-    tabIconDefault: COLORS.light.textSecondary,
-    tabIconSelected: COLORS.light.primary,
-    surface: COLORS.light.surface,
-    border: COLORS.light.border,
-  },
-  dark: {
-    text: COLORS.dark.textPrimary,
-    background: COLORS.dark.background,
-    tint: COLORS.dark.primary,
-    icon: COLORS.dark.textSecondary,
-    tabIconDefault: COLORS.dark.textSecondary,
-    tabIconSelected: COLORS.dark.primary,
-    surface: COLORS.dark.surface,
-    border: COLORS.dark.border,
-  },
-};
+export const getEntryColors = (
+  entryType: string,
+  colorScheme: ColorSchemeName
+) => {
+  const isDark = colorScheme === 'dark'
+  const colors = ENTRY_COLORS[
+    entryType as keyof typeof ENTRY_COLORS
+  ] ?? ENTRY_COLORS.event
+  return isDark ? colors.dark : colors.light
+}
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
+export interface VelaTheme {
+  background: string
+  surface: string
+  surfaceRaised: string
+  border: string
+  borderStrong: string
+  textPrimary: string
+  textSecondary: string
+  textMuted: string
+  primary: string
+  primaryLight: string
+  primaryText: string
+  error: string
+  errorLight: string
+}
+
+const lightTheme: VelaTheme = {
+  background: '#FAF8F4',
+  surface: '#F2EFE9',
+  surfaceRaised: '#FFFFFF',
+  border: '#E8E4DC',
+  borderStrong: '#C8C4BC',
+  textPrimary: '#2C2A26',
+  textSecondary: '#5C5A55',
+  textMuted: '#7A766E',
+  primary: '#1D9E75',
+  primaryLight: '#E1F5EE',
+  primaryText: '#085041',
+  error: '#C94040',
+  errorLight: '#FCEBEB',
+}
+
+const darkTheme: VelaTheme = {
+  background: '#1C1A17',
+  surface: '#272420',
+  surfaceRaised: '#302D29',
+  border: '#3A3630',
+  borderStrong: '#504C46',
+  textPrimary: '#F0EDE8',
+  textSecondary: '#B8B5B0',
+  textMuted: '#8A8780',
+  primary: '#25C48F',
+  primaryLight: '#0F3D2A',
+  primaryText: '#9FE1CB',
+  error: '#E87070',
+  errorLight: '#2E1A1A',
+}
+
+export const getTheme = (
+  colorScheme: ColorSchemeName
+): VelaTheme => {
+  return colorScheme === 'dark' ? darkTheme : lightTheme
+}

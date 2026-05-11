@@ -108,7 +108,7 @@ export default function AlarmsScreen() {
               <ThemedText
                 key={label + index}
                 style={{
-                  color: selected ? theme.primary : theme.textSecondary,
+                  color: selected ? theme.primary : theme.textMuted,
                   fontSize: 12,
                   marginRight: 8,
                   fontWeight: selected ? '600' : '400',
@@ -148,9 +148,9 @@ export default function AlarmsScreen() {
 
       {alarms.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="alarm-outline" size={48} color={theme.textSecondary} />
+          <Ionicons name="alarm-outline" size={48} color={theme.textMuted} />
           <ThemedText style={[styles.emptyTitle, { color: theme.textPrimary }]}>No alarms set</ThemedText>
-          <ThemedText style={[styles.emptySubtitle, { color: theme.textSecondary }]}>Tap + to set your first alarm</ThemedText>
+          <ThemedText style={[styles.emptySubtitle, { color: theme.textMuted }]}>Tap + to set your first alarm</ThemedText>
         </View>
       ) : (
         <FlatList

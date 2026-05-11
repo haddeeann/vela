@@ -177,7 +177,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
     dayTextColor: theme.textPrimary,
     textDisabledColor: theme.textSecondary + '40',
     dotColor: theme.primary,
-    selectedDotColor: '#ffffff',
+    selectedDotColor: theme.primaryText,
     arrowColor: theme.primary,
     disabledArrowColor: theme.textSecondary + '40',
     monthTextColor: theme.textPrimary,
@@ -346,7 +346,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
               >
                 <ThemedText style={[
                   styles.entryTypeText,
-                  entryType === type && { color: '#fff', fontWeight: 'bold' }
+                  entryType === type && { color: theme.primaryText, fontWeight: 'bold' }
                 ]}>
                   {type.charAt(0).toUpperCase() + type.slice(1)}
                 </ThemedText>
@@ -407,7 +407,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
                     style={[styles.closeDatePickerButton, { backgroundColor: theme.primary }]}
                     onPress={() => setIsDatePickerVisible(false)}
                   >
-                    <ThemedText style={styles.closeDatePickerText}>Close</ThemedText>
+                    <ThemedText style={[styles.closeDatePickerText, { color: theme.primaryText }]}>Close</ThemedText>
                   </TouchableOpacity>
                 </ThemedView>
               </TouchableOpacity>
@@ -630,7 +630,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
 
           <ThemedView style={styles.buttonContainer}>
             <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
+              style={[styles.button, styles.cancelButton, { borderColor: theme.border }]}
               onPress={onClose}
               disabled={isSaving}
             >
@@ -643,9 +643,9 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
               disabled={isSaving}
             >
               {isSaving ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={theme.primaryText} />
               ) : (
-                <ThemedText style={styles.saveButtonText}>{existingEntry ? 'Save Changes' : `Save ${entryType.charAt(0).toUpperCase() + entryType.slice(1)}`}</ThemedText>
+                <ThemedText style={[styles.saveButtonText, { color: theme.primaryText }]}>{existingEntry ? 'Save Changes' : `Save ${entryType.charAt(0).toUpperCase() + entryType.slice(1)}`}</ThemedText>
               )}
             </TouchableOpacity>
           </ThemedView>
@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
   },
   entryTypeToggle: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: theme.surfaceVariant || 'rgba(0,0,0,0.05)',
     borderRadius: 12,
     padding: 4,
     marginBottom: 16,

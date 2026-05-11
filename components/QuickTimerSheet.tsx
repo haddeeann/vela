@@ -117,16 +117,16 @@ export const QuickTimerSheet: React.FC<Props> = ({
             <View style={styles.titleRow}>
               <ThemedText style={[styles.title, { color: theme.textPrimary }]}>Quick Timer</ThemedText>
               <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="close" size={22} color={theme.textSecondary} />
+                <Ionicons name="close" size={22} color={theme.textMuted} />
               </TouchableOpacity>
             </View>
 
-            <ThemedText style={[styles.label, { color: theme.textSecondary }]}>What&apos;s this for?</ThemedText>
+            <ThemedText style={[styles.label, { color: theme.textMuted }]}>What&apos;s this for?</ThemedText>
             <TextInput
               value={message}
               onChangeText={setMessage}
               placeholder="e.g. check the oven"
-              placeholderTextColor={theme.textSecondary}
+              placeholderTextColor={theme.textMuted}
               style={[
                 styles.messageInput,
                 { backgroundColor: theme.background, color: theme.textPrimary, borderColor: theme.border },
@@ -134,7 +134,7 @@ export const QuickTimerSheet: React.FC<Props> = ({
               maxLength={60}
             />
 
-            <ThemedText style={[styles.label, { color: theme.textSecondary }]}>Remind me in</ThemedText>
+            <ThemedText style={[styles.label, { color: theme.textMuted }]}>Remind me in</ThemedText>
 
             <View style={styles.pillRow}>
               {PRESET_MINUTES.map((minutes) => {
@@ -163,7 +163,7 @@ export const QuickTimerSheet: React.FC<Props> = ({
             </View>
 
             <View style={styles.customRow}>
-              <ThemedText style={[styles.customLabel, { color: theme.textSecondary }]}>Or type minutes:</ThemedText>
+              <ThemedText style={[styles.customLabel, { color: theme.textMuted }]}>Or type minutes:</ThemedText>
               <TextInput
                 value={customMinutes}
                 onChangeText={(value) => {
@@ -200,7 +200,7 @@ export const QuickTimerSheet: React.FC<Props> = ({
                   style={[styles.primaryHalfButton, { backgroundColor: theme.primary, opacity: effectiveMinutes ? 1 : 0.6 }]}
                   disabled={!effectiveMinutes || isSubmitting}
                 >
-                  <ThemedText style={styles.primaryButtonText}>Replace timer</ThemedText>
+                  <ThemedText style={[styles.primaryButtonText, { color: theme.primaryText }]}>Replace timer</ThemedText>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -210,9 +210,9 @@ export const QuickTimerSheet: React.FC<Props> = ({
                 disabled={!effectiveMinutes || isSubmitting}
               >
                 {isSubmitting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={theme.primaryText} />
                 ) : (
-                  <ThemedText style={styles.primaryButtonText}>Set Timer</ThemedText>
+                  <ThemedText style={[styles.primaryButtonText, { color: theme.primaryText }]}>Set Timer</ThemedText>
                 )}
               </TouchableOpacity>
             )}
@@ -309,7 +309,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   primaryButtonText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
 import { EmptyState } from './EmptyState';
-import { getTheme } from '@/constants/theme';
+import { getTheme, getEntryColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
@@ -289,7 +289,7 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
         const { event, start, end, continuedFromPrevious, continuesToNext } = segment;
         const duration = Math.max(0.25, end - start);
         const showContinuesLabel = continuesToNext && end >= 24;
-        const category = CATEGORIES.find(c => c.id === event.categoryId) || CATEGORIES[4];
+        const entryColors = getEntryColors(event.entryType || 'event', colorScheme);
         const isTask = event.entryType === 'task';
         const isAnchor = event.entryType === 'anchor';
         const isCompleted = !!event.completedAt;
@@ -309,8 +309,8 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
               styles.eventBlock,
               isAnchor ? styles.anchorBlock : styles.foregroundBlock,
               {
-                backgroundColor: isTask ? theme.primary + '20' : (isAnchor ? category.color + '1F' : category.color + '40'),
-                borderLeftColor: isTask ? theme.primary : category.color,
+                backgroundColor: entryColors.background,
+                borderLeftColor: entryColors.primary,
                 top: topPosition,
                 height: blockHeight,
               },
@@ -322,11 +322,11 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
             {isAnchor ? (
               <>
                 <ThemedView style={styles.anchorTitleRow}>
-                  <Ionicons name="infinite-outline" size={10} color={category.color + 'CC'} style={styles.anchorIcon} />
+                  <Ionicons name="infinite-outline" size={10} color={entryColors.primary} style={styles.anchorIcon} />
                   <ThemedText
                     style={[
                       styles.anchorTitle,
-                      { color: category.color + 'CC' },
+                      { color: entryColors.primary },
                       isCompleted && { textDecorationLine: 'line-through' },
                     ]}
                     numberOfLines={1}
@@ -335,13 +335,13 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
                   </ThemedText>
                 </ThemedView>
                 {continuedFromPrevious && (
-                  <Ionicons name="chevron-up" size={10} color={category.color + '99'} style={styles.continuedTop} />
+                  <Ionicons name="chevron-up" size={10} color={entryColors.primary} style={styles.continuedTop} />
                 )}
                 {continuesToNext && (
                   <>
-                    <Ionicons name="chevron-down" size={10} color={category.color + '99'} style={styles.continuedBottom} />
+                    <Ionicons name="chevron-down" size={10} color={entryColors.primary} style={styles.continuedBottom} />
                     {showContinuesLabel && (
-                      <ThemedText style={[styles.continuesLabel, { color: category.color + '99' }]}>↓ continues</ThemedText>
+                      <ThemedText style={[styles.continuesLabel, { color: entryColors.primary }]}>↓ continues</ThemedText>
                     )}
                   </>
                 )}
@@ -352,7 +352,7 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
                   <ThemedText
                     style={[
                       styles.eventTitle,
-                      { color: isTask ? theme.primary : category.color },
+                      { color: entryColors.primary },
                       isCompleted && { textDecorationLine: 'line-through' },
                     ]}
                     numberOfLines={1}
@@ -362,10 +362,21 @@ export function DailyTimeline({ selectedDate, events, onEmptyHourPress, onEntryP
                 </ThemedView>
                 <ThemedText style={[
                   styles.eventTime,
-                  { color: isTask ? theme.primary : category.color },
+                  { color: entryColors.primary },
                 ]} numberOfLines={1}>
                   {event.startTime}
                 </ThemedText>
+                <View style={[
+                  styles.entryTypeBadge,
+                  { backgroundColor: entryColors.badge }
+                ]}>
+                  <ThemedText style={[
+                    styles.entryTypeBadgeText,
+                    { color: entryColors.badgeText }
+                  ]}>
+                    {event.entryType || 'event'}
+                  </ThemedText>
+                </View>
               </>
             )}
           </TouchableOpacity>
@@ -552,5 +563,17 @@ const styles = StyleSheet.create({
   },
   lastHourPadding: {
     height: ROW_HEIGHT,
+  },
+  entryTypeBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 999,
+    marginTop: 2,
+  },
+  entryTypeBadgeText: {
+    fontSize: 10,
+    fontWeight: '500',
+    textTransform: 'capitalize',
   },
 });

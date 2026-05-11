@@ -687,11 +687,11 @@ export default function HomeScreen() {
                     key={`${week.start.toISOString()}-${index}`}
                     style={[
                       styles.weekRow,
-                      { backgroundColor: isSelected ? theme.primary + '1A' : theme.surface },
+                      { backgroundColor: isSelected ? theme.primaryLight : theme.surface },
                     ]}
                     onPress={() => handleDateSelect(formatDateString(week.start))}
                   >
-                    <ThemedText style={[styles.weekRowLabel, { color: theme.textSecondary }]}>
+                    <ThemedText style={[styles.weekRowLabel, { color: theme.textMuted }]}>
                       {`Week ${index + 1}:`}
                     </ThemedText>
                     <ThemedText
@@ -779,7 +779,7 @@ export default function HomeScreen() {
                     <ThemedText
                       style={[
                         styles.monthPillText,
-                        { color: isSelected ? '#FFF' : theme.textPrimary },
+                        { color: isSelected ? theme.primaryText : theme.textPrimary },
                       ]}
                     >
                       {month}
@@ -865,15 +865,16 @@ export default function HomeScreen() {
                       <View
                         style={[
                           styles.dayCell,
-                          isSelected && { backgroundColor: '#E8A23C' },
-                          !isSelected && isToday && { backgroundColor: theme.primary },
+                          isSelected && { backgroundColor: theme.primary },
+                          !isSelected && isToday && { borderWidth: 1, borderColor: theme.primary },
                         ]}
                       >
                         <ThemedText
                           style={[
                             styles.dayCellText,
-                            isOutsideMonth && { color: theme.textSecondary },
-                            (isSelected || isToday) && { color: '#FFFFFF' },
+                            isOutsideMonth && { color: theme.textMuted },
+                            isSelected && { color: theme.primaryText },
+                            !isSelected && isToday && { color: theme.primary },
                           ]}
                         >
                           {date.getDate()}
@@ -949,7 +950,7 @@ export default function HomeScreen() {
             style={[styles.todayButtonWrapper, { opacity: todayButtonOpacity }]}
           >
             <TouchableOpacity
-              style={[styles.todayButton, { backgroundColor: theme.primary + '1A' }]}
+              style={[styles.todayButton, { backgroundColor: theme.primaryLight }]}
               onPress={handleTodayPress}
               activeOpacity={0.7}
             >
@@ -1205,19 +1206,19 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   style={[
                     styles.drawerItem,
-                    viewMode === 'daily' && { backgroundColor: theme.primary + '1A' }
+                    viewMode === 'daily' && { backgroundColor: theme.primaryLight }
                   ]}
                   onPress={() => selectView('daily')}
                 >
                   <Ionicons
                     name="today-outline"
                     size={22}
-                    color={viewMode === 'daily' ? theme.primary : theme.textSecondary}
+                    color={viewMode === 'daily' ? theme.primary : theme.textMuted}
                   />
                   <ThemedText
                     style={[
                       styles.drawerItemText,
-                      { color: viewMode === 'daily' ? theme.primary : theme.textSecondary }
+                      { color: viewMode === 'daily' ? theme.primary : theme.textMuted }
                     ]}
                   >
                     Daily
@@ -1227,19 +1228,19 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   style={[
                     styles.drawerItem,
-                    viewMode === 'weekly' && { backgroundColor: theme.primary + '1A' }
+                    viewMode === 'weekly' && { backgroundColor: theme.primaryLight }
                   ]}
                   onPress={() => selectView('weekly')}
                 >
                   <Ionicons
                     name="grid-outline"
                     size={22}
-                    color={viewMode === 'weekly' ? theme.primary : theme.textSecondary}
+                    color={viewMode === 'weekly' ? theme.primary : theme.textMuted}
                   />
                   <ThemedText
                     style={[
                       styles.drawerItemText,
-                      { color: viewMode === 'weekly' ? theme.primary : theme.textSecondary }
+                      { color: viewMode === 'weekly' ? theme.primary : theme.textMuted }
                     ]}
                   >
                     Weekly
@@ -1249,19 +1250,19 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   style={[
                     styles.drawerItem,
-                    viewMode === 'monthly' && { backgroundColor: theme.primary + '1A' }
+                    viewMode === 'monthly' && { backgroundColor: theme.primaryLight }
                   ]}
                   onPress={() => selectView('monthly')}
                 >
                   <Ionicons
                     name="calendar-outline"
                     size={22}
-                    color={viewMode === 'monthly' ? theme.primary : theme.textSecondary}
+                    color={viewMode === 'monthly' ? theme.primary : theme.textMuted}
                   />
                   <ThemedText
                     style={[
                       styles.drawerItemText,
-                      { color: viewMode === 'monthly' ? theme.primary : theme.textSecondary }
+                      { color: viewMode === 'monthly' ? theme.primary : theme.textMuted }
                     ]}
                   >
                     Monthly
@@ -1277,7 +1278,7 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   style={[
                     styles.drawerItem,
-                    activeTimer && { backgroundColor: theme.primary + '1A' },
+                    activeTimer && { backgroundColor: theme.primaryLight },
                   ]}
                   onPress={() => {
                     closeDrawer();
@@ -1287,13 +1288,13 @@ export default function HomeScreen() {
                   <Ionicons
                     name="alarm-outline"
                     size={22}
-                    color={activeTimer ? theme.primary : theme.textSecondary}
+                    color={activeTimer ? theme.primary : theme.textMuted}
                   />
                   <View style={styles.timerItemTextWrap}>
                     <ThemedText
                       style={[
                         styles.drawerItemText,
-                        { color: activeTimer ? theme.primary : theme.textSecondary },
+                        { color: activeTimer ? theme.primary : theme.textMuted },
                       ]}
                     >
                       {activeTimer ? 'Timer active — tap to cancel' : 'Set a quick timer'}
@@ -1321,7 +1322,7 @@ export default function HomeScreen() {
                     value={showAnchorsOnMonth}
                     onValueChange={setShowAnchorsOnMonth}
                     trackColor={{ false: theme.border, true: theme.primary }}
-                    thumbColor="#FFFFFF"
+                    thumbColor={theme.primaryText}
                   />
                 </View>
 
@@ -1336,7 +1337,7 @@ export default function HomeScreen() {
                     value={showAnchorsOnWeek}
                     onValueChange={setShowAnchorsOnWeek}
                     trackColor={{ false: theme.border, true: theme.primary }}
-                    thumbColor="#FFFFFF"
+                    thumbColor={theme.primaryText}
                   />
                 </View>
               </View>
@@ -1420,7 +1421,7 @@ const styles = StyleSheet.create({
   headerDateText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#9B98A8',
+    color: theme.textMuted,
     marginLeft: 0,
   },
   modalOverlay: {

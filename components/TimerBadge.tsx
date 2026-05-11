@@ -76,10 +76,10 @@ export function TimerBadge({ firesAt, onCancel, theme }: TimerBadgeProps) {
   return (
     <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
       <View style={[styles.badge, { backgroundColor: theme.primary }]}>
-        <Ionicons name="alarm-outline" size={14} color="#FFFFFF" />
-        <ThemedText style={styles.countdown}>{countdownText}</ThemedText>
+        <Ionicons name="alarm-outline" size={14} color={theme.primaryText} />
+        <ThemedText style={[styles.countdown, { color: theme.primaryText }]}>{countdownText}</ThemedText>
         <TouchableOpacity onPress={onCancel} activeOpacity={0.7}>
-          <Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.7)" />
+          <Ionicons name="close-circle" size={16} color={theme.primaryText + 'B3'} />
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -96,7 +96,6 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   countdown: {
-    color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '600',
   },

@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
 import { EmptyState } from './EmptyState';
-import { getTheme } from '@/constants/theme';
+import { getTheme, getEntryColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
@@ -351,7 +351,7 @@ export function WeeklyTimeGrid({
                 const end = parseTime(event.endTime);
                 if (start < 6 || start > 23) return null; // Outside visible range
 
-                const category = CATEGORIES.find(c => c.id === event.categoryId) || CATEGORIES[4];
+                const entryColors = getEntryColors(event.entryType || 'event', colorScheme);
                 const isAnchor = event.entryType === 'anchor';
 
                 if (isAnchor) {
@@ -377,14 +377,14 @@ export function WeeklyTimeGrid({
                           top: (effectiveStart - VISIBLE_START_HOUR) * HOUR_HEIGHT,
                           height: blockHeight,
                           width: columnWidth - 2,
-                          backgroundColor: hexToRgba(category.color, 0.1),
-                          borderColor: hexToRgba(category.color, 0.4),
+                          backgroundColor: entryColors.background,
+                          borderColor: entryColors.primary,
                         }
                       ]}
                       onPress={() => handleEventPress(event)}
                     >
                       {blockHeight >= 30 ? (
-                        <Ionicons name="infinite-outline" size={10} color={hexToRgba(category.color, 0.6)} />
+                        <Ionicons name="infinite-outline" size={10} color={entryColors.primary} />
                       ) : null}
                     </TouchableOpacity>
                   );
@@ -398,7 +398,7 @@ export function WeeklyTimeGrid({
                     style={[
                       styles.eventBlock,
                       {
-                        backgroundColor: category.color,
+                        backgroundColor: entryColors.primary,
                         opacity: 0.8,
                         top: (start - 6) * HOUR_HEIGHT,
                         height: duration * HOUR_HEIGHT,

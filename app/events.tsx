@@ -4,13 +4,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { getTheme } from '@/constants/theme';
+import { getTheme, getEntryColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getAllEntries, createEntry, createRecurrenceRule } from '@/db';
 import { EntryWithMeta } from '@/types';
 import { AddEventModal } from '@/components/add-event-modal';
 import { QuickAddBar } from '@/components/QuickAddBar';
-import { CATEGORIES } from '@/constants/categories';
 import { EmptyState } from '@/components/EmptyState';
 import { formatDateString, parseDateString } from '@/utils/dateUtils';
 
@@ -71,7 +70,7 @@ export default function EventsScreen() {
   };
 
   const renderEventItem = ({ item, index }: { item: EntryWithMeta, index: number }) => {
-    const category = CATEGORIES.find(c => c.id === item.category) || CATEGORIES[4];
+    const entryColors = getEntryColors(item.entry_type, colorScheme);
     const showDateHeader = index === 0 || events[index - 1].date !== item.date;
 
     const d = parseDateString(item.date);
@@ -82,9 +81,26 @@ export default function EventsScreen() {
         {showDateHeader && (
           <ThemedText type="subtitle" style={styles.dateHeader}>{formattedDate}</ThemedText>
         )}
-        <ThemedView style={[styles.eventCard, { backgroundColor: theme.surface, borderLeftColor: category.color }]}>
+        <ThemedView style={[
+          styles.eventCard,
+          {
+            backgroundColor: entryColors.background,
+            borderLeftColor: entryColors.primary
+          }
+        ]}>
           <View style={styles.eventInfo}>
             <ThemedText style={styles.eventTitle}>{item.title}</ThemedText>
+            <View style={[
+              styles.typeBadge,
+              { backgroundColor: entryColors.badge }
+            ]}>
+              <ThemedText style={[
+                styles.typeBadgeText,
+                { color: entryColors.badgeText }
+              ]}>
+                Event
+              </ThemedText>
+            </View>
             <ThemedText style={styles.eventTime}>
               {item.start_time}{item.end_time && item.end_time !== item.start_time ? ` - ${item.end_time}` : ''}
             </ThemedText>
@@ -199,7 +215,18 @@ const styles = StyleSheet.create({
   },
   eventTime: {
     fontSize: 14,
-    color: '#9B98A8',
+    color: theme.textMuted,
     marginTop: 4,
+  },
+  typeBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    marginTop: 6,
+  },
+  typeBadgeText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
 });

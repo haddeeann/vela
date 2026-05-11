@@ -228,7 +228,7 @@ export const AlarmEditSheet: React.FC<Props> = ({ visible, existingAlarm, onClos
                     {isEditMode ? 'Edit Alarm' : 'New Alarm'}
                   </ThemedText>
                   <TouchableOpacity onPress={onClose}>
-                    <Ionicons name="close" size={24} color={theme.textSecondary} />
+                    <Ionicons name="close" size={24} color={theme.textMuted} />
                   </TouchableOpacity>
                 </View>
 
@@ -241,12 +241,12 @@ export const AlarmEditSheet: React.FC<Props> = ({ visible, existingAlarm, onClos
                 )}
 
                 <ThemedView style={styles.section}>
-                  <ThemedText style={[styles.sectionLabel, { color: theme.textSecondary }]}>Label</ThemedText>
+                  <ThemedText style={[styles.sectionLabel, { color: theme.textMuted }]}>Label</ThemedText>
                   <TextInput
                     value={title}
                     onChangeText={setTitle}
                     placeholder="Alarm"
-                    placeholderTextColor={theme.textSecondary}
+                    placeholderTextColor={theme.textMuted}
                     style={[
                       styles.input,
                       {
@@ -262,7 +262,7 @@ export const AlarmEditSheet: React.FC<Props> = ({ visible, existingAlarm, onClos
                 </ThemedView>
 
                 <ThemedView style={styles.section}>
-                  <ThemedText style={[styles.sectionLabel, { color: theme.textSecondary }]}>Repeat</ThemedText>
+                  <ThemedText style={[styles.sectionLabel, { color: theme.textMuted }]}>Repeat</ThemedText>
                   <View style={styles.dayRow}>
                     {DAY_LABELS.map((label, index) => {
                       const selected = selectedDays.includes(index);
@@ -278,12 +278,12 @@ export const AlarmEditSheet: React.FC<Props> = ({ visible, existingAlarm, onClos
                           ]}
                           onPress={() => toggleDay(index)}
                         >
-                          <ThemedText style={{ color: selected ? '#FFFFFF' : theme.textSecondary, fontWeight: '600' }}>{label[0]}</ThemedText>
+                          <ThemedText style={{ color: selected ? theme.primaryText : theme.textMuted, fontWeight: '600' }}>{label[0]}</ThemedText>
                         </TouchableOpacity>
                       );
                     })}
                   </View>
-                  <ThemedText style={[styles.repeatSummary, { color: theme.textSecondary }]}>{repeatSummary}</ThemedText>
+                  <ThemedText style={[styles.repeatSummary, { color: theme.textMuted }]}>{repeatSummary}</ThemedText>
                 </ThemedView>
               </ScrollView>
 
@@ -299,9 +299,9 @@ export const AlarmEditSheet: React.FC<Props> = ({ visible, existingAlarm, onClos
                   onPress={handleSave}
                 >
                   {isSaving ? (
-                    <ActivityIndicator color="#FFFFFF" />
+                    <ActivityIndicator color={theme.primaryText} />
                   ) : (
-                    <ThemedText style={styles.saveButtonText}>Save Alarm</ThemedText>
+                    <ThemedText style={[styles.saveButtonText, { color: theme.primaryText }]}>Save Alarm</ThemedText>
                   )}
                 </TouchableOpacity>
               </View>

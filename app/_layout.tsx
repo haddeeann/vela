@@ -7,6 +7,7 @@ import 'react-native-reanimated';
 import { View } from 'react-native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAppearance } from '@/hooks/useAppearance'
 import { getAllAlarms, updateAlarm, initDB } from '@/db';
 import { registerReminderCategories } from '@/notifications/registerReminderCategories';
 import { rescheduleAlarm } from '@/utils/alarmScheduler';
@@ -17,7 +18,7 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const { colorScheme, isLoaded } = useAppearance()
   const router = useRouter();
   const segments = useSegments();
 
@@ -101,7 +102,7 @@ export default function RootLayout() {
     };
   }, [isBootstrapped, segments, router]);
 
-  if (!isBootstrapped || !isRouteReady) {
+  if (!isBootstrapped || !isRouteReady || !isLoaded) {
     return <View style={{ flex: 1 }} />;
   }
 
@@ -112,6 +113,7 @@ export default function RootLayout() {
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="alarms" options={{ headerShown: false }} />
           <Stack.Screen name="alarm-screen" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+          <Stack.Screen name="settings" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style="auto" />

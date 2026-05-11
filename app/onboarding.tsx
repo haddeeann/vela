@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getTheme } from '@/constants/theme';
+import { getTheme, getEntryColors } from '@/constants/theme';
 import { setHasOnboarded } from '@/utils/calendarSettings';
 
 const SLEEP_ANCHOR_PLACEHOLDER = 'e.g. sleep every day 10:30pm to 6:30am';
@@ -65,21 +65,21 @@ export default function OnboardingScreen() {
         <View style={[styles.conceptsCard, { borderColor: theme.border }]}>
           <ConceptRow
             icon="calendar-outline"
-            iconColor={theme.primary}
+            iconColor={getEntryColors('event', colorScheme).primary}
             title="Events"
             description="Appointments and commitments with a specific time."
             theme={theme}
           />
           <ConceptRow
             icon="checkbox-outline"
-            iconColor="#2BA888"
+            iconColor={getEntryColors('task', colorScheme).primary}
             title="Tasks"
             description="Things to get done, with or without a deadline."
             theme={theme}
           />
           <ConceptRow
             icon="infinite-outline"
-            iconColor="#7F50C4"
+            iconColor={getEntryColors('anchor', colorScheme).primary}
             title="Anchors"
             description="The recurring patterns that hold your day together — sleep, meals, anything that happens every day."
             isLast
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: theme.primaryText,
   },
   skipContainer: {
     alignSelf: 'center',

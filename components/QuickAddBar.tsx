@@ -11,7 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from './themed-text';
 import { EntryType, QuickAddDraft } from '../types/quickAdd.types';
 import { parseQuickAdd } from '../utils/quickAddParser';
-import { getTheme } from '../constants/theme';
+import { getTheme, getEntryColors } from '../constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface QuickAddBarProps {
   visible: boolean;
@@ -142,20 +143,22 @@ export function QuickAddBar({
 
   const renderTypePill = (type: EntryType, label: string) => {
     const isSelected = selectedType === type;
+    const colorScheme = useColorScheme();
+    const entryColors = getEntryColors(type as any, colorScheme);
 
     return (
       <TouchableOpacity
         onPress={() => setSelectedType(isSelected ? null : type)}
         style={[
           styles.pill,
-          { borderColor: isSelected ? theme.primary : theme.border },
-          isSelected && { backgroundColor: theme.primary + '22' },
+          { borderColor: isSelected ? entryColors.primary : theme.border },
+          isSelected && { backgroundColor: entryColors.badge },
         ]}
       >
         <ThemedText
           style={[
             styles.pillLabel,
-            { color: isSelected ? theme.primary : theme.textSecondary },
+            { color: isSelected ? entryColors.badgeText : theme.textSecondary },
           ]}
         >
           {label}

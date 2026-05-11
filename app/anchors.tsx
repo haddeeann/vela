@@ -4,13 +4,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { getTheme } from '@/constants/theme';
+import { getTheme, getEntryColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getAllEntries, createEntry, createRecurrenceRule } from '@/db';
 import { EntryWithMeta } from '@/types';
 import { AddEventModal } from '@/components/add-event-modal';
 import { QuickAddBar } from '@/components/QuickAddBar';
-import { CATEGORIES } from '@/constants/categories';
 import { EmptyState } from '@/components/EmptyState';
 import { formatDateString } from '@/utils/dateUtils';
 
@@ -64,14 +63,33 @@ export default function AnchorsScreen() {
   };
 
   const renderAnchorItem = ({ item }: { item: EntryWithMeta }) => {
-    const category = CATEGORIES.find(c => c.id === item.category) || CATEGORIES[4];
+    const entryColors = getEntryColors('anchor', colorScheme);
 
     return (
-      <ThemedView style={[styles.anchorCard, { backgroundColor: theme.surface, borderLeftColor: category.color }]}>
+      <ThemedView style={[
+        styles.anchorCard,
+        {
+          backgroundColor: entryColors.background,
+          borderLeftColor: entryColors.primary
+        }
+      ]}>
         <View style={styles.anchorInfo}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <ThemedText style={styles.anchorTitle}>{item.title}</ThemedText>
-            <Ionicons name="repeat" size={14} color={theme.textSecondary} style={{ marginLeft: 6 }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <ThemedText style={styles.anchorTitle}>{item.title}</ThemedText>
+              <Ionicons name="repeat" size={14} color={theme.textSecondary} style={{ marginLeft: 6 }} />
+            </View>
+            <View style={[
+              styles.typeBadge,
+              { backgroundColor: entryColors.badge }
+            ]}>
+              <ThemedText style={[
+                styles.typeBadgeText,
+                { color: entryColors.badgeText }
+              ]}>
+                Anchor
+              </ThemedText>
+            </View>
           </View>
           <ThemedText style={styles.anchorTime}>
             {item.start_time}{item.end_time && item.end_time !== item.start_time ? ` - ${item.end_time}` : ''}
@@ -179,7 +197,16 @@ const styles = StyleSheet.create({
   },
   anchorTime: {
     fontSize: 14,
-    color: '#9B98A8',
+    color: theme.textMuted,
     marginTop: 4,
+  },
+  typeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  typeBadgeText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
 });

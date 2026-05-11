@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { getTheme } from '@/constants/theme';
+import { getTheme, getEntryColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getAllEntries, updateEntry, createEntry, createRecurrenceRule } from '@/db';
 import { EntryWithMeta } from '@/types';
@@ -92,6 +92,7 @@ export default function TasksScreen() {
   ].filter(section => section.data.length > 0);
 
   const renderTaskItem = ({ item }: { item: EntryWithMeta }) => {
+    const entryColors = getEntryColors('task', colorScheme);
     const isCompleted = !!item.completed_at;
     let priority: string | undefined;
     if (item.notes) {
@@ -107,7 +108,14 @@ export default function TasksScreen() {
 
     return (
       <TouchableOpacity
-        style={[styles.taskCard, { backgroundColor: theme.surface }]}
+        style={[
+          styles.taskCard,
+          {
+            backgroundColor: entryColors.background,
+            borderLeftColor: entryColors.primary,
+            borderLeftWidth: 4,
+          }
+        ]}
         onPress={() => handleToggleTaskCompletion(item)}
       >
         <Ionicons
@@ -120,6 +128,17 @@ export default function TasksScreen() {
           <ThemedText style={[styles.taskTitle, isCompleted && styles.completedText, { color: isCompleted ? theme.textSecondary : theme.textPrimary }]}>
             {item.title}
           </ThemedText>
+          <View style={[
+            styles.typeBadge,
+            { backgroundColor: entryColors.badge }
+          ]}>
+            <ThemedText style={[
+              styles.typeBadgeText,
+              { color: entryColors.badgeText }
+            ]}>
+              Task
+            </ThemedText>
+          </View>
           <ThemedText style={styles.taskDate}>
             Due: {formattedDate} {priority ? `• ${priority.charAt(0).toUpperCase() + priority.slice(1)}` : ''}
           </ThemedText>
@@ -239,11 +258,23 @@ const styles = StyleSheet.create({
   },
   taskDate: {
     fontSize: 12,
-    color: '#9B98A8',
+    color: theme.textMuted,
     marginTop: 2,
   },
   completedText: {
     textDecorationLine: 'line-through',
     opacity: 0.6,
+  },
+  typeBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  typeBadgeText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
 });
