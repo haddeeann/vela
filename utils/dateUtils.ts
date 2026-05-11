@@ -17,10 +17,12 @@ export const formatHourLabel = (hour: number): string => {
   return `${hour - 12} PM`;
 };
 
+export const toMondayIndex = (jsDay: number): number =>
+  jsDay === 0 ? 6 : jsDay - 1;
+
 export const getWeekStart = (date: Date): Date => {
   const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
+  const diff = -toMondayIndex(d.getDay());
   d.setDate(d.getDate() + diff);
   d.setHours(0, 0, 0, 0);
   return d;

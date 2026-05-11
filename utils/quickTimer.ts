@@ -5,6 +5,7 @@ export async function scheduleQuickTimer(
   minutes: number
 ): Promise<{ notificationId: string; firesAt: Date }> {
   const firesAt = new Date(Date.now() + minutes * 60000);
+
   const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Timer',
@@ -12,6 +13,14 @@ export async function scheduleQuickTimer(
       sound: 'default',
       priority: Notifications.AndroidNotificationPriority.MAX,
       data: { isQuickTimer: true },
+      android: {
+        channelId: 'vela-timers',
+        priority: 'max',
+        fullScreenIntent: true,
+        ongoing: false,
+        sticky: false,
+        vibrate: [0, 500, 200, 500],
+      },
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,

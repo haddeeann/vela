@@ -41,7 +41,8 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
   const pressScalesRef = React.useRef<Record<string, Animated.Value>>({});
 
   const cellHeight = availableHeight / 6;
-  const cellWidth = screenWidth / 7;
+  // want some buffer to fit it all on screen
+  const cellWidth = screenWidth / 8;
 
   console.log('[MonthGrid] day headers:', DAY_HEADERS);
 

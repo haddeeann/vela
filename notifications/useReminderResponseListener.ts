@@ -22,7 +22,7 @@ export const useReminderResponseListener = (
 
       if (actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
         // Tapped on the notification itself
-        router.push({
+        router.replace({
           pathname: '/alarm-screen',
           params: {
             title: String(content.title ?? 'Reminder'),

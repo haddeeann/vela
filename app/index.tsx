@@ -274,7 +274,7 @@ export default function HomeScreen() {
         const content = notification.request.content
         const notifData = content.data as Record<string, unknown> | undefined
 
-        router.push({
+        router.replace({
           pathname: '/alarm-screen',
           params: {
             title: String(content.title ?? 'Reminder'),
