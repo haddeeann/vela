@@ -77,7 +77,7 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const [selectedDate, setSelectedDate] = useState(formatDateString(new Date()));
-  const [viewMode, setViewMode] = useState<'monthly' | 'weekly' | 'daily'>('monthly');
+  const [viewMode, setViewMode] = useState<'monthly' | 'weekly' | 'daily'>('daily');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isMonthPickerVisible, setIsMonthPickerVisible] = useState(false);
   const [isWeekPickerVisible, setIsWeekPickerVisible] = useState(false);
@@ -1205,22 +1205,22 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   style={[
                     styles.drawerItem,
-                    viewMode === 'monthly' && { backgroundColor: theme.primary + '1A' }
+                    viewMode === 'daily' && { backgroundColor: theme.primary + '1A' }
                   ]}
-                  onPress={() => selectView('monthly')}
+                  onPress={() => selectView('daily')}
                 >
                   <Ionicons
-                    name="calendar-outline"
+                    name="today-outline"
                     size={22}
-                    color={viewMode === 'monthly' ? theme.primary : theme.textSecondary}
+                    color={viewMode === 'daily' ? theme.primary : theme.textSecondary}
                   />
                   <ThemedText
                     style={[
                       styles.drawerItemText,
-                      { color: viewMode === 'monthly' ? theme.primary : theme.textSecondary }
+                      { color: viewMode === 'daily' ? theme.primary : theme.textSecondary }
                     ]}
                   >
-                    Monthly
+                    Daily
                   </ThemedText>
                 </TouchableOpacity>
 
@@ -1249,22 +1249,22 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   style={[
                     styles.drawerItem,
-                    viewMode === 'daily' && { backgroundColor: theme.primary + '1A' }
+                    viewMode === 'monthly' && { backgroundColor: theme.primary + '1A' }
                   ]}
-                  onPress={() => selectView('daily')}
+                  onPress={() => selectView('monthly')}
                 >
                   <Ionicons
-                    name="today-outline"
+                    name="calendar-outline"
                     size={22}
-                    color={viewMode === 'daily' ? theme.primary : theme.textSecondary}
+                    color={viewMode === 'monthly' ? theme.primary : theme.textSecondary}
                   />
                   <ThemedText
                     style={[
                       styles.drawerItemText,
-                      { color: viewMode === 'daily' ? theme.primary : theme.textSecondary }
+                      { color: viewMode === 'monthly' ? theme.primary : theme.textSecondary }
                     ]}
                   >
-                    Daily
+                    Monthly
                   </ThemedText>
                 </TouchableOpacity>
               </View>
