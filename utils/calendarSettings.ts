@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 
+const SHOW_ANCHORS_KEY = 'vela_show_anchors';
 const SHOW_ANCHORS_MONTH_KEY = 'vela_show_anchors_month';
 const SHOW_ANCHORS_WEEK_KEY = 'vela_show_anchors_week';
 const HAS_ONBOARDED_KEY = 'vela_has_onboarded';
@@ -18,88 +19,48 @@ export const setHasOnboarded = async (): Promise<void> => {
   await AsyncStorage.setItem(HAS_ONBOARDED_KEY, 'true');
 };
 
-export const getShowAnchorsOnMonth = async (): Promise<boolean> => {
-  const value = await AsyncStorage.getItem(SHOW_ANCHORS_MONTH_KEY);
-  if (value === null) {
-    return false;
+export const getShowAnchors = async (): Promise<boolean> => {
+  const val = await AsyncStorage.getItem(SHOW_ANCHORS_KEY);
+  return val !== 'false';
+};
+
+export const persistShowAnchors = async (value: boolean): Promise<void> => {
+  await AsyncStorage.setItem(SHOW_ANCHORS_KEY, String(value));
+};
+
+const migrate = async () => {
+  const oldMonth = await AsyncStorage.getItem(SHOW_ANCHORS_MONTH_KEY);
+  const oldWeek = await AsyncStorage.getItem(SHOW_ANCHORS_WEEK_KEY);
+  const alreadyMigrated = await AsyncStorage.getItem(SHOW_ANCHORS_KEY);
+
+  if (!alreadyMigrated && (oldMonth !== null || oldWeek !== null)) {
+    const showAnchors = oldMonth !== 'false' && oldWeek !== 'false';
+    await AsyncStorage.setItem(SHOW_ANCHORS_KEY, String(showAnchors));
   }
-
-  return value === 'true';
 };
 
-export const setShowAnchorsOnMonth = async (value: boolean): Promise<void> => {
-  await AsyncStorage.setItem(SHOW_ANCHORS_MONTH_KEY, String(value));
-};
-
-export const getShowAnchorsOnWeek = async (): Promise<boolean> => {
-  const value = await AsyncStorage.getItem(SHOW_ANCHORS_WEEK_KEY);
-  if (value === null) {
-    return true;
-  }
-
-  return value === 'true';
-};
-
-export const setShowAnchorsOnWeek = async (value: boolean): Promise<void> => {
-  await AsyncStorage.setItem(SHOW_ANCHORS_WEEK_KEY, String(value));
-};
-
-export const useCalendarSettings = (): {
-  showAnchorsOnMonth: boolean;
-  showAnchorsOnWeek: boolean;
-  setShowAnchorsOnMonth: (val: boolean) => Promise<void>;
-  setShowAnchorsOnWeek: (val: boolean) => Promise<void>;
-  loaded: boolean;
-} => {
-  const [showAnchorsOnMonth, setShowAnchorsOnMonthState] = useState(false);
-  const [showAnchorsOnWeek, setShowAnchorsOnWeekState] = useState(true);
-  const [loaded, setLoaded] = useState(false);
+export function useCalendarSettings() {
+  const [showAnchors, setShowAnchorsState] = useState(true);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const loadSettings = async () => {
-      const [monthValue, weekValue] = await Promise.all([
-        getShowAnchorsOnMonth(),
-        getShowAnchorsOnWeek(),
-      ]);
-
-      if (!isMounted) {
-        return;
-      }
-
-      setShowAnchorsOnMonthState(monthValue);
-      setShowAnchorsOnWeekState(weekValue);
-      setLoaded(true);
-    };
-
-    loadSettings().catch((error) => {
-      console.error('Failed to load calendar settings', error);
-      if (isMounted) {
-        setLoaded(true);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
+    migrate()
+      .then(() => getShowAnchors())
+      .then((val) => setShowAnchorsState(val))
+      .catch(() => {});
   }, []);
 
-  const setShowAnchorsOnMonthValue = useCallback(async (val: boolean) => {
-    setShowAnchorsOnMonthState(val);
-    await setShowAnchorsOnMonth(val);
-  }, []);
-
-  const setShowAnchorsOnWeekValue = useCallback(async (val: boolean) => {
-    setShowAnchorsOnWeekState(val);
-    await setShowAnchorsOnWeek(val);
+  const setShowAnchors = useCallback(async (value: boolean) => {
+    setShowAnchorsState(value);
+    await persistShowAnchors(value);
   }, []);
 
   return {
-    showAnchorsOnMonth,
-    showAnchorsOnWeek,
-    setShowAnchorsOnMonth: setShowAnchorsOnMonthValue,
-    setShowAnchorsOnWeek: setShowAnchorsOnWeekValue,
-    loaded,
+    showAnchors,
+    setShowAnchors,
+    showAnchorsOnMonth: showAnchors,
+    showAnchorsOnWeek: showAnchors,
+    showAnchorsOnDaily: showAnchors,
+    setShowAnchorsOnMonth: setShowAnchors,
+    setShowAnchorsOnWeek: setShowAnchors,
   };
-};
+}

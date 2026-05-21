@@ -101,13 +101,14 @@ export default function HomeScreen() {
   const [quickAddPrefilledDate, setQuickAddPrefilledDate] = useState<string | undefined>(undefined);
   const [quickAddPrefilledStartTime, setQuickAddPrefilledStartTime] = useState<string | undefined>(undefined);
   const [quickAddPrefilledEndTime, setQuickAddPrefilledEndTime] = useState<string | undefined>(undefined);
+  const [quickAddPrefilledRecurrence, setQuickAddPrefilledRecurrence] = useState<RecurrenceType | undefined>(undefined);
   const [modalPrefillTitle, setModalPrefillTitle] = useState<string | undefined>(undefined);
   const [activeTimer, setActiveTimer] = useState<{ notificationId: string; firesAt: Date } | null>(null);
   const [isTimerSheetVisible, setIsTimerSheetVisible] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<CalendarEvent | null>(null);
   const [isEntryDetailVisible, setIsEntryDetailVisible] = useState(false);
   const [editingEntry, setEditingEntry] = useState<EditableEntry | null>(null);
-  const { showAnchorsOnMonth, showAnchorsOnWeek } = useCalendarSettings();
+  const { showAnchorsOnDaily } = useCalendarSettings();
   const slideAnim = useRef(new Animated.Value(-Dimensions.get('window').width * 0.72)).current;
   const dropdownFadeAnim = useRef(new Animated.Value(0)).current;
   const dropdownScaleAnim = useRef(new Animated.Value(0.95)).current;
@@ -964,6 +965,7 @@ export default function HomeScreen() {
               setQuickAddPrefilledDate(undefined);
               setQuickAddPrefilledStartTime(undefined);
               setQuickAddPrefilledEndTime(undefined);
+              setQuickAddPrefilledRecurrence(undefined);
               setIsQuickAddVisible(true);
             }}
             activeOpacity={0.7}
@@ -991,6 +993,7 @@ export default function HomeScreen() {
         onWeeklyEmptySlotPress={handleWeeklyEmptySlotPress}
         onWeeklyEntryPress={openEntryDetail}
         onWeeklyHeaderDayPress={handleWeeklyHeaderDayPress}
+        showAnchorsOnDaily={showAnchorsOnDaily}
         events={allEvents}
         view={viewMode}
       />
@@ -1008,6 +1011,7 @@ export default function HomeScreen() {
           setQuickAddPrefilledType(undefined);
           setQuickAddPrefilledStartTime(undefined);
           setQuickAddPrefilledEndTime(undefined);
+          setQuickAddPrefilledRecurrence(undefined);
           setModalPrefillTitle(undefined);
         }}
         onSave={handleAddEvent}
@@ -1026,6 +1030,7 @@ export default function HomeScreen() {
         prefilledEndTime={quickAddPrefilledEndTime}
         prefilledType={quickAddPrefilledType}
         prefilledTitle={modalPrefillTitle}
+        prefilledRecurrence={quickAddPrefilledRecurrence}
       />
 
       <AddEventModal
@@ -1040,28 +1045,40 @@ export default function HomeScreen() {
         visible={isQuickAddVisible}
         onClose={() => {
           setIsQuickAddVisible(false);
-          setQuickAddPrefilledType(undefined);
-          setQuickAddPrefilledPlaceholder(undefined);
-          setQuickAddPrefilledStartTime(undefined);
-          setQuickAddPrefilledEndTime(undefined);
           consumedQuickAddRef.current = false;
         }}
         onOpenFullForm={(date, draft, type) => {
-          console.log('[index] onOpenFullForm received date:', date);
-          console.log('[index] selectedDate state:', selectedDate);
-          console.log('[index] dateToUse:', date ?? selectedDate);
+          console.log('[index] onOpenFullForm — date:', date);
+          console.log('[index] onOpenFullForm — type:', type);
+          console.log('[index] onOpenFullForm — draft:', {
+            title: draft?.title,
+            entryType: draft?.entryType,
+            startTime: draft?.startTime,
+            endTime: draft?.endTime,
+            recurrence: draft?.recurrence,
+          });
+          console.log('[index] setting prefilledType:', type);
+          console.log('[index] setting prefilledStartTime:', draft?.startTime);
+          console.log('[index] setting prefilledEndTime:', draft?.endTime);
+          console.log('[index] setting prefilledRecurrence:', draft?.recurrence);
           setIsQuickAddVisible(false);
           setQuickAddPrefilledDate(date ?? selectedDate);
-          console.log('[index] quickAddPrefilledDate set to:', date ?? selectedDate);
-          setQuickAddPrefilledType(type);
           if (draft) {
             setQuickAddPrefilledStartTime(draft.startTime);
             setQuickAddPrefilledEndTime(draft.endTime);
             setModalPrefillTitle(draft.title);
+            setQuickAddPrefilledRecurrence(
+              typeof draft.recurrence === 'object'
+                ? draft.recurrence?.frequency
+                : draft.recurrence
+            );
+          } else {
+            setQuickAddPrefilledStartTime(undefined);
+            setQuickAddPrefilledEndTime(undefined);
+            setQuickAddPrefilledRecurrence(undefined);
           }
+          setQuickAddPrefilledType(type ?? draft?.entryType);
           setIsModalVisible(true);
-          console.log('[index] isModalVisible set to true');
-          console.log('[index] editingEntry is:', editingEntry);
         }}
         theme={theme}
         prefilledType={quickAddPrefilledType}

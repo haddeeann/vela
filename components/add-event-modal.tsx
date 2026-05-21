@@ -5,7 +5,7 @@ import { Calendar } from 'react-native-calendars';
 import DateTimePicker, { DateTimePickerEvent, DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
-import { getTheme } from '@/constants/theme';
+import { getTheme, getEntryColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import { formatDateString } from '@/utils/dateUtils';
@@ -61,16 +61,36 @@ interface AddEventModalProps {
   prefilledEndTime?: string;
   prefilledType?: 'event' | 'task' | 'anchor';
   prefilledTitle?: string;
+  prefilledRecurrence?: RecurrenceType;
 }
 
-export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initialEntryType, existingEntry, onSaved, initialValues, prefilledDate, prefilledStartTime, prefilledEndTime, prefilledType, prefilledTitle }: AddEventModalProps) {
-  console.log('[AddEventModal] render — props:', {
+export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initialEntryType, existingEntry, onSaved, initialValues, prefilledDate, prefilledStartTime, prefilledEndTime, prefilledType, prefilledTitle, prefilledRecurrence }: AddEventModalProps) {
+  console.log('[AddEventModal] props:', {
     isVisible,
+    prefilledType,
+    prefilledStartTime,
+    prefilledEndTime,
+    prefilledRecurrence,
+    prefilledTitle,
     prefilledDate,
   });
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
+  const eventColors = getEntryColors('event', colorScheme);
+  const taskColors = getEntryColors('task', colorScheme);
+  const anchorColors = getEntryColors('anchor', colorScheme);
   const { height: screenHeight } = useWindowDimensions();
+
+  const getTypeColors = (type: 'event' | 'task' | 'anchor') => {
+    switch (type) {
+      case 'event':
+        return eventColors;
+      case 'task':
+        return taskColors;
+      case 'anchor':
+        return anchorColors;
+    }
+  };
 
   const [entryType, setEntryType] = useState<'event' | 'task' | 'anchor'>(initialEntryType || prefilledType || 'event');
   const [title, setTitle] = useState('');
@@ -124,6 +144,45 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
     });
   };
 
+  const parseTimeToHours = (time: string): number => {
+    if (!time) return -1;
+    const cleaned = time.trim().toUpperCase();
+    const isPM = cleaned.includes('PM');
+    const isAM = cleaned.includes('AM');
+    const part = cleaned
+      .replace('AM', '')
+      .replace('PM', '')
+      .trim();
+    const [h, m] = part.split(':').map(Number);
+    let hours = isNaN(h) ? 0 : h;
+    const mins = isNaN(m) ? 0 : m;
+    if (isPM && hours < 12) hours += 12;
+    if (isAM && hours === 12) hours = 0;
+    return hours + mins / 60;
+  };
+
+  const startTime = entryType === 'task' ? '' : formatTimeLabel(startTimeDate);
+  const endTime = entryType === 'task' ? '' : formatTimeLabel(endTimeDate);
+
+  const isOvernight = useMemo(() => {
+    if (!startTime || !endTime) return false;
+    const start = parseTimeToHours(startTime);
+    const end = parseTimeToHours(endTime);
+    return start >= 0 && end >= 0 && end < start;
+  }, [startTime, endTime]);
+
+  const getDurationMinutes = (): number => {
+    if (!startTime || !endTime) return 0;
+    const start = parseTimeToHours(startTime);
+    const end = parseTimeToHours(endTime);
+    if (start < 0 || end < 0) return 0;
+
+    if (end < start) {
+      return Math.round((24 - start + end) * 60);
+    }
+    return Math.round((end - start) * 60);
+  };
+
   const openAndroidTimePicker = (field: 'start' | 'end' | 'due') => {
     DateTimePickerAndroid.open({
       value: field === 'start' ? startTimeDate : field === 'end' ? endTimeDate : dueTimeDate || getNextRoundHour(),
@@ -140,15 +199,10 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
 
         if (field === 'start') {
           setStartTimeDate(selectedDate);
-          const minEndTime = new Date(selectedDate.getTime() + 30 * 60 * 1000);
-          if (endTimeDate < minEndTime) {
-            setEndTimeDate(minEndTime);
-          }
           return;
         }
 
-        const minEndTime = new Date(startTimeDate.getTime() + 30 * 60 * 1000);
-        setEndTimeDate(selectedDate < minEndTime ? minEndTime : selectedDate);
+        setEndTimeDate(selectedDate);
       },
     });
   };
@@ -192,7 +246,6 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
 
   useEffect(() => {
     if (isVisible) {
-      console.log('[AddEventModal] useEffect — isVisible:', isVisible, 'prefilledDate:', prefilledDate);
       if (existingEntry) {
         setTitle(existingEntry.title);
         setDate(existingEntry.date);
@@ -224,24 +277,37 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
           setEndTimeDate(parsedEndTime);
         }
       } else {
-        setEntryType(prefilledType || initialEntryType || 'event');
-        setTitle(
-          prefilledTitle ??
-          ''
-        );
-        const existingDate = (existingEntry as ExistingEntry | undefined)?.date;
-        const initialDate = (initialValues as { date?: string } | undefined)?.date;
-        const dateValue = existingDate ??
-          initialDate ??
-          prefilledDate ??
-          formatDateString(new Date());
-        console.log('[AddEventModal] setting entryDate to:', dateValue);
+        const resolvedType =
+          prefilledType ??
+          initialEntryType ??
+          'event';
+
+        console.log('[AddEventModal] useEffect init:', {
+          resolvedType,
+          resolvedStartTime: prefilledStartTime,
+          resolvedEndTime: prefilledEndTime,
+          resolvedRecurrence:
+            prefilledRecurrence ??
+            (resolvedType === 'anchor' ? 'daily' : 'none'),
+          resolvedTitle: prefilledTitle ?? '',
+        });
+
+        setEntryType(resolvedType);
+        setTitle(prefilledTitle ?? '');
+
+        const resolvedRecurrence =
+          prefilledRecurrence ??
+          (resolvedType === 'anchor' ? 'daily' : 'none');
+
+        setRecurrence(resolvedRecurrence);
+        setCategoryId('personal');
+
         setDate(
           prefilledDate ??
           selectedDate ??
           formatDateString(new Date())
         );
-        
+
         if (prefilledStartTime) {
           const parsed = parseTimeLabel(prefilledStartTime);
           if (parsed) setStartTimeDate(parsed);
@@ -256,7 +322,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
       setShowDueTimePicker(false);
       setIsDatePickerVisible(false);
     }
-  }, [isVisible, prefilledDate, selectedDate, existingEntry, initialValues, initialEntryType, prefilledType, prefilledStartTime, prefilledEndTime, prefilledTitle]);
+  }, [isVisible, prefilledDate, selectedDate, existingEntry, initialValues, initialEntryType, prefilledType, prefilledStartTime, prefilledEndTime, prefilledTitle, prefilledRecurrence]);
 
   useEffect(() => {
     if (entryType === 'anchor') {
@@ -337,27 +403,43 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
       >
         <ThemedView style={[styles.modalContent, { maxHeight: screenHeight * 0.9, backgroundColor: theme.surface }]}>
           <ThemedView style={[styles.entryTypeToggle, { backgroundColor: theme.surfaceVariant || 'rgba(0,0,0,0.05)' }]}>
-            {(['event', 'task', 'anchor'] as const).map((type) => (
-              <TouchableOpacity
-                key={type}
-                style={[
-                  styles.entryTypeButton,
-                  entryType === type && { backgroundColor: theme.primary }
-                ]}
-                onPress={() => setEntryType(type)}
-              >
-                <ThemedText style={[
-                  styles.entryTypeText,
-                  entryType === type && { color: theme.primaryText, fontWeight: 'bold' }
-                ]}>
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                </ThemedText>
-              </TouchableOpacity>
-            ))}
+            {(['event', 'task', 'anchor'] as const).map((type) => {
+              const isSelected = entryType === type;
+
+              return (
+                <TouchableOpacity
+                  key={type}
+                  style={[
+                    styles.entryTypeButton,
+                    {
+                      backgroundColor: isSelected
+                        ? getTypeColors(type).primary
+                        : theme.surface,
+                      borderColor: isSelected
+                        ? getTypeColors(type).primary
+                        : theme.border,
+                    },
+                  ]}
+                  onPress={() => setEntryType(type)}
+                >
+                  <ThemedText style={[
+                    styles.entryTypeText,
+                    {
+                      color: isSelected ? '#FFFFFF' : theme.textMuted,
+                      fontWeight: isSelected ? '600' : '400',
+                    },
+                  ]}>
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </ThemedText>
+                </TouchableOpacity>
+              );
+            })}
           </ThemedView>
 
           <ThemedText type="subtitle" style={styles.modalTitle}>
-            {(existingEntry || initialValues) ? 'Edit Entry' : `Add New ${entryType.charAt(0).toUpperCase() + entryType.slice(1)}`}
+            {(existingEntry || initialValues)
+              ? `Edit ${entryType.charAt(0).toUpperCase() + entryType.slice(1)}`
+              : `Add New ${entryType.charAt(0).toUpperCase() + entryType.slice(1)}`}
           </ThemedText>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -501,11 +583,6 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
                     onChange={(_event: DateTimePickerEvent, selectedDate?: Date) => {
                       if (selectedDate) {
                         setStartTimeDate(selectedDate);
-                        // If end time is before start time + 30 mins, nudge it
-                        const minEndTime = new Date(selectedDate.getTime() + 30 * 60 * 1000);
-                        if (endTimeDate < minEndTime) {
-                          setEndTimeDate(minEndTime);
-                        }
                       }
                     }}
                   />
@@ -524,9 +601,27 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
                     }
                   }}
                 >
-                  <ThemedText style={{ color: theme.textPrimary }}>
-                    {formatTimeLabel(endTimeDate)}
-                  </ThemedText>
+                  <View style={styles.endTimeRow}>
+                    <ThemedText style={[
+                      styles.timeValue,
+                      { color: endTime ? theme.textPrimary : theme.textMuted },
+                    ]}>
+                      {endTime || 'End time'}
+                    </ThemedText>
+                    {isOvernight && (
+                      <View style={[
+                        styles.nextDayBadge,
+                        { backgroundColor: anchorColors.badge },
+                      ]}>
+                        <ThemedText style={[
+                          styles.nextDayText,
+                          { color: anchorColors.badgeText },
+                        ]}>
+                          Next day
+                        </ThemedText>
+                      </View>
+                    )}
+                  </View>
                   <Ionicons name="time-outline" size={20} color={theme.textSecondary} />
                 </TouchableOpacity>
 
@@ -538,13 +633,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
                     display="spinner"
                     onChange={(_event: DateTimePickerEvent, selectedDate?: Date) => {
                       if (selectedDate) {
-                        const minEndTime = new Date(startTimeDate.getTime());
-                        if (selectedDate < minEndTime) {
-                          // Nudge it forward to start time + 30 minutes
-                          setEndTimeDate(new Date(startTimeDate.getTime() + 30 * 60 * 1000));
-                        } else {
-                          setEndTimeDate(selectedDate);
-                        }
+                        setEndTimeDate(selectedDate);
                       }
                     }}
                   />
@@ -701,10 +790,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     alignItems: 'center',
     borderRadius: 8,
+    borderWidth: 1,
   },
   entryTypeText: {
     fontSize: 14,
-    fontWeight: '600',
   },
   label: {
     fontSize: 14,
@@ -805,5 +894,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
     marginBottom: 8,
+  },
+  endTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  timeValue: {
+    fontSize: 16,
+  },
+  nextDayBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  nextDayText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
 });

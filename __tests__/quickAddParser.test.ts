@@ -48,6 +48,15 @@ describe('parseQuickAdd — time extraction', () => {
     expect(result.startTime).toBeTruthy()
     expect(result.endTime).toBeTruthy()
   })
+
+  it('extracts overnight range with from/to', () => {
+    const result = parseQuickAdd('Sleep from 9pm to 5am daily')
+    expect(result.startTime).toMatch(/9.*PM/i)
+    expect(result.endTime).toMatch(/5.*AM/i)
+    expect(result.recurrence?.frequency).toBe('daily')
+    expect(result.entryType).toBe('anchor')
+    expect(result.title).toBe('Sleep')
+  })
 })
 
 describe('parseQuickAdd — recurrence', () => {

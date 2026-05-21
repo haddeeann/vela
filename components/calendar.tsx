@@ -39,6 +39,7 @@ interface CalendarProps {
   onWeeklyHeaderDayPress?: (date: string) => void;
   events: Event[];
   view: 'monthly' | 'weekly' | 'daily';
+  showAnchorsOnDaily?: boolean;
   style?: any;
 }
 
@@ -54,6 +55,7 @@ export default function Calendar({
   onWeeklyHeaderDayPress,
   events,
   view,
+  showAnchorsOnDaily = true,
   style,
 }: CalendarProps) {
   console.log('[Calendar] view:', view);
@@ -138,6 +140,7 @@ export default function Calendar({
           <DailyTimeline
             selectedDate={selectedDate}
             events={events}
+            showAnchorsOnDaily={showAnchorsOnDaily}
             onEmptyHourPress={onDailyEmptyHourPress}
             onEntryPress={onDailyEntryPress}
           />

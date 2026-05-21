@@ -12,12 +12,7 @@ import { ThemedView } from '@/components/themed-view';
 export default function SettingsScreen() {
   const { mode, colorScheme, updateMode } = useAppearance();
   const theme = getTheme(colorScheme);
-  const {
-    showAnchorsOnMonth,
-    showAnchorsOnWeek,
-    setShowAnchorsOnMonth,
-    setShowAnchorsOnWeek,
-  } = useCalendarSettings();
+  const { showAnchors, setShowAnchors } = useCalendarSettings();
 
   return (
     <ThemedView style={styles.container}>
@@ -98,38 +93,18 @@ export default function SettingsScreen() {
             styles.settingCard,
             { backgroundColor: theme.surface, borderColor: theme.border }
           ]}>
-            <View style={[
-              styles.toggleRow,
-              { borderBottomColor: theme.border }
-            ]}>
-              <View style={styles.toggleTextWrap}>
-                <ThemedText style={[styles.toggleLabel, { color: theme.textPrimary }]}>
-                  Show anchors on month
-                </ThemedText>
-                <ThemedText style={[styles.toggleSublabel, { color: theme.textMuted }]}>
-                  Display anchor stripe in monthly cells
-                </ThemedText>
-              </View>
-              <Switch
-                value={showAnchorsOnMonth}
-                onValueChange={setShowAnchorsOnMonth}
-                trackColor={{ false: theme.border, true: theme.primary }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-
             <View style={styles.toggleRow}>
               <View style={styles.toggleTextWrap}>
                 <ThemedText style={[styles.toggleLabel, { color: theme.textPrimary }]}>
-                  Show anchors on week
+                  Show anchors
                 </ThemedText>
                 <ThemedText style={[styles.toggleSublabel, { color: theme.textMuted }]}>
-                  Display anchors in weekly time grid
+                  Display anchors across all calendar views
                 </ThemedText>
               </View>
               <Switch
-                value={showAnchorsOnWeek}
-                onValueChange={setShowAnchorsOnWeek}
+                value={showAnchors}
+                onValueChange={setShowAnchors}
                 trackColor={{ false: theme.border, true: theme.primary }}
                 thumbColor="#FFFFFF"
               />

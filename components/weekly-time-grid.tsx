@@ -33,11 +33,17 @@ interface WeeklyTimeGridProps {
   onHeaderDayPress?: (date: string) => void;
 }
 
-const HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 6 AM to 10 PM
-const HOUR_HEIGHT = 50;
+const TIMELINE_START_HOUR = 0;
+const TIMELINE_END_HOUR = 24;
+const HOUR_HEIGHT = 60;
+const ROW_HEIGHT = HOUR_HEIGHT;
 const TIME_COLUMN_WIDTH = 50;
-const VISIBLE_START_HOUR = 6;
-const VISIBLE_END_HOUR = 22;
+const VISIBLE_START_HOUR = TIMELINE_START_HOUR;
+const VISIBLE_END_HOUR = TIMELINE_END_HOUR;
+const HOURS = Array.from(
+  { length: TIMELINE_END_HOUR - TIMELINE_START_HOUR },
+  (_, i) => i + TIMELINE_START_HOUR
+);
 
 const hexToRgba = (hex: string, alpha: number) => {
   const normalized = hex.replace('#', '');
@@ -99,25 +105,59 @@ export function WeeklyTimeGrid({
     const scrollToCurrentHour = () => {
       const now = new Date();
       const currentHour = now.getHours();
-      const targetHour = (currentHour >= 6 && currentHour <= 22) ? currentHour : 8;
-      const scrollOffset = (targetHour - 6) * HOUR_HEIGHT;
+      const scrollToHour = Math.max(0, currentHour - 1);
+      const scrollY = scrollToHour * ROW_HEIGHT;
 
-      if (scrollViewRef.current) {
-        scrollViewRef.current.scrollTo({ y: scrollOffset, animated: true });
-      }
+      scrollViewRef.current?.scrollTo({
+        y: scrollY,
+        animated: false,
+      });
     };
 
     const timer = setTimeout(scrollToCurrentHour, 100);
     return () => clearTimeout(timer);
   }, [selectedDate]);
 
-  const parseTime = (timeStr: string) => {
-    if (!timeStr) return 0;
-    const [time, period] = timeStr.split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
-    if (period === 'PM' && hours < 12) hours += 12;
-    if (period === 'AM' && hours === 12) hours = 0;
+  const parseTimeToHours = (time: string): number => {
+    if (!time || !time.trim()) return 0;
+
+    const cleaned = time.trim().toUpperCase();
+    const isPM = cleaned.includes('PM');
+    const isAM = cleaned.includes('AM');
+
+    const timePart = cleaned
+      .replace('AM', '')
+      .replace('PM', '')
+      .trim();
+
+    const [hourStr, minuteStr] = timePart.split(':');
+    let hours = parseInt(hourStr, 10);
+    const minutes = parseInt(minuteStr ?? '0', 10);
+
+    if (isNaN(hours) || isNaN(minutes)) return 0;
+
+    if (isPM && hours < 12) hours += 12;
+    if (isAM && hours === 12) hours = 0;
+
     return hours + minutes / 60;
+  };
+
+  const getTopPosition = (time: string): number => {
+    const totalHours = parseTimeToHours(time);
+    const offsetFromStart = totalHours - TIMELINE_START_HOUR;
+    if (offsetFromStart < 0) return 0;
+    return offsetFromStart * ROW_HEIGHT;
+  };
+
+  const getBlockHeight = (
+    startTime: string,
+    endTime: string
+  ): number => {
+    const start = parseTimeToHours(startTime);
+    const end = parseTimeToHours(endTime);
+    const duration = end - start;
+    if (duration <= 0) return ROW_HEIGHT;
+    return duration * ROW_HEIGHT;
   };
 
   const getEventsForDay = (date: Date) => {
@@ -159,11 +199,19 @@ export function WeeklyTimeGrid({
   const flashedCellRef = useRef<string | null>(null);
   const flashOpacity = useRef(new Animated.Value(0)).current;
 
-  const formatHourLabel = (hour: number) => {
-    if (hour === 0) return '12:00 AM';
-    if (hour === 12) return '12:00 PM';
-    if (hour > 12) return `${hour - 12}:00 PM`;
-    return `${hour}:00 AM`;
+  const formatHourLabel = (hour: number): string => {
+    if (hour === 0) return '12 AM';
+    if (hour === 12) return '12 PM';
+    if (hour < 12) return `${hour} AM`;
+    return `${hour - 12} PM`;
+  };
+
+  const formatSlotTimeLabel = (hour: number) => {
+    const h = hour % 24;
+    if (h === 0) return '12:00 AM';
+    if (h === 12) return '12:00 PM';
+    if (h > 12) return `${h - 12}:00 PM`;
+    return `${h}:00 AM`;
   };
 
   const flashCell = (cellKey: string) => {
@@ -186,8 +234,8 @@ export function WeeklyTimeGrid({
 
   const getVisibleSegmentsForDay = (date: Date) => {
     return getEventsForDay(date).flatMap(event => {
-      const start = parseTime(event.startTime);
-      const end = event.endTime ? parseTime(event.endTime) : start + 0.5;
+      const start = parseTimeToHours(event.startTime);
+      const end = event.endTime ? parseTimeToHours(event.endTime) : start + 0.5;
       const isAnchor = event.entryType === 'anchor';
 
       if (isAnchor && !showAnchorsOnWeek) return [];
@@ -207,8 +255,8 @@ export function WeeklyTimeGrid({
   };
 
   const handleEmptySlotPress = (date: string, hour: number) => {
-    const startTime = formatHourLabel(hour);
-    const endTime = formatHourLabel(hour + 1);
+    const startTime = formatSlotTimeLabel(hour);
+    const endTime = formatSlotTimeLabel(hour + 1);
     const cellKey = `${date}-${hour}`;
     flashCell(cellKey);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -271,7 +319,7 @@ export function WeeklyTimeGrid({
             {HOURS.map(hour => (
               <View key={hour} style={[styles.hourRow, { height: HOUR_HEIGHT }]}>
                 <ThemedText style={styles.timeLabel}>
-                  {hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
+                  {formatHourLabel(hour)}
                 </ThemedText>
               </View>
             ))}
@@ -347,9 +395,9 @@ export function WeeklyTimeGrid({
                   return null;
                 }
 
-                const start = parseTime(event.startTime);
-                const end = parseTime(event.endTime);
-                if (start < 6 || start > 23) return null; // Outside visible range
+                const start = parseTimeToHours(event.startTime);
+                const end = parseTimeToHours(event.endTime);
+                if (start < TIMELINE_START_HOUR || start >= TIMELINE_END_HOUR) return null;
 
                 const entryColors = getEntryColors(event.entryType || 'event', colorScheme);
                 const isAnchor = event.entryType === 'anchor';
@@ -374,7 +422,7 @@ export function WeeklyTimeGrid({
                         styles.eventBlock,
                         styles.anchorBlock,
                         {
-                          top: (effectiveStart - VISIBLE_START_HOUR) * HOUR_HEIGHT,
+                          top: getTopPosition(formatSlotTimeLabel(effectiveStart)),
                           height: blockHeight,
                           width: columnWidth - 2,
                           backgroundColor: entryColors.background,
@@ -390,7 +438,10 @@ export function WeeklyTimeGrid({
                   );
                 }
 
-                const duration = Math.max(0.5, end - start);
+                const blockHeight = Math.max(
+                  getBlockHeight(event.startTime, event.endTime),
+                  0.5 * ROW_HEIGHT
+                );
 
                 return (
                   <TouchableOpacity
@@ -400,8 +451,8 @@ export function WeeklyTimeGrid({
                       {
                         backgroundColor: entryColors.primary,
                         opacity: 0.8,
-                        top: (start - 6) * HOUR_HEIGHT,
-                        height: duration * HOUR_HEIGHT,
+                        top: getTopPosition(event.startTime),
+                        height: blockHeight,
                         width: columnWidth - 2,
                         zIndex: 1,
                       }

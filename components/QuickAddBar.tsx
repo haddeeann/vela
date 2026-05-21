@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Keyboard,
   Pressable,
@@ -29,6 +29,13 @@ interface QuickAddBarProps {
 
 const defaultPlaceholder = "Add anything... 'dentist Thursday 2pm'";
 
+const TYPE_PLACEHOLDERS = {
+  event: "e.g. 'Dentist Thursday at 2pm'",
+  task: "e.g. 'Buy groceries by Friday'",
+  anchor: "e.g. 'Sleep every day 10:30pm to 6:30am'",
+  default: "Add anything... event, task, or anchor",
+};
+
 export function QuickAddBar({
   visible,
   onClose,
@@ -46,6 +53,15 @@ export function QuickAddBar({
   const [selectedType, setSelectedType] = useState<EntryType | null>(null);
   const isSubmittingRef = useRef(false);
   const colorScheme = useColorScheme();
+
+  const activePlaceholder = useMemo(() => {
+    if (prefilledPlaceholder) return prefilledPlaceholder;
+    if (selectedType) {
+      return TYPE_PLACEHOLDERS[selectedType]
+        ?? TYPE_PLACEHOLDERS.default;
+    }
+    return TYPE_PLACEHOLDERS.default;
+  }, [selectedType, prefilledPlaceholder]);
 
   const resolvedPrefilledEndTime = React.useMemo(() => {
     if (prefilledEndTime) return prefilledEndTime;
@@ -121,21 +137,31 @@ export function QuickAddBar({
     if (prefilledDate && !draft.date) {
       draft.date = prefilledDate;
     }
-    if (prefilledStartTime) {
-      draft.startTime = prefilledStartTime;
-      draft.endTime = resolvedPrefilledEndTime;
-      draft.entryType = 'event';
-    }
     if (selectedType) {
       draft.entryType = selectedType;
     }
 
-    console.log('[QuickAddBar] draft.date:', draft?.date);
-    console.log('[QuickAddBar] passing to onOpenFullForm:', draft?.date ?? prefilledDate);
+    console.log('[QuickAdd] raw input:', input);
+    console.log('[QuickAdd] selectedType pill:', selectedType);
+    console.log('[QuickAdd] draft after parse:', {
+      title: draft.title,
+      entryType: draft.entryType,
+      startTime: draft.startTime,
+      endTime: draft.endTime,
+      recurrence: draft.recurrence,
+      date: draft.date,
+    });
+    console.log('[QuickAdd] calling onOpenFullForm with:', {
+      date: draft.date ?? prefilledDate,
+      draftEntryType: draft.entryType,
+      draftStartTime: draft.startTime,
+      draftEndTime: draft.endTime,
+      draftRecurrence: draft.recurrence,
+    });
     onOpenFullForm(
       draft.date ?? prefilledDate,
       draft,
-      selectedType ?? undefined
+      draft.entryType ?? selectedType ?? undefined
     );
     setInput('');
     setSelectedType(null);
@@ -191,8 +217,12 @@ export function QuickAddBar({
           <View style={styles.inputRow}>
             <TextInput
               style={[styles.input, { color: theme.textPrimary }]}
-              placeholder={prefilledPlaceholder || defaultPlaceholder}
-              placeholderTextColor={theme.textSecondary + '80'}
+              placeholder={activePlaceholder}
+              placeholderTextColor={
+                selectedType
+                  ? theme.textMuted
+                  : theme.textSecondary + '60'
+              }
               value={input}
               onChangeText={setInput}
               autoFocus
