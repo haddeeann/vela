@@ -6,7 +6,6 @@ import Constants, { ExecutionEnvironment } from 'expo-constants';
 import 'react-native-reanimated';
 import { View } from 'react-native';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAppearance } from '@/hooks/useAppearance'
 import { getAllAlarms, updateAlarm, initDB } from '@/db';
 import { registerReminderCategories } from '@/notifications/registerReminderCategories';
@@ -103,7 +102,7 @@ export default function RootLayout() {
   }, [isBootstrapped, segments, router]);
 
   if (!isBootstrapped || !isRouteReady || !isLoaded) {
-    return <View style={{ flex: 1 }} />;
+    return <View style={{ flex: 1, backgroundColor: '#FAF8F4' }} />;
   }
 
   return (

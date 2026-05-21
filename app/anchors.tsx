@@ -73,11 +73,11 @@ export default function AnchorsScreen() {
           borderLeftColor: entryColors.primary
         }
       ]}>
-        <View style={styles.anchorInfo}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <ThemedText style={styles.anchorTitle}>{item.title}</ThemedText>
-              <Ionicons name="repeat" size={14} color={theme.textSecondary} style={{ marginLeft: 6 }} />
+          <View style={styles.anchorInfo}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <ThemedText style={styles.anchorTitle}>{item.title}</ThemedText>
+                <Ionicons name="repeat" size={14} color={theme.textSecondary} style={{ marginLeft: 6 }} />
             </View>
             <View style={[
               styles.typeBadge,
@@ -91,7 +91,7 @@ export default function AnchorsScreen() {
               </ThemedText>
             </View>
           </View>
-          <ThemedText style={styles.anchorTime}>
+          <ThemedText style={[styles.anchorTime, { color: theme.textMuted }]}>
             {item.start_time}{item.end_time && item.end_time !== item.start_time ? ` - ${item.end_time}` : ''}
           </ThemedText>
         </View>
@@ -197,7 +197,6 @@ const styles = StyleSheet.create({
   },
   anchorTime: {
     fontSize: 14,
-    color: theme.textMuted,
     marginTop: 4,
   },
   typeBadge: {

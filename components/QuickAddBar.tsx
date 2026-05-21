@@ -45,6 +45,7 @@ export function QuickAddBar({
   const [input, setInput] = useState('');
   const [selectedType, setSelectedType] = useState<EntryType | null>(null);
   const isSubmittingRef = useRef(false);
+  const colorScheme = useColorScheme();
 
   const resolvedPrefilledEndTime = React.useMemo(() => {
     if (prefilledEndTime) return prefilledEndTime;
@@ -143,7 +144,6 @@ export function QuickAddBar({
 
   const renderTypePill = (type: EntryType, label: string) => {
     const isSelected = selectedType === type;
-    const colorScheme = useColorScheme();
     const entryColors = getEntryColors(type as any, colorScheme);
 
     return (

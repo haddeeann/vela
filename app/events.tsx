@@ -101,7 +101,7 @@ export default function EventsScreen() {
                 Event
               </ThemedText>
             </View>
-            <ThemedText style={styles.eventTime}>
+            <ThemedText style={[styles.eventTime, { color: theme.textMuted }]}>
               {item.start_time}{item.end_time && item.end_time !== item.start_time ? ` - ${item.end_time}` : ''}
             </ThemedText>
           </View>
@@ -215,7 +215,6 @@ const styles = StyleSheet.create({
   },
   eventTime: {
     fontSize: 14,
-    color: theme.textMuted,
     marginTop: 4,
   },
   typeBadge: {

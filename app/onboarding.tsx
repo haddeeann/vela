@@ -96,7 +96,7 @@ export default function OnboardingScreen() {
             onPress={handleAddSleepAnchor}
             activeOpacity={0.85}
           >
-            <ThemedText style={styles.primaryButtonText}>Add my sleep anchor →</ThemedText>
+            <ThemedText style={[styles.primaryButtonText, { color: theme.primaryText }]}>Add my sleep anchor →</ThemedText>
           </TouchableOpacity>
         </View>
 
@@ -178,7 +178,6 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: theme.primaryText,
   },
   skipContainer: {
     alignSelf: 'center',

@@ -10,7 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
 export default function SettingsScreen() {
-  const { mode, colorScheme, updateMode } = useAppearance()
+  const { mode, colorScheme, updateMode } = useAppearance();
   const theme = getTheme(colorScheme);
   const {
     showAnchorsOnMonth,
@@ -32,32 +32,52 @@ export default function SettingsScreen() {
       />
       <SafeAreaView style={styles.content}>
         <View style={styles.section}>
-          <ThemedText style={styles.sectionLabel}>
+          <ThemedText style={[styles.sectionLabel, { color: theme.textMuted }]}>
             Appearance
           </ThemedText>
 
-          {(['system', 'light', 'dark'] as AppearanceMode[])
-            .map((option) => (
+          <View style={[
+            styles.settingCard,
+            { backgroundColor: theme.surface, borderColor: theme.border }
+          ]}>
+            {([
+              { value: 'system', label: 'Follow system setting',
+                icon: 'phone-portrait-outline' },
+              { value: 'light',  label: 'Light mode',
+                icon: 'sunny-outline' },
+              { value: 'dark',   label: 'Dark mode',
+                icon: 'moon-outline' },
+            ] as { value: AppearanceMode; label: string;
+                    icon: string }[]).map((option, index, arr) => (
               <TouchableOpacity
-                key={option}
+                key={option.value}
                 style={[
                   styles.optionRow,
-                  { borderBottomColor: theme.border }
+                  { borderBottomColor: theme.border,
+                    borderBottomWidth:
+                      index < arr.length - 1 ? 0.5 : 0 }
                 ]}
-                onPress={() => updateMode(option)}
+                onPress={() => updateMode(option.value)}
               >
-                <ThemedText style={[
-                  styles.optionLabel,
-                  { color: theme.textPrimary }
-                ]}>
-                  {option === 'system'
-                    ? 'Follow system setting'
-                    : option === 'light'
-                    ? 'Light mode'
-                    : 'Dark mode'
-                  }
-                </ThemedText>
-                {mode === option && (
+                <View style={styles.optionLeft}>
+                  <Ionicons
+                    name={option.icon as any}
+                    size={20}
+                    color={mode === option.value
+                      ? theme.primary
+                      : theme.textMuted}
+                    style={{ marginRight: 12 }}
+                  />
+                  <ThemedText style={[
+                    styles.optionLabel,
+                    { color: mode === option.value
+                        ? theme.primary
+                        : theme.textPrimary }
+                  ]}>
+                    {option.label}
+                  </ThemedText>
+                </View>
+                {mode === option.value && (
                   <Ionicons
                     name="checkmark"
                     size={20}
@@ -65,45 +85,55 @@ export default function SettingsScreen() {
                   />
                 )}
               </TouchableOpacity>
-            ))
-          }
+            ))}
+          </View>
         </View>
 
         <View style={styles.section}>
-          <ThemedText style={styles.sectionLabel}>Anchors</ThemedText>
+          <ThemedText style={[styles.sectionLabel, { color: theme.textMuted }]}>
+            Anchors
+          </ThemedText>
 
-          <View style={styles.toggleRow}>
-            <View style={styles.toggleTextContainer}>
-              <ThemedText style={[styles.toggleLabel, { color: theme.textPrimary }]}>
-                Show anchors on month
-              </ThemedText>
-              <ThemedText style={[styles.toggleSubLabel, { color: theme.textSecondary }]}>
-                Display anchor details in month cells
-              </ThemedText>
+          <View style={[
+            styles.settingCard,
+            { backgroundColor: theme.surface, borderColor: theme.border }
+          ]}>
+            <View style={[
+              styles.toggleRow,
+              { borderBottomColor: theme.border }
+            ]}>
+              <View style={styles.toggleTextWrap}>
+                <ThemedText style={[styles.toggleLabel, { color: theme.textPrimary }]}>
+                  Show anchors on month
+                </ThemedText>
+                <ThemedText style={[styles.toggleSublabel, { color: theme.textMuted }]}>
+                  Display anchor stripe in monthly cells
+                </ThemedText>
+              </View>
+              <Switch
+                value={showAnchorsOnMonth}
+                onValueChange={setShowAnchorsOnMonth}
+                trackColor={{ false: theme.border, true: theme.primary }}
+                thumbColor="#FFFFFF"
+              />
             </View>
-            <Switch
-              value={showAnchorsOnMonth}
-              onValueChange={setShowAnchorsOnMonth}
-              trackColor={{ false: theme.border, true: theme.primary }}
-              thumbColor={theme.primaryText}
-            />
-          </View>
 
-          <View style={styles.toggleRow}>
-            <View style={styles.toggleTextContainer}>
-              <ThemedText style={[styles.toggleLabel, { color: theme.textPrimary }]}>
-                Show anchors on week
-              </ThemedText>
-              <ThemedText style={[styles.toggleSubLabel, { color: theme.textSecondary }]}>
-                Display anchors in weekly time grid
-              </ThemedText>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleTextWrap}>
+                <ThemedText style={[styles.toggleLabel, { color: theme.textPrimary }]}>
+                  Show anchors on week
+                </ThemedText>
+                <ThemedText style={[styles.toggleSublabel, { color: theme.textMuted }]}>
+                  Display anchors in weekly time grid
+                </ThemedText>
+              </View>
+              <Switch
+                value={showAnchorsOnWeek}
+                onValueChange={setShowAnchorsOnWeek}
+                trackColor={{ false: theme.border, true: theme.primary }}
+                thumbColor="#FFFFFF"
+              />
             </View>
-            <Switch
-              value={showAnchorsOnWeek}
-              onValueChange={setShowAnchorsOnWeek}
-              trackColor={{ false: theme.border, true: theme.primary }}
-              thumbColor={theme.primaryText}
-            />
           </View>
         </View>
       </SafeAreaView>
@@ -119,15 +149,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   section: {
-    marginTop: 20,
+    marginBottom: 28,
   },
   sectionLabel: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '600',
     textTransform: 'uppercase',
-    color: theme.textMuted,
-    marginBottom: 12,
-    marginLeft: 20,
+    letterSpacing: 0.6,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  settingCard: {
+    borderRadius: 12,
+    borderWidth: 0.5,
+    overflow: 'hidden',
   },
   optionRow: {
     flexDirection: 'row',
@@ -135,19 +170,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderBottomWidth: 0.5,
+  },
+  optionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   optionLabel: {
-    fontSize: 16,
+    fontSize: 15,
   },
   toggleRow: {
-    minHeight: 56,
-    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 0.5,
   },
-  toggleTextContainer: {
+  toggleTextWrap: {
     flex: 1,
     marginRight: 12,
   },
@@ -155,8 +195,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
   },
-  toggleSubLabel: {
+  toggleSublabel: {
     fontSize: 12,
     marginTop: 2,
+    lineHeight: 16,
   },
 });

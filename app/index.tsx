@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, TouchableOpacity, InteractionManager, Platform, Alert, View, Animated, Modal, Pressable, Switch, Dimensions, DevSettings, Text } from 'react-native';
+import { StyleSheet, TouchableOpacity, InteractionManager, Platform, Alert, View, Animated, Modal, Pressable, Dimensions, DevSettings, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
@@ -11,7 +11,7 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import Calendar from '@/components/calendar';
 import { AddEventModal } from '@/components/add-event-modal';
-import { getTheme } from '@/constants/theme';
+import { getTheme, getEntryColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import { CategoryId } from '@/constants/categories';
@@ -107,12 +107,7 @@ export default function HomeScreen() {
   const [selectedEntry, setSelectedEntry] = useState<CalendarEvent | null>(null);
   const [isEntryDetailVisible, setIsEntryDetailVisible] = useState(false);
   const [editingEntry, setEditingEntry] = useState<EditableEntry | null>(null);
-  const {
-    showAnchorsOnMonth,
-    showAnchorsOnWeek,
-    setShowAnchorsOnMonth,
-    setShowAnchorsOnWeek,
-  } = useCalendarSettings();
+  const { showAnchorsOnMonth, showAnchorsOnWeek } = useCalendarSettings();
   const slideAnim = useRef(new Animated.Value(-Dimensions.get('window').width * 0.72)).current;
   const dropdownFadeAnim = useRef(new Animated.Value(0)).current;
   const dropdownScaleAnim = useRef(new Animated.Value(0.95)).current;
@@ -925,7 +920,10 @@ export default function HomeScreen() {
           >
             <ThemedText
               type={viewMode === 'monthly' ? "subtitle" : "default"}
-              style={viewMode === 'monthly' ? styles.monthSelectorText : styles.headerDateText}
+              style={[
+                viewMode === 'monthly' ? styles.monthSelectorText : styles.headerDateText,
+                viewMode !== 'monthly' && { color: theme.textMuted },
+              ]}
             >
               {getHeaderTitle()}
             </ThemedText>
@@ -1145,7 +1143,7 @@ export default function HomeScreen() {
               style={styles.dropdownItem}
               onPress={() => navigateFromDropdown('/events')}
             >
-              <Ionicons name="calendar-outline" size={22} color={theme.primary} />
+              <Ionicons name="calendar-outline" size={22} color={getEntryColors('event', colorScheme).primary} />
               <ThemedText style={styles.dropdownItemText}>Events</ThemedText>
             </TouchableOpacity>
             <View style={[styles.dropdownDivider, { backgroundColor: theme.border }]} />
@@ -1153,7 +1151,7 @@ export default function HomeScreen() {
               style={styles.dropdownItem}
               onPress={() => navigateFromDropdown('/tasks')}
             >
-              <Ionicons name="checkbox-outline" size={22} color={theme.primary} />
+              <Ionicons name="checkbox-outline" size={22} color={getEntryColors('task', colorScheme).primary} />
               <ThemedText style={styles.dropdownItemText}>Tasks</ThemedText>
             </TouchableOpacity>
             <View style={[styles.dropdownDivider, { backgroundColor: theme.border }]} />
@@ -1161,7 +1159,7 @@ export default function HomeScreen() {
               style={styles.dropdownItem}
               onPress={() => navigateFromDropdown('/anchors')}
             >
-              <Ionicons name="infinite-outline" size={22} color={theme.primary} />
+              <Ionicons name="infinite-outline" size={22} color={getEntryColors('anchor', colorScheme).primary} />
               <ThemedText style={styles.dropdownItemText}>Anchors</ThemedText>
             </TouchableOpacity>
             <View style={[styles.dropdownDivider, { backgroundColor: theme.border }]} />
@@ -1194,7 +1192,12 @@ export default function HomeScreen() {
           >
             <Pressable style={{ flex: 1 }}>
               <View style={styles.drawerHeader}>
-                <ThemedText type="title">Vela</ThemedText>
+                <ThemedText
+                  type="title"
+                  style={{ color: theme.primary }}
+                >
+                  Vela
+                </ThemedText>
                 <TouchableOpacity onPress={closeDrawer}>
                   <Ionicons name="close" size={28} color={theme.textPrimary} />
                 </TouchableOpacity>
@@ -1308,41 +1311,30 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View style={[styles.divider, { backgroundColor: theme.border }]} />
-
-              <View style={styles.drawerSection}>
-                <ThemedText style={styles.sectionLabel}>Anchors</ThemedText>
-
-                <View style={styles.toggleRow}>
-                  <View style={styles.toggleTextContainer}>
-                    <ThemedText style={[styles.toggleLabel, { color: theme.textPrimary }]}>Show anchors on month</ThemedText>
-                    <ThemedText style={[styles.toggleSubLabel, { color: theme.textSecondary }]}>Display anchor details in month cells</ThemedText>
-                  </View>
-                  <Switch
-                    value={showAnchorsOnMonth}
-                    onValueChange={setShowAnchorsOnMonth}
-                    trackColor={{ false: theme.border, true: theme.primary }}
-                    thumbColor={theme.primaryText}
-                  />
-                </View>
-
-                <View style={[styles.toggleRowDivider, { backgroundColor: theme.border + '80' }]} />
-
-                <View style={styles.toggleRow}>
-                  <View style={styles.toggleTextContainer}>
-                    <ThemedText style={[styles.toggleLabel, { color: theme.textPrimary }]}>Show anchors on week</ThemedText>
-                    <ThemedText style={[styles.toggleSubLabel, { color: theme.textSecondary }]}>Display anchors in weekly time grid</ThemedText>
-                  </View>
-                  <Switch
-                    value={showAnchorsOnWeek}
-                    onValueChange={setShowAnchorsOnWeek}
-                    trackColor={{ false: theme.border, true: theme.primary }}
-                    thumbColor={theme.primaryText}
-                  />
-                </View>
-              </View>
-
               <View style={styles.drawerBottomSpacer} />
+
+              <TouchableOpacity
+                style={[
+                  styles.settingsRow,
+                  { borderTopColor: theme.border }
+                ]}
+                onPress={() => {
+                  closeDrawer()
+                  setTimeout(() => router.push('/settings'), 300)
+                }}
+              >
+                <Ionicons
+                  name="settings-outline"
+                  size={20}
+                  color={theme.textMuted}
+                />
+                <ThemedText style={[
+                  styles.settingsRowLabel,
+                  { color: theme.textMuted }
+                ]}>
+                  Settings
+                </ThemedText>
+              </TouchableOpacity>
 
               {__DEV__ && (
                 <TouchableOpacity style={styles.devResetButton} onPress={handleDevReset}>
@@ -1421,7 +1413,6 @@ const styles = StyleSheet.create({
   headerDateText: {
     fontSize: 16,
     fontWeight: '500',
-    color: theme.textMuted,
     marginLeft: 0,
   },
   modalOverlay: {
@@ -1609,31 +1600,20 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 10,
   },
-  toggleRow: {
-    minHeight: 56,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  toggleTextContainer: {
-    flex: 1,
-    marginRight: 12,
-  },
-  toggleLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  toggleSubLabel: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  toggleRowDivider: {
-    height: 1,
-    marginHorizontal: 16,
-  },
   drawerBottomSpacer: {
     flex: 1,
+  },
+  settingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderTopWidth: 0.5,
+    marginTop: 8,
+  },
+  settingsRowLabel: {
+    fontSize: 14,
   },
   devResetButton: {
     alignSelf: 'flex-start',

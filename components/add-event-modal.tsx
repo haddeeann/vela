@@ -229,8 +229,10 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
           prefilledTitle ??
           ''
         );
-        const dateValue = existingEntry?.date ??
-          initialValues?.date ??
+        const existingDate = (existingEntry as ExistingEntry | undefined)?.date;
+        const initialDate = (initialValues as { date?: string } | undefined)?.date;
+        const dateValue = existingDate ??
+          initialDate ??
           prefilledDate ??
           formatDateString(new Date());
         console.log('[AddEventModal] setting entryDate to:', dateValue);
@@ -334,7 +336,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
         style={styles.modalOverlay}
       >
         <ThemedView style={[styles.modalContent, { maxHeight: screenHeight * 0.9, backgroundColor: theme.surface }]}>
-          <ThemedView style={styles.entryTypeToggle}>
+          <ThemedView style={[styles.entryTypeToggle, { backgroundColor: theme.surfaceVariant || 'rgba(0,0,0,0.05)' }]}>
             {(['event', 'task', 'anchor'] as const).map((type) => (
               <TouchableOpacity
                 key={type}
@@ -690,7 +692,6 @@ const styles = StyleSheet.create({
   },
   entryTypeToggle: {
     flexDirection: 'row',
-    backgroundColor: theme.surfaceVariant || 'rgba(0,0,0,0.05)',
     borderRadius: 12,
     padding: 4,
     marginBottom: 16,

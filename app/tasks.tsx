@@ -139,7 +139,7 @@ export default function TasksScreen() {
               Task
             </ThemedText>
           </View>
-          <ThemedText style={styles.taskDate}>
+          <ThemedText style={[styles.taskDate, { color: theme.textMuted }]}>
             Due: {formattedDate} {priority ? `• ${priority.charAt(0).toUpperCase() + priority.slice(1)}` : ''}
           </ThemedText>
         </View>
@@ -258,7 +258,6 @@ const styles = StyleSheet.create({
   },
   taskDate: {
     fontSize: 12,
-    color: theme.textMuted,
     marginTop: 2,
   },
   completedText: {

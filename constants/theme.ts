@@ -1,5 +1,32 @@
 import { ColorSchemeName } from 'react-native'
 
+export const COLORS = {
+  work: '#4F86F7',
+  personal: '#8B6CF6',
+  health: '#22B573',
+  social: '#E08A3A',
+  other: '#8A8F98',
+}
+
+export const Colors = {
+  light: {
+    text: '#2C2A26',
+    background: '#FAF8F4',
+    tint: '#1D9E75',
+    icon: '#5C5A55',
+    tabIconDefault: '#7A766E',
+    tabIconSelected: '#1D9E75',
+  },
+  dark: {
+    text: '#F0EDE8',
+    background: '#1C1A17',
+    tint: '#25C48F',
+    icon: '#B8B5B0',
+    tabIconDefault: '#8A8780',
+    tabIconSelected: '#25C48F',
+  },
+}
+
 export const ENTRY_COLORS = {
   event: {
     light: {
@@ -59,6 +86,7 @@ export const getEntryColors = (
 export interface VelaTheme {
   background: string
   surface: string
+  surfaceVariant: string
   surfaceRaised: string
   border: string
   borderStrong: string
@@ -68,6 +96,8 @@ export interface VelaTheme {
   primary: string
   primaryLight: string
   primaryText: string
+  accent: string
+  dayTextMuted: string
   error: string
   errorLight: string
 }
@@ -75,6 +105,7 @@ export interface VelaTheme {
 const lightTheme: VelaTheme = {
   background: '#FAF8F4',
   surface: '#F2EFE9',
+  surfaceVariant: '#E9E4DB',
   surfaceRaised: '#FFFFFF',
   border: '#E8E4DC',
   borderStrong: '#C8C4BC',
@@ -84,6 +115,8 @@ const lightTheme: VelaTheme = {
   primary: '#1D9E75',
   primaryLight: '#E1F5EE',
   primaryText: '#085041',
+  accent: '#1D9E75',
+  dayTextMuted: '#7A766E',
   error: '#C94040',
   errorLight: '#FCEBEB',
 }
@@ -91,6 +124,7 @@ const lightTheme: VelaTheme = {
 const darkTheme: VelaTheme = {
   background: '#1C1A17',
   surface: '#272420',
+  surfaceVariant: '#322F2A',
   surfaceRaised: '#302D29',
   border: '#3A3630',
   borderStrong: '#504C46',
@@ -100,6 +134,8 @@ const darkTheme: VelaTheme = {
   primary: '#25C48F',
   primaryLight: '#0F3D2A',
   primaryText: '#9FE1CB',
+  accent: '#25C48F',
+  dayTextMuted: '#8A8780',
   error: '#E87070',
   errorLight: '#2E1A1A',
 }

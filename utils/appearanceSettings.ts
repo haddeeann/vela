@@ -6,8 +6,10 @@ export type AppearanceMode = 'system' | 'light' | 'dark'
 
 export const getAppearanceMode = async (): 
   Promise<AppearanceMode> => {
-  const val = await AsyncStorage.getItem(KEY)
-  if (val === 'light' || val === 'dark') return val
+  try {
+    const val = await AsyncStorage.getItem(KEY)
+    if (val === 'light' || val === 'dark') return val
+  } catch {}
   return 'system'
 }
 

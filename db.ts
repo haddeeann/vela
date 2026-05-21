@@ -8,6 +8,32 @@ import { handleDbError } from './utils/errorHandler';
 import { parseDateString } from './utils/dateUtils';
 import { Alarm } from './types/alarms.types';
 
+const parseEntryDateTime = (dateStr: string, timeStr: string): Date => {
+  const base = parseDateString(dateStr);
+
+  if (!timeStr || !timeStr.trim()) {
+    base.setHours(0, 0, 0, 0);
+    return base;
+  }
+
+  const cleaned = timeStr.trim().toUpperCase();
+  const isPM = cleaned.includes('PM');
+  const isAM = cleaned.includes('AM');
+
+  const timePart = cleaned.replace('AM', '').replace('PM', '').trim();
+  const [hourStr, minuteStr] = timePart.split(':');
+  let hours = parseInt(hourStr, 10);
+  const minutes = parseInt(minuteStr ?? '0', 10);
+
+  if (!isNaN(hours) && !isNaN(minutes)) {
+    if (isPM && hours < 12) hours += 12;
+    if (isAM && hours === 12) hours = 0;
+    base.setHours(hours, minutes, 0, 0);
+  }
+
+  return base;
+};
+
 /**
  * Generate a basic UUID using Math.random() as per requirements.
  * Note: This is a placeholder for a more robust UUID library.
@@ -402,22 +428,7 @@ export const createReminder = async (entryId: string, remindBeforeMinutes: numbe
   const entry = await sqlite.getFirstAsync('SELECT date, start_time FROM entries WHERE id = ?', [entryId]) as { date: string; start_time: string } | null;
   if (!entry) throw new Error('Entry not found');
 
-  // Basic calculation for scheduled_at (unix timestamp)
-  // Assuming date is YYYY-MM-DD and start_time is HH:MM AM/PM
-  let startDateTime;
-  if (entry.start_time && entry.start_time.trim() !== '') {
-    // Attempt to parse "YYYY-MM-DD HH:MM AM/PM"
-    const [time, period] = entry.start_time.split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
-    if (period === 'PM' && hours < 12) hours += 12;
-    if (period === 'AM' && hours === 12) hours = 0;
-
-    startDateTime = parseDateString(entry.date);
-    startDateTime.setHours(hours, minutes, 0, 0);
-  } else {
-    // Fallback to start of day if no time is provided
-    startDateTime = parseDateString(entry.date);
-  }
+  const startDateTime = parseEntryDateTime(entry.date, entry.start_time);
 
   const timestamp = startDateTime.getTime();
   if (isNaN(timestamp)) {
@@ -534,16 +545,7 @@ export const saveQuickAddEntry = async (input: QuickAddSaveInput): Promise<strin
       if (typeof remind_before_minutes === 'number') {
         reminderId = generateUUID();
 
-        const entryDateTime = parseDateString(date);
-        if (start_time && start_time.trim() !== '') {
-          const [time, period] = start_time.split(' ');
-          let [hours, minutes] = time.split(':').map(Number);
-          if (period === 'PM' && hours < 12) hours += 12;
-          if (period === 'AM' && hours === 12) hours = 0;
-          entryDateTime.setHours(hours, minutes, 0, 0);
-        } else {
-          entryDateTime.setHours(0, 0, 0, 0);
-        }
+        const entryDateTime = parseEntryDateTime(date, start_time);
 
         scheduledAt = entryDateTime.getTime() - remind_before_minutes * 60 * 1000;
 
