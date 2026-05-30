@@ -1293,6 +1293,32 @@ export default function HomeScreen() {
               <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
               <View style={styles.drawerSection}>
+                <ThemedText style={styles.sectionLabel}>Capture</ThemedText>
+
+                <TouchableOpacity
+                  style={styles.drawerItem}
+                  onPress={() => {
+                    closeDrawer()
+                    setTimeout(() => router.push('/capture'), 300)
+                  }}
+                >
+                  <Ionicons
+                    name="flash-outline"
+                    size={22}
+                    color={theme.textSecondary}
+                  />
+                  <ThemedText style={[
+                    styles.drawerItemText,
+                    { color: theme.textSecondary }
+                  ]}>
+                    Capture
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+              <View style={styles.drawerSection}>
                 <ThemedText style={styles.sectionLabel}>Timer</ThemedText>
 
                 <TouchableOpacity

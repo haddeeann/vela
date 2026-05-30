@@ -26,7 +26,42 @@ After editing `.zshrc` run `source ~/.zshrc` to apply.
 
 ---
 
-## Option 1 — Run Locally via USB (Hot Reload)
+## The Three Ways to Run Vela
+
+Understanding which mode to use is the most important thing to know about this project.
+
+```
+Expo Go + QR code       ← DO NOT USE. Notifications broken, limited features.
+
+npx expo run:android    ← Daily development at your desk (USB cable)
+                           Hot reload for JS changes
+                           Full native features
+
+eas build (preview)     ← Real-world testing away from desk
+                           Proper notifications and battery behavior
+                           Shareable APK download link
+
+eas build (production)  ← Play Store / personal permanent install
+                           + eas update for fast iterative JS-only updates
+```
+
+### The Simple Decision Rule
+
+```
+Am I at my desk coding?
+  → npx expo run:android (USB)
+
+Do I want to walk around and test?
+  → eas build --profile preview (APK)
+
+Is Vela stable enough to use as my real calendar?
+  → Play Store internal testing (see Publishing section)
+  → then eas update for fast iterations
+```
+
+---
+
+## Option 1 — Daily Development via USB (Hot Reload)
 
 Use this for day-to-day development. Changes to TypeScript/JavaScript hot reload instantly to your phone.
 
@@ -44,7 +79,7 @@ Use this for day-to-day development. Changes to TypeScript/JavaScript hot reload
    adb devices
    ```
    Should show your device as `device` not `unauthorized`.
-   If it shows `unauthorized`, check your phone for the "Allow USB debugging?" popup and tap Allow.
+   If it shows `unauthorized`, unplug and replug — accept the Allow USB Debugging popup on your phone.
 
 4. **Install dependencies**
    ```bash
@@ -56,52 +91,48 @@ Use this for day-to-day development. Changes to TypeScript/JavaScript hot reload
    cd ~/code/vela
    npx expo run:android
    ```
-   Takes 3-5 minutes. Installs Vela directly to your phone.
+   Takes 3-5 minutes first time. Installs Vela directly to your phone.
 
 ### Coming back after a break
 
-If the app is already installed on your phone from a previous session:
+The app is already installed — just start the JS bundler:
 
 ```bash
 cd ~/code/vela
 npx expo start --dev-client
 ```
 
-This skips the full rebuild and just starts the JS bundler. Hot reload works immediately.
+Hot reload works immediately. No rebuild needed.
 
-### When you need a full rebuild
+### When you need a full rebuild (npx expo run:android again)
 
-Run `npx expo run:android` again (not just `start`) if you have:
 - Changed `app.json`
 - Added a new native library
 - Uninstalled the app from your phone
-- Seen build errors that a reload didn't fix
+- Build errors that a reload didn't fix
 
-### Useful terminal shortcuts while running
+### Useful terminal shortcuts
 
 | Key | Action |
 |-----|--------|
 | `r` | Force reload the app |
-| `j` | Open JavaScript debugger (see console logs) |
+| `j` | Open JavaScript debugger (console logs) |
 | `m` | Toggle developer menu on phone |
 | `a` | Reinstall APK to connected Android device |
 
 ---
 
-## Option 2 — Cloud Build for Real-World Testing
+## Option 2 — Preview Cloud Build (Real-World Testing)
 
-Use this when you want to test away from your desk, share with someone, or test production-like behavior (notifications, battery optimization, splash screen).
-
-### Build a preview APK
+Use this to test away from your desk, or to test things that behave differently in production (notifications, battery optimization, splash screen).
 
 ```bash
-cd ~/code/vela
 eas build --platform android --profile preview
 ```
 
-- Takes 5-10 minutes
-- Builds in Expo's cloud — no local Android SDK needed
-- When done, EAS gives you a download link and QR code
+- Takes 5-10 minutes, builds in Expo's cloud
+- Produces a downloadable APK
+- EAS gives you a QR code and download link when done
 
 ### Install on your phone
 
@@ -110,76 +141,249 @@ eas build --platform android --profile preview
 2. Tap the APK to install
 3. Allow "Install from unknown sources" if prompted
 
-### Update an existing build
+### Important: switching between USB debug and EAS builds
 
-Build a new APK and install it over the existing one. Android preserves your SQLite data during updates.
-
-If you get `INSTALL_FAILED_UPDATE_INCOMPATIBLE` it means the signing key changed (e.g. switching between local debug and EAS builds). Uninstall the app first, then install the new APK.
+If you get `INSTALL_FAILED_UPDATE_INCOMPATIBLE` when installing:
+- The signing keys are different between USB debug builds and EAS builds
+- Uninstall Vela from your phone first, then install the new APK
+- Your SQLite data will be lost — use the dev reset button first to clear it cleanly
 
 ---
 
-## Build Profiles
+## Option 3 — Play Store Internal Testing (Personal Beta)
+
+Use this when Vela is stable enough to be your actual daily calendar. This is the closest to what real users experience.
+
+### One-time setup (~1 hour)
+
+**Step 1 — Create a Google Play Developer account**
+- Go to [play.google.com/console](https://play.google.com/console)
+- One-time $25 fee
+- Takes up to 48 hours for Google to verify
+
+**Step 2 — Create the app in Play Console**
+- New app → Android → Vela
+- Fill in basic store listing details
+
+**Step 3 — Set up production credentials via EAS**
+```bash
+eas credentials
+```
+Select Android → production → let EAS generate and manage the keystore.
+EAS stores it securely — you don't need to manage keystore files yourself.
+
+**Step 4 — Build a production AAB**
+```bash
+eas build --platform android --profile production
+```
+Produces an `.aab` file (Play Store format, not APK).
+
+**Step 5 — Upload to Play Console**
+- Play Console → your app → Testing → Internal testing
+- Create a new release → upload the AAB
+- Add yourself as a tester (your Gmail address)
+- Roll out
+
+**Step 6 — Install on your phone**
+Google sends you an opt-in link. Tap it, install from the Play Store normally.
+
+### Updating after initial Play Store setup
+
+This is where it gets fast. Two paths depending on what changed:
+
+**JavaScript/TypeScript changes only (most daily work):**
+```bash
+eas update --branch production --message "what you fixed"
+```
+- Takes ~2 minutes
+- Your installed app checks for updates on launch and applies automatically
+- No reinstalling, no Play Console upload needed
+- This is called an OTA (over the air) update
+
+**Native changes (app.json changed, new library added):**
+```bash
+eas build --platform android --profile production
+```
+Then upload the new AAB to Play Console → Internal testing → new release.
+Goes live immediately (no Google review needed for internal testing).
+
+---
+
+## Build Profiles Summary
 
 Defined in `eas.json`:
 
 | Profile | Command | Output | Use for |
 |---------|---------|--------|---------|
-| `preview` | `eas build --platform android --profile preview` | APK | Device testing |
-| `production` | `eas build --platform android --profile production` | AAB | Play Store |
+| `preview` | `eas build --platform android --profile preview` | APK | Real-world testing, shareable |
+| `production` | `eas build --platform android --profile production` | AAB | Play Store internal testing |
+
+Make sure `eas.json` has both profiles:
+
+```json
+{
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  }
+}
+```
+
+---
+
+## The Full Development Lifecycle
+
+```
+1. CODE at desk
+   npx expo run:android
+   JavaScript changes hot reload instantly to phone via USB
+
+2. NATIVE CHANGE (app.json, new library)
+   Stop Metro, run npx expo run:android again
+   Takes 3-5 min, then back to hot reload
+
+3. REAL-WORLD TEST
+   eas build --platform android --profile preview
+   Download APK, install on phone, walk around and test
+   Good for: notifications, battery behavior, performance
+
+4. STABLE ENOUGH TO USE DAILY
+   eas build --platform android --profile production
+   Upload to Play Store internal testing
+   Install from Play Store — feels like a real app
+
+5. ITERATE on stable version
+   eas update --branch production --message "fix"
+   2 minutes, app updates on next launch
+   Only need a full build when native code changes
+```
+
+---
+
+## Why Notifications Behave Differently in Each Mode
+
+This caused confusion during development — worth noting explicitly.
+
+| Mode | Notification Timing | Why |
+|------|--------------------|----|
+| USB debug build | 30-60 second delays | Android Doze mode treats debug apps differently |
+| EAS preview APK | Much better, occasional delays | Close to production but not quite |
+| Play Store build | Accurate, immediate | Proper production app treatment by Android |
+
+**Always test notifications using an EAS build, not a USB debug build.**
+
+If notifications are delayed even in production:
+- Settings → Apps → Vela → Battery → Unrestricted
 
 ---
 
 ## Dev Tools
 
-### Reset all app data (dev only)
+### Reset all app data (debug builds only)
 
-A "Reset onboarding (dev only)" button is available in the hamburger drawer while running a debug build. This clears all SQLite entries and AsyncStorage and reloads the app.
+A "Reset onboarding (dev only)" button is in the hamburger drawer → Settings gear → bottom of screen. Only visible in `__DEV__` mode. Clears all SQLite entries, alarms, and AsyncStorage then reloads.
 
-### View console logs from a real build
+### View console logs from any build
 
 ```bash
 adb logcat | grep -E 'Vela|ReactNative'
 ```
+
+Stream logs from your phone to terminal in real time.
+
+### View console logs while developing
+
+Press `j` in the Metro terminal to open the JavaScript debugger in your browser.
 
 ---
 
 ## Project Structure
 
 ```
-app/                  Expo Router screens
-  index.tsx           Home screen (calendar)
-  alarm-screen.tsx    Full screen notification/alarm
-  events.tsx          Events list
-  tasks.tsx           Tasks list
-  anchors.tsx         Anchors list
-  alarms.tsx          Alarms management
-  onboarding.tsx      First launch screen
+app/                    Expo Router screens
+  index.tsx             Home screen (calendar, all navigation)
+  alarm-screen.tsx      Full screen notification/alarm display
+  events.tsx            Events list screen
+  tasks.tsx             Tasks list screen
+  anchors.tsx           Anchors list screen
+  alarms.tsx            Alarms management screen
+  settings.tsx          User settings (appearance, anchors)
+  onboarding.tsx        First launch screen
 
-components/           Reusable UI components
-  add-event-modal.tsx Full add/edit entry form
-  QuickAddBar.tsx     Natural language quick input
-  EntryDetailSheet.tsx View/edit/delete an entry
-  QuickTimerSheet.tsx Set a quick countdown timer
-  TimerBadge.tsx      Active timer display in header
-  AlarmEditSheet.tsx  Create/edit alarms
+components/             Reusable UI components
+  add-event-modal.tsx   Full add/edit entry form
+  QuickAddBar.tsx       Natural language quick input bar
+  EntryDetailSheet.tsx  View/edit/delete an entry
+  QuickTimerSheet.tsx   Set a quick countdown timer
+  TimerBadge.tsx        Active timer display in header
+  AlarmEditSheet.tsx    Create/edit alarms
+  monthly-grid.tsx      Custom monthly calendar grid
 
-db/                   SQLite database layer
-  index.ts            Database init and CRUD functions
-  reminderQueries.ts  Reminder-specific queries
-  entryCompletion.ts  Task completion functions
+db/                     SQLite database layer
+  index.ts              Database init and all CRUD functions
+  reminderQueries.ts    Reminder-specific queries
+  entryCompletion.ts    Task completion helpers
 
-notifications/        Notification scheduling and handling
-types/                TypeScript interfaces
-utils/                Utility functions (date parsing, NLP parser, etc.)
-constants/            Theme, categories, recurrence options
+notifications/          Notification scheduling and handling
+  registerReminderCategories.ts   Channel setup (run at startup)
+  scheduleReminderSequence.ts     3-stage reminder scheduling
+  reminderActionHandler.ts        DONE/SNOOZE action routing
+  useReminderResponseListener.ts  Notification tap listener
+  snoozeLogic.ts                  Anti-doom-loop snooze
+
+utils/                  Utility functions
+  dateUtils.ts          parseDateString, formatDateString, week helpers
+  quickAddParser.ts     NLP parser orchestrator
+  dateTimeExtractor.ts  Date/time extraction from text
+  entryClassifier.ts    Entry type classification from text
+  alarmScheduler.ts     Weekly repeating alarm notifications
+  quickTimer.ts         Countdown timer scheduling
+  sleepCollapse.ts      Sleep anchor hour collapse logic
+  calendarSettings.ts   AsyncStorage preferences + hooks
+  appearanceSettings.ts Light/dark/system mode preference
+
+constants/
+  theme.ts              getTheme(), ENTRY_COLORS, getEntryColors()
+  categories.ts         Category definitions and colors
+  recurrence.ts         Recurrence type options
+  reminders.ts          Reminder timing options
+
+hooks/
+  useAppearance.ts      Light/dark/system mode hook
+  use-color-scheme.ts   Respects user appearance preference
 ```
+
+---
+
+## Key Architecture Decisions
+
+**Why parseDateString instead of new Date(string)?**
+`new Date('2026-04-21')` is parsed as UTC midnight, which shifts the date by your timezone offset. `parseDateString` always creates local midnight. This was a major source of off-by-one date bugs.
+
+**Why local SQLite instead of a backend?**
+Vela is local-first. No account needed, no internet required, instant reads. All data lives on device in SQLite via expo-sqlite.
+
+**Why EAS for builds instead of local Android builds?**
+EAS handles signing, SDK versions, and build consistency in the cloud. Local Android builds require exact SDK/NDK/CMake/Java versions to match — EAS abstracts all of that.
+
+**Why three entry types instead of just events?**
+Tasks (completable, no fixed time) and Anchors (daily structure like sleep and meals) are fundamentally different from Events (scheduled commitments). ADHD users benefit from this distinction because the app can treat them differently — anchors collapse in the timeline, tasks have completion state, events have reminders.
 
 ---
 
 ## Common Issues
 
 **`ANDROID_HOME is not set`**
-Add the export lines to `~/.zshrc` and run `source ~/.zshrc`
+Add export lines to `~/.zshrc` and run `source ~/.zshrc`
 
 **`Could not find Ninja`**
 ```bash
@@ -192,14 +396,24 @@ sudo apt-get install openjdk-17-jdk
 ```
 
 **`No Android connected device found`**
-- Check USB cable is a data cable not charge-only
-- Run `adb devices` and check for `unauthorized`
-- Unplug and replug, accept the debugging prompt on your phone
+- USB cable must be a data cable, not charge-only
+- Run `adb devices` — check for `unauthorized` not `device`
+- Unplug and replug, accept the Allow USB Debugging popup on phone
+
+**`no permissions` on adb devices**
+```bash
+sudo usermod -a -G plugdev $USER
+echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="*", MODE="0666", GROUP="plugdev"' | sudo tee /etc/udev/rules.d/51-android.rules
+sudo udevadm control --reload-rules
+adb kill-server && adb start-server
+```
 
 **`INSTALL_FAILED_UPDATE_INCOMPATIBLE`**
-Uninstall Vela from your phone then reinstall.
+Uninstall Vela from phone first (USB debug and EAS builds have different signing keys).
 
-**Notifications not firing in debug build**
-Android delays notifications in debug mode due to battery optimization.
-Test notifications using an EAS preview build instead.
-Go to Settings → Apps → Vela → Battery → set to Unrestricted.
+**Notifications fire 30-60 seconds late**
+Normal in USB debug builds. Test notifications with an EAS build.
+Also: Settings → Apps → Vela → Battery → Unrestricted.
+
+**`shopt: command not found` when sourcing .bashrc**
+You are using zsh not bash. Use `~/.zshrc` not `~/.bashrc`.

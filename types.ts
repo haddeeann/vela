@@ -47,3 +47,9 @@ export interface EntryWithMeta extends Entry {
   end_date: string | null;
   max_occurrences: number | null;
 }
+
+export interface CaptureItem {
+  id: string;
+  title: string;
+  created_at: number;
+}

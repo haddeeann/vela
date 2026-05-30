@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { Entry, EntryWithMeta, Reminder, RecurrenceRule } from './types';
+import { Entry, EntryWithMeta, Reminder, RecurrenceRule, CaptureItem } from './types';
 import { CategoryId } from './constants/categories';
 import { RecurrenceType } from './constants/recurrence';
 import { QuickAddSaveInput } from './types/quickAdd.types';
@@ -92,8 +92,8 @@ export const initDB = async (): Promise<SQLite.SQLiteDatabase> => {
         CREATE TABLE IF NOT EXISTS entries (
           id TEXT PRIMARY KEY NOT NULL,
           title TEXT NOT NULL,
-          entry_type TEXT CHECK(entry_type IN ('event', 'task', 'anchor', 'custom')) NOT NULL,
-          date TEXT NOT NULL,
+          entry_type TEXT CHECK(entry_type IN ('event', 'task', 'anchor', 'custom', 'capture')) NOT NULL,
+          date TEXT NOT NULL DEFAULT '',
           start_time TEXT NOT NULL,
           end_time TEXT NOT NULL,
           category TEXT CHECK(category IN ('work', 'personal', 'health', 'social', 'other')) NOT NULL,
@@ -238,6 +238,8 @@ export const getAllEntries = async (): Promise<EntryWithMeta[]> => {
     FROM entries e
     LEFT JOIN entry_meta em ON e.id = em.entry_id
     LEFT JOIN recurrence_rules rr ON e.id = rr.entry_id
+    WHERE e.entry_type != 'capture'
+    ORDER BY e.date, e.start_time
   `);
   return rows as EntryWithMeta[];
 };
@@ -416,6 +418,49 @@ export const deleteEntry = async (id: string): Promise<void> => {
     handleDbError(error, 'deleteEntry');
     throw error;
   }
+};
+
+// Capture items
+
+export const createCaptureItem = async (title: string): Promise<string> => {
+  const id = generateUUID();
+  const now = Math.floor(Date.now() / 1000);
+  const sqlite = await getDB();
+
+  await sqlite.runAsync(
+    `INSERT INTO entries 
+     (id, title, entry_type, date, start_time, end_time, category, notes, created_at, updated_at)
+     VALUES (?, ?, 'capture', '', '', '', 'other', '', ?, ?)`,
+    [id, title, now, now]
+  );
+
+  return id;
+};
+
+export const getAllCaptureItems = async (): Promise<CaptureItem[]> => {
+  const sqlite = await getDB();
+  const rows = await sqlite.getAllAsync(
+    `SELECT id, title, created_at 
+     FROM entries 
+     WHERE entry_type = 'capture'
+     ORDER BY created_at DESC`
+  );
+  return rows as CaptureItem[];
+};
+
+export const deleteCaptureItem = async (id: string): Promise<void> => {
+  const sqlite = await getDB();
+  await sqlite.runAsync('DELETE FROM entries WHERE id = ?', [id]);
+};
+
+export const promoteCaptureItem = async (id: string): Promise<void> => {
+  const sqlite = await getDB();
+  await sqlite.runAsync(
+    `UPDATE entries 
+     SET entry_type = 'event', updated_at = ?
+     WHERE id = ?`,
+    [Math.floor(Date.now() / 1000), id]
+  );
 };
 
 // Reminders
