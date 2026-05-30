@@ -29,7 +29,8 @@
         "android.permission.USE_FULL_SCREEN_INTENT",
         "android.permission.WAKE_LOCK",
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO"
       ],
       "softwareKeyboardLayoutMode": "pan",
       "edgeToEdgeEnabled": true,
@@ -45,7 +46,14 @@
       "expo-splash-screen",
       "expo-sqlite",
       "@react-native-community/datetimepicker",
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Vela needs your microphone to capture your thoughts by voice.",
+          "speechRecognitionPermission": "Vela needs speech recognition to convert your voice to text."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

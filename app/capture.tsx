@@ -1,13 +1,17 @@
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import {
   View, TextInput, TouchableOpacity, FlatList,
   StyleSheet, Alert, KeyboardAvoidingView,
-  Platform,
+  Platform, Animated,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter, Stack } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import {
+  useSpeechRecognitionEvent,
+  ExpoSpeechRecognitionModule,
+} from 'expo-speech-recognition'
 import { ThemedView } from '@/components/themed-view'
 import { ThemedText } from '@/components/themed-text'
 import { AddEventModal } from '@/components/add-event-modal'
@@ -35,6 +39,9 @@ export default function CaptureScreen() {
     useState<CaptureItem | null>(null)
   const [isModalVisible, setIsModalVisible] =
     useState(false)
+  const [isListening, setIsListening] = useState(false)
+  const [interimTranscript, setInterimTranscript] = useState('')
+  const pulseAnim = useRef(new Animated.Value(1)).current
 
   const loadItems = useCallback(async () => {
     const rows = await getAllCaptureItems()
@@ -56,6 +63,108 @@ export default function CaptureScreen() {
     await loadItems()
     inputRef.current?.focus()
   }
+
+  useEffect(() => {
+    if (isListening) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.25,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start()
+    } else {
+      pulseAnim.stopAnimation()
+      pulseAnim.setValue(1)
+    }
+  }, [isListening, pulseAnim])
+
+  const startListening = async () => {
+    try {
+      const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync()
+
+      if (!permission.granted) {
+        Alert.alert(
+          'Microphone needed',
+          'Please allow microphone access in ' +
+          'Settings to use voice capture.'
+        )
+        return
+      }
+
+      setIsListening(true)
+      setInterimTranscript('')
+
+      await ExpoSpeechRecognitionModule.start({
+        lang: 'en-US',
+        interimResults: true,
+        continuous: false,
+      })
+    } catch (error) {
+      console.error('[Capture] mic error:', error)
+      setIsListening(false)
+    }
+  }
+
+  const stopListening = async () => {
+    try {
+      await ExpoSpeechRecognitionModule.stop()
+    } catch {}
+    setIsListening(false)
+    setInterimTranscript('')
+  }
+
+  const handleMicPress = () => {
+    if (isListening) {
+      stopListening()
+    } else {
+      startListening()
+    }
+  }
+
+  useSpeechRecognitionEvent('result', (event) => {
+    const transcript = event.results[0]?.transcript ?? ''
+
+    if (event.isFinal) {
+      setInput(prev => {
+        const combined = prev.trim()
+          ? `${prev.trim()} ${transcript}`
+          : transcript
+        return combined
+      })
+      setInterimTranscript('')
+      setIsListening(false)
+    } else {
+      setInterimTranscript(transcript)
+    }
+  })
+
+  useSpeechRecognitionEvent('error', (event) => {
+    console.error('[Capture] speech error:', event.error)
+    setIsListening(false)
+    setInterimTranscript('')
+  })
+
+  useSpeechRecognitionEvent('end', () => {
+    setIsListening(false)
+  })
+
+  useEffect(() => {
+    return () => {
+      if (isListening) {
+        ExpoSpeechRecognitionModule
+          .stop()
+          .catch(() => {})
+      }
+    }
+  }, [isListening])
 
   const handleDelete = (item: CaptureItem) => {
     Alert.alert(
@@ -251,6 +360,35 @@ export default function CaptureScreen() {
               autoFocus
               multiline={false}
             />
+            <Animated.View style={{
+              transform: [{ scale: pulseAnim }]
+            }}>
+              <TouchableOpacity
+                onPress={handleMicPress}
+                style={[
+                  styles.micButton,
+                  {
+                    backgroundColor: isListening
+                      ? '#E87070'
+                      : theme.surface,
+                    borderColor: isListening
+                      ? '#E87070'
+                      : theme.border,
+                  }
+                ]}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={isListening
+                    ? 'mic'
+                    : 'mic-outline'}
+                  size={20}
+                  color={isListening
+                    ? '#FFFFFF'
+                    : theme.textMuted}
+                />
+              </TouchableOpacity>
+            </Animated.View>
             <TouchableOpacity
               onPress={handleAdd}
               style={[
@@ -270,6 +408,25 @@ export default function CaptureScreen() {
               />
             </TouchableOpacity>
           </View>
+
+          {isListening && (
+            <View style={[
+              styles.listeningBanner,
+              { backgroundColor: theme.surface }
+            ]}>
+              <Ionicons
+                name="ellipsis-horizontal"
+                size={14}
+                color={theme.primary}
+              />
+              <ThemedText style={[
+                styles.interimText,
+                { color: theme.textMuted }
+              ]}>
+                {interimTranscript || 'Listening...'}
+              </ThemedText>
+            </View>
+          )}
         </KeyboardAvoidingView>
 
         {/* Captured items list */}
@@ -357,6 +514,28 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  micButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 0.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listeningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginTop: 8,
+  },
+  interimText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    flex: 1,
   },
   list: {
     paddingTop: 16,
