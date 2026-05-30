@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Entry, EntryWithMeta, Reminder, RecurrenceRule, CaptureItem } from './types';
 import { CategoryId } from './constants/categories';
 import { RecurrenceType } from './constants/recurrence';
@@ -156,6 +157,13 @@ export const initDB = async (): Promise<SQLite.SQLiteDatabase> => {
         ALTER TABLE reminders 
         ADD COLUMN snooze_count INTEGER DEFAULT 0
       `).catch(() => {})
+
+      await db.execAsync(`
+        ALTER TABLE entries 
+        ADD COLUMN image_uri TEXT DEFAULT NULL
+      `).catch(() => {
+        // Column already exists — ignore error
+      })
 
       console.log('Database initialized successfully');
       return db;
@@ -422,16 +430,16 @@ export const deleteEntry = async (id: string): Promise<void> => {
 
 // Capture items
 
-export const createCaptureItem = async (title: string): Promise<string> => {
+export const createCaptureItem = async (title: string, imageUri?: string): Promise<string> => {
   const id = generateUUID();
   const now = Math.floor(Date.now() / 1000);
   const sqlite = await getDB();
 
   await sqlite.runAsync(
     `INSERT INTO entries 
-     (id, title, entry_type, date, start_time, end_time, category, notes, created_at, updated_at)
-     VALUES (?, ?, 'capture', '', '', '', 'other', '', ?, ?)`,
-    [id, title, now, now]
+     (id, title, entry_type, date, start_time, end_time, category, notes, image_uri, created_at, updated_at)
+     VALUES (?, ?, 'capture', '', '', '', 'other', '', ?, ?, ?)`,
+    [id, title, imageUri ?? null, now, now]
   );
 
   return id;
@@ -440,7 +448,7 @@ export const createCaptureItem = async (title: string): Promise<string> => {
 export const getAllCaptureItems = async (): Promise<CaptureItem[]> => {
   const sqlite = await getDB();
   const rows = await sqlite.getAllAsync(
-    `SELECT id, title, created_at 
+    `SELECT id, title, image_uri, created_at 
      FROM entries 
      WHERE entry_type = 'capture'
      ORDER BY created_at DESC`
@@ -450,17 +458,21 @@ export const getAllCaptureItems = async (): Promise<CaptureItem[]> => {
 
 export const deleteCaptureItem = async (id: string): Promise<void> => {
   const sqlite = await getDB();
-  await sqlite.runAsync('DELETE FROM entries WHERE id = ?', [id]);
-};
 
-export const promoteCaptureItem = async (id: string): Promise<void> => {
-  const sqlite = await getDB();
-  await sqlite.runAsync(
-    `UPDATE entries 
-     SET entry_type = 'event', updated_at = ?
-     WHERE id = ?`,
-    [Math.floor(Date.now() / 1000), id]
-  );
+  const row = await sqlite.getFirstAsync(
+    'SELECT image_uri FROM entries WHERE id = ?',
+    [id]
+  ) as { image_uri: string | null } | null;
+
+  if (row?.image_uri) {
+    try {
+      await FileSystem.deleteAsync(row.image_uri, { idempotent: true });
+    } catch (error) {
+      console.warn('[deleteCaptureItem] failed to delete image file:', error);
+    }
+  }
+
+  await sqlite.runAsync('DELETE FROM entries WHERE id = ?', [id]);
 };
 
 // Reminders

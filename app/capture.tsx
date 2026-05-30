@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react'
 import {
   View, TextInput, TouchableOpacity, FlatList,
   StyleSheet, Alert, KeyboardAvoidingView,
-  Platform, Animated,
+  Platform, Animated, Image,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
@@ -12,6 +12,7 @@ import {
   useSpeechRecognitionEvent,
   ExpoSpeechRecognitionModule,
 } from 'expo-speech-recognition'
+import { HandwritingCanvas } from '@/components/HandwritingCanvas'
 import { ThemedView } from '@/components/themed-view'
 import { ThemedText } from '@/components/themed-text'
 import { AddEventModal } from '@/components/add-event-modal'
@@ -41,6 +42,7 @@ export default function CaptureScreen() {
     useState(false)
   const [isListening, setIsListening] = useState(false)
   const [interimTranscript, setInterimTranscript] = useState('')
+  const [showHandwriting, setShowHandwriting] = useState(false)
   const pulseAnim = useRef(new Animated.Value(1)).current
 
   const loadItems = useCallback(async () => {
@@ -62,6 +64,12 @@ export default function CaptureScreen() {
     setInput('')
     await loadItems()
     inputRef.current?.focus()
+  }
+
+  const handleDrawingSaved = async (imageUri: string) => {
+    await createCaptureItem('Handwritten note', imageUri)
+    setShowHandwriting(false)
+    await loadItems()
   }
 
   useEffect(() => {
@@ -252,6 +260,15 @@ export default function CaptureScreen() {
         ]}>
           {item.title}
         </ThemedText>
+
+        {item.image_uri && (
+          <Image
+            source={{ uri: item.image_uri }}
+            style={styles.handwritingImage}
+            resizeMode="contain"
+          />
+        )}
+
         <ThemedText style={[
           styles.itemTime,
           { color: theme.textMuted }
@@ -261,20 +278,22 @@ export default function CaptureScreen() {
       </View>
 
       <View style={styles.itemActions}>
-        <TouchableOpacity
-          style={[
-            styles.scheduleButton,
-            { backgroundColor: theme.primaryLight }
-          ]}
-          onPress={() => handleSchedule(item)}
-        >
-          <ThemedText style={[
-            styles.scheduleButtonText,
-            { color: theme.primary }
-          ]}>
-            Schedule →
-          </ThemedText>
-        </TouchableOpacity>
+        {!item.image_uri && (
+          <TouchableOpacity
+            style={[
+              styles.scheduleButton,
+              { backgroundColor: theme.primaryLight }
+            ]}
+            onPress={() => handleSchedule(item)}
+          >
+            <ThemedText style={[
+              styles.scheduleButtonText,
+              { color: theme.primary }
+            ]}>
+              Schedule →
+            </ThemedText>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           onPress={() => handleDelete(item)}
@@ -359,6 +378,7 @@ export default function CaptureScreen() {
               blurOnSubmit={false}
               autoFocus
               multiline={false}
+              onFocus={() => setShowHandwriting(false)}
             />
             <Animated.View style={{
               transform: [{ scale: pulseAnim }]
@@ -389,6 +409,32 @@ export default function CaptureScreen() {
                 />
               </TouchableOpacity>
             </Animated.View>
+            <TouchableOpacity
+              style={[
+                styles.penButton,
+                {
+                  backgroundColor: showHandwriting
+                    ? theme.primary
+                    : theme.surface,
+                  borderColor: showHandwriting
+                    ? theme.primary
+                    : theme.border,
+                }
+              ]}
+              onPress={() =>
+                setShowHandwriting(prev => !prev)
+              }
+            >
+              <Ionicons
+                name={showHandwriting
+                  ? 'pencil'
+                  : 'pencil-outline'}
+                size={20}
+                color={showHandwriting
+                  ? '#FFFFFF'
+                  : theme.textMuted}
+              />
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={handleAdd}
               style={[
@@ -426,6 +472,14 @@ export default function CaptureScreen() {
                 {interimTranscript || 'Listening...'}
               </ThemedText>
             </View>
+          )}
+
+          {showHandwriting && (
+            <HandwritingCanvas
+              onSaveDrawing={handleDrawingSaved}
+              onClose={() => setShowHandwriting(false)}
+              theme={theme}
+            />
           )}
         </KeyboardAvoidingView>
 
@@ -522,6 +576,21 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  penButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 0.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  handwritingImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: 8,
+    marginTop: 8,
+    backgroundColor: 'transparent',
   },
   listeningBanner: {
     flexDirection: 'row',

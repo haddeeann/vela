@@ -51,5 +51,6 @@ export interface EntryWithMeta extends Entry {
 export interface CaptureItem {
   id: string;
   title: string;
+  image_uri: string | null;
   created_at: number;
 }
