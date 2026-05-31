@@ -8,11 +8,6 @@
     "scheme": "vela",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1C2566"
-    },
     "ios": {
       "icon": "./assets/icon.png",
       "supportsTablet": true
@@ -43,7 +38,15 @@
     },
     "plugins": [
       "expo-router",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-mark.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#1C2566"
+        }
+      ],
       "expo-sqlite",
       "@react-native-community/datetimepicker",
       "expo-audio",
