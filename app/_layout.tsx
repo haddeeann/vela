@@ -13,7 +13,8 @@ import { rescheduleAlarm } from '@/utils/alarmScheduler';
 import { getHasOnboarded } from '@/utils/calendarSettings';
 
 export const unstable_settings = {
-  anchor: 'index',
+  initialRouteName: 'capture',
+  anchor: 'capture',
 };
 
 export default function RootLayout() {
@@ -94,7 +95,7 @@ export default function RootLayout() {
     // renders a blank View while !isRouteReady), tearing down and
     // remounting all screens on each navigation. That causes a blank
     // flash and races the freshly-pushed route, occasionally dropping it
-    // back to the anchor ("index"). We only need the initial gate.
+    // back to the anchor ("capture"). We only need the initial gate.
     syncOnboardingAndRoute().catch((err) => {
       console.error('Error syncing onboarding state:', err);
       setIsRouteReady(true);
@@ -112,12 +113,12 @@ export default function RootLayout() {
   return (
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack>
+          <Stack.Screen name="capture" options={{ headerShown: false }} />
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="alarms" options={{ headerShown: false }} />
           <Stack.Screen name="alarm-screen" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
           <Stack.Screen name="settings" options={{ headerShown: false }} />
-          <Stack.Screen name="capture" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style="auto" />

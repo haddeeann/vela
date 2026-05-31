@@ -327,7 +327,13 @@ export default function CaptureScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back()
+              } else {
+                router.replace('/')
+              }
+            }}
             style={styles.backButton}
           >
             <Ionicons
@@ -350,7 +356,7 @@ export default function CaptureScreen() {
           styles.prompt,
           { color: theme.textMuted }
         ]}>
-          What's on your mind? Just get it out.
+          {"What's on your mind? Just get it out."}
         </ThemedText>
 
         {/* Input area */}

@@ -39,7 +39,7 @@ export default function OnboardingScreen() {
 
   const handleSkip = async () => {
     await setHasOnboarded();
-    router.replace('/');
+    router.replace('/capture');
   };
 
   const handleAddSleepAnchor = async () => {
@@ -89,7 +89,7 @@ export default function OnboardingScreen() {
 
         <View style={[styles.promptCard, { backgroundColor: theme.surface }]}>
           <ThemedText style={[styles.promptText, { color: theme.textSecondary }]}>
-            Start with your sleep schedule — it's the anchor that shapes everything else.
+            {"Start with your sleep schedule — it's the anchor that shapes everything else."}
           </ThemedText>
           <TouchableOpacity
             style={[styles.primaryButton, { backgroundColor: theme.primary }]}

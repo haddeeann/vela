@@ -1,32 +1,32 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, TouchableOpacity, InteractionManager, Platform, Alert, View, Animated, Modal, Pressable, Dimensions, DevSettings, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Notifications from 'expo-notifications';
-import * as Haptics from 'expo-haptics';
-import Constants, { ExecutionEnvironment } from 'expo-constants';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
+import * as Haptics from 'expo-haptics';
+import * as Notifications from 'expo-notifications';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Animated, DevSettings, Dimensions, InteractionManager, Modal, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { ThemedView } from '@/components/themed-view';
-import { ThemedText } from '@/components/themed-text';
-import Calendar from '@/components/calendar';
 import { AddEventModal } from '@/components/add-event-modal';
-import { getTheme, getEntryColors } from '@/constants/theme';
+import Calendar from '@/components/calendar';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { getEntryColors, getTheme } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-import { CategoryId } from '@/constants/categories';
-import { RecurrenceType } from '@/constants/recurrence';
-import { ReminderType, REMINDER_OPTIONS } from '@/constants/reminders';
-import { createEntry, createRecurrenceRule, createReminder, getAllEntries, initDB } from '@/db';
-import { EntryWithMeta } from '@/types';
+import { EntryDetailSheet } from '@/components/EntryDetailSheet';
+import { QuickAddBar } from '@/components/QuickAddBar';
 import { QuickTimerSheet } from '@/components/QuickTimerSheet';
 import { TimerBadge } from '@/components/TimerBadge';
-import { QuickAddBar } from '@/components/QuickAddBar';
-import { EntryDetailSheet } from '@/components/EntryDetailSheet';
-import { useReminderResponseListener } from '@/notifications/useReminderResponseListener';
-import { scheduleReminderSequence } from '@/notifications/scheduleReminderSequence';
+import { CategoryId } from '@/constants/categories';
+import { RecurrenceType } from '@/constants/recurrence';
+import { REMINDER_OPTIONS, ReminderType } from '@/constants/reminders';
+import { createEntry, createRecurrenceRule, createReminder, getAllEntries, initDB } from '@/db';
 import { saveNotificationIds } from '@/db/reminderQueries';
+import { scheduleReminderSequence } from '@/notifications/scheduleReminderSequence';
+import { useReminderResponseListener } from '@/notifications/useReminderResponseListener';
+import { EntryWithMeta } from '@/types';
 import { useCalendarSettings } from '@/utils/calendarSettings';
 import { cancelQuickTimer } from '@/utils/quickTimer';
 
@@ -1209,6 +1209,32 @@ export default function HomeScreen() {
               </View>
 
               <View style={styles.drawerSection}>
+                <ThemedText style={styles.sectionLabel}>Capture</ThemedText>
+
+                <TouchableOpacity
+                  style={styles.drawerItem}
+                  onPress={() => {
+                    closeDrawer()
+                    setTimeout(() => router.push('/capture'), 300)
+                  }}
+                >
+                  <Ionicons
+                    name="flash-outline"
+                    size={22}
+                    color={theme.textSecondary}
+                  />
+                  <ThemedText style={[
+                    styles.drawerItemText,
+                    { color: theme.textSecondary }
+                  ]}>
+                    Capture
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+              <View style={styles.drawerSection}>
                 <ThemedText style={styles.sectionLabel}>View</ThemedText>
 
                 <TouchableOpacity
@@ -1278,34 +1304,6 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View style={[styles.divider, { backgroundColor: theme.border }]} />
-
-              <View style={styles.drawerSection}>
-                <ThemedText style={styles.sectionLabel}>Capture</ThemedText>
-
-                <TouchableOpacity
-                  style={styles.drawerItem}
-                  onPress={() => {
-                    closeDrawer()
-                    setTimeout(() => router.push('/capture'), 300)
-                  }}
-                >
-                  <Ionicons
-                    name="flash-outline"
-                    size={22}
-                    color={theme.textSecondary}
-                  />
-                  <ThemedText style={[
-                    styles.drawerItemText,
-                    { color: theme.textSecondary }
-                  ]}>
-                    Capture
-                  </ThemedText>
-                </TouchableOpacity>
-              </View>
-
-              <View style={[styles.divider, { backgroundColor: theme.border }]} />
-
               <View style={styles.drawerSection}>
                 <ThemedText style={styles.sectionLabel}>Timer</ThemedText>
 
@@ -1331,7 +1329,7 @@ export default function HomeScreen() {
                         { color: activeTimer ? theme.primary : theme.textMuted },
                       ]}
                     >
-                      {activeTimer ? 'Timer active — tap to cancel' : 'Set a quick timer'}
+                      {activeTimer ? 'Tap to cancel' : 'Set a quick timer'}
                     </ThemedText>
                   </View>
                   {activeTimer && timerRemainingLabel ? (
