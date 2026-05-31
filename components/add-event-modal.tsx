@@ -65,15 +65,6 @@ interface AddEventModalProps {
 }
 
 export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initialEntryType, existingEntry, onSaved, initialValues, prefilledDate, prefilledStartTime, prefilledEndTime, prefilledType, prefilledTitle, prefilledRecurrence }: AddEventModalProps) {
-  console.log('[AddEventModal] props:', {
-    isVisible,
-    prefilledType,
-    prefilledStartTime,
-    prefilledEndTime,
-    prefilledRecurrence,
-    prefilledTitle,
-    prefilledDate,
-  });
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const eventColors = getEntryColors('event', colorScheme);
@@ -281,16 +272,6 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
           prefilledType ??
           initialEntryType ??
           'event';
-
-        console.log('[AddEventModal] useEffect init:', {
-          resolvedType,
-          resolvedStartTime: prefilledStartTime,
-          resolvedEndTime: prefilledEndTime,
-          resolvedRecurrence:
-            prefilledRecurrence ??
-            (resolvedType === 'anchor' ? 'daily' : 'none'),
-          resolvedTitle: prefilledTitle ?? '',
-        });
 
         setEntryType(resolvedType);
         setTitle(prefilledTitle ?? '');

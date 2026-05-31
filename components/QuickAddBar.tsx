@@ -48,7 +48,6 @@ export function QuickAddBar({
   prefilledStartTime,
   prefilledEndTime,
 }: QuickAddBarProps) {
-  console.log('[QuickAddBar] render — prefilledDate:', prefilledDate);
   const [input, setInput] = useState('');
   const [selectedType, setSelectedType] = useState<EntryType | null>(null);
   const isSubmittingRef = useRef(false);
@@ -120,13 +119,8 @@ export function QuickAddBar({
   const handleSubmit = () => {
     isSubmittingRef.current = true;
     Keyboard.dismiss();
-    console.log('[QuickAddBar] handleSubmit firing');
-    console.log('[QuickAddBar] input:', input);
-    console.log('[QuickAddBar] prefilledDate:', prefilledDate);
 
     if (!input.trim()) {
-      console.log('[QuickAddBar] draft.date:', undefined);
-      console.log('[QuickAddBar] passing to onOpenFullForm:', prefilledDate);
       onOpenFullForm(prefilledDate, undefined, selectedType ?? undefined);
       onClose();
       return;

@@ -265,8 +265,6 @@ export default function HomeScreen() {
   useEffect(() => {
     const sub = Notifications.addNotificationReceivedListener(
       async (notification) => {
-        console.log('[index] Notification received at:', new Date().toISOString())
-        console.log('[index] Notification scheduled for:', notification.request.trigger)
         const content = notification.request.content
         const notifData = content.data as Record<string, unknown> | undefined
 
@@ -399,7 +397,6 @@ export default function HomeScreen() {
     try {
       // Fetch all events for calendar dots
       const allDbEntries = await getAllEntries();
-      console.log('[index] fetchEvents called, count:', allDbEntries.length);
       const mappedAllEvents: CalendarEvent[] = allDbEntries.map((entry: EntryWithMeta) => ({
         id: entry.id,
         title: entry.title,
@@ -493,7 +490,6 @@ export default function HomeScreen() {
       }
 
       setIsModalVisible(false);
-      console.log('[index] handleAddEvent complete, refreshing...');
       await fetchEvents();
     } catch (error) {
       console.error('Error adding event:', error);
@@ -961,7 +957,6 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.headerIconButton}
             onPress={() => {
-              console.log('[index] clearing quickAddPrefilledDate at: + button');
               setQuickAddPrefilledDate(undefined);
               setQuickAddPrefilledStartTime(undefined);
               setQuickAddPrefilledEndTime(undefined);
@@ -1006,7 +1001,6 @@ export default function HomeScreen() {
         isVisible={isModalVisible}
         onClose={() => {
           setIsModalVisible(false);
-          console.log('[index] clearing quickAddPrefilledDate at: AddEventModal onClose');
           setQuickAddPrefilledDate(undefined);
           setQuickAddPrefilledType(undefined);
           setQuickAddPrefilledStartTime(undefined);
@@ -1048,19 +1042,6 @@ export default function HomeScreen() {
           consumedQuickAddRef.current = false;
         }}
         onOpenFullForm={(date, draft, type) => {
-          console.log('[index] onOpenFullForm — date:', date);
-          console.log('[index] onOpenFullForm — type:', type);
-          console.log('[index] onOpenFullForm — draft:', {
-            title: draft?.title,
-            entryType: draft?.entryType,
-            startTime: draft?.startTime,
-            endTime: draft?.endTime,
-            recurrence: draft?.recurrence,
-          });
-          console.log('[index] setting prefilledType:', type);
-          console.log('[index] setting prefilledStartTime:', draft?.startTime);
-          console.log('[index] setting prefilledEndTime:', draft?.endTime);
-          console.log('[index] setting prefilledRecurrence:', draft?.recurrence);
           setIsQuickAddVisible(false);
           setQuickAddPrefilledDate(date ?? selectedDate);
           if (draft) {

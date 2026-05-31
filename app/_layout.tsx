@@ -89,8 +89,12 @@ export default function RootLayout() {
       setIsRouteReady(true);
     };
 
-    setIsRouteReady(false);
-
+    // NOTE: do not reset isRouteReady to false here. Doing so on every
+    // `segments` change unmounts the entire <Stack> (the component below
+    // renders a blank View while !isRouteReady), tearing down and
+    // remounting all screens on each navigation. That causes a blank
+    // flash and races the freshly-pushed route, occasionally dropping it
+    // back to the anchor ("index"). We only need the initial gate.
     syncOnboardingAndRoute().catch((err) => {
       console.error('Error syncing onboarding state:', err);
       setIsRouteReady(true);

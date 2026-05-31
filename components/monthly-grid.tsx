@@ -44,8 +44,6 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
   // want some buffer to fit it all on screen
   const cellWidth = screenWidth / 8;
 
-  console.log('[MonthGrid] day headers:', DAY_HEADERS);
-
   const days = useMemo(() => {
     const date = parseDateString(selectedDate);
     const year = date.getFullYear();
@@ -55,13 +53,6 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
     const firstDayOfMonth = firstOfMonth.getDay();
     const startOffset = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
     const lastDateOfMonth = new Date(year, month + 1, 0).getDate();
-
-    console.log('[MonthGrid] firstOfMonth:', firstOfMonth.toDateString());
-    console.log('[MonthGrid] firstOfMonth.getDay():', firstDayOfMonth);
-    console.log('[MonthGrid] startOffset:', startOffset);
-    if (year === 2026 && month === 3) {
-      console.log('[MonthGrid] April 1 offset should be 2, got:', startOffset);
-    }
 
     // Fill the 6x7 grid (42 days)
     const calendarDays = [];
@@ -91,8 +82,6 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
         isCurrentMonth: false,
       });
     }
-
-    console.log('[MonthGrid] total cells generated:', calendarDays.length);
 
     return calendarDays;
   }, [selectedDate]);
