@@ -167,9 +167,11 @@ export default function CaptureScreen() {
   useEffect(() => {
     return () => {
       if (isListening) {
-        ExpoSpeechRecognitionModule
-          .stop()
-          .catch(() => {})
+        // stop() is a synchronous native call that returns void,
+        // so it can't be `.catch()`-chained — guard with try/catch.
+        try {
+          ExpoSpeechRecognitionModule.stop()
+        } catch {}
       }
     }
   }, [isListening])
