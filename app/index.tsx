@@ -5,6 +5,7 @@ import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { ThemedView } from '@/components/themed-view';
@@ -421,11 +422,17 @@ export default function HomeScreen() {
     })
   });
 
-  useEffect(() => {
-    fetchEvents().catch((error) => {
-      console.error('[HomeScreen] fetchEvents failed on mount:', error)
-    })
-  }, [fetchEvents]);
+  // Refetch whenever the home screen regains focus (initial mount
+  // included). Other screens (e.g. scheduling a Capture item into an
+  // event) can mutate entries while this screen stays mounted, so we
+  // refresh on focus rather than only on mount.
+  useFocusEffect(
+    useCallback(() => {
+      fetchEvents().catch((error) => {
+        console.error('[HomeScreen] fetchEvents failed on focus:', error)
+      })
+    }, [fetchEvents])
+  );
 
   const getEntryDateTimeMs = (date: string, startTime?: string): number => {
     const entryDateTime = parseDateString(date);
