@@ -30,7 +30,7 @@
       "softwareKeyboardLayoutMode": "pan",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.pattee.vela"
+      "package": "com.thirteensquirrels.vela"
     },
     "web": {
       "output": "static",
