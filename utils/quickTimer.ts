@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { NOTIFICATION_CHANNEL_IDS } from '@/constants/notificationChannels';
 
 export async function scheduleQuickTimer(
   message: string,
@@ -14,7 +15,7 @@ export async function scheduleQuickTimer(
       priority: Notifications.AndroidNotificationPriority.MAX,
       data: { isQuickTimer: true },
       android: {
-        channelId: 'vela-timers',
+        channelId: NOTIFICATION_CHANNEL_IDS.timers,
         priority: 'max',
         fullScreenIntent: true,
         ongoing: false,

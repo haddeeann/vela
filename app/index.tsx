@@ -1,12 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
-import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Haptics from 'expo-haptics';
-import * as Notifications from 'expo-notifications';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, DevSettings, Dimensions, InteractionManager, Modal, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, DevSettings, Dimensions, InteractionManager, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { AddEventModal } from '@/components/add-event-modal';
 import Calendar from '@/components/calendar';
@@ -25,7 +23,6 @@ import { REMINDER_OPTIONS, ReminderType } from '@/constants/reminders';
 import { createEntry, createRecurrenceRule, createReminder, getAllEntries, initDB } from '@/db';
 import { saveNotificationIds } from '@/db/reminderQueries';
 import { scheduleReminderSequence } from '@/notifications/scheduleReminderSequence';
-import { useReminderResponseListener } from '@/notifications/useReminderResponseListener';
 import { EntryWithMeta } from '@/types';
 import { useCalendarSettings } from '@/utils/calendarSettings';
 import { cancelQuickTimer } from '@/utils/quickTimer';
@@ -53,21 +50,6 @@ type EditableEntry = {
     end_date?: string;
   };
 };
-
-const isExpoGoOnAndroid = Platform.OS === 'android' && Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
-
-if (!isExpoGoOnAndroid) {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-      priority: Notifications.AndroidNotificationPriority.MAX,
-    }),
-  })
-}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -263,30 +245,6 @@ export default function HomeScreen() {
     return () => clearInterval(interval);
   }, [activeTimer]);
 
-  useEffect(() => {
-    const sub = Notifications.addNotificationReceivedListener(
-      async (notification) => {
-        const content = notification.request.content
-        const notifData = content.data as Record<string, unknown> | undefined
-
-        router.replace({
-          pathname: '/alarm-screen',
-          params: {
-            title: String(content.title ?? 'Reminder'),
-            body: String(content.body ?? ''),
-            type: notifData?.isQuickTimer ? 'timer'
-              : notifData?.isAlarm ? 'alarm'
-              : 'reminder',
-            entryId: String(notifData?.entryId ?? ''),
-            reminderId: String(notifData?.reminderId ?? ''),
-            notificationId: String(notification.request.identifier ?? ''),
-          }
-        })
-      }
-    )
-    return () => sub.remove()
-  }, [router])
-
   const consumedQuickAddRef = useRef(false);
 
   useEffect(() => {
@@ -416,12 +374,6 @@ export default function HomeScreen() {
     }
   }, []);
 
-  useReminderResponseListener(() => {
-    fetchEvents().catch((error) => {
-      console.error('[HomeScreen] fetchEvents failed in reminder listener:', error)
-    })
-  });
-
   // Refetch whenever the home screen regains focus (initial mount
   // included). Other screens (e.g. scheduling a Capture item into an
   // event) can mutate entries while this screen stays mounted, so we
@@ -497,6 +449,14 @@ export default function HomeScreen() {
       }
 
       setIsModalVisible(false);
+      setSelectedDate(newEvent.date);
+      setViewMode('daily');
+      setQuickAddPrefilledDate(undefined);
+      setQuickAddPrefilledType(undefined);
+      setQuickAddPrefilledStartTime(undefined);
+      setQuickAddPrefilledEndTime(undefined);
+      setQuickAddPrefilledRecurrence(undefined);
+      setModalPrefillTitle(undefined);
       await fetchEvents();
     } catch (error) {
       console.error('Error adding event:', error);

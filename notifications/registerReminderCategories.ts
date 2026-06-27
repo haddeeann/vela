@@ -1,4 +1,10 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import {
+  NOTIFICATION_CHANNEL_IDS,
+  NOTIFICATION_CHANNEL_VERSION,
+  NOTIFICATION_CHANNEL_VERSION_KEY,
+} from '@/constants/notificationChannels';
 import { NotificationCategoryId, ReminderActionId } from '../types/reminders.types';
 
 type EntryType = 'event' | 'task' | 'anchor';
@@ -7,9 +13,15 @@ type ReminderCategoryAction = {
   buttonTitle: string;
 };
 
-export const registerReminderCategories = async (): Promise<void> => {
+export const registerReminderCategories = async (): Promise<boolean> => {
+  const storedVersion = await AsyncStorage.getItem(
+    NOTIFICATION_CHANNEL_VERSION_KEY
+  );
+  const didMigrateChannels =
+    storedVersion !== String(NOTIFICATION_CHANNEL_VERSION);
+
   await Notifications.setNotificationChannelAsync(
-    'vela-alarms', {
+    NOTIFICATION_CHANNEL_IDS.alarms, {
       name: 'Alarms',
       importance: Notifications.AndroidImportance.MAX,
       sound: 'default',
@@ -25,7 +37,7 @@ export const registerReminderCategories = async (): Promise<void> => {
   )
 
   await Notifications.setNotificationChannelAsync(
-    'vela-timers', {
+    NOTIFICATION_CHANNEL_IDS.timers, {
       name: 'Quick Timers',
       importance: Notifications.AndroidImportance.MAX,
       sound: 'default',
@@ -41,7 +53,7 @@ export const registerReminderCategories = async (): Promise<void> => {
   )
 
   await Notifications.setNotificationChannelAsync(
-    'vela-reminders', {
+    NOTIFICATION_CHANNEL_IDS.reminders, {
       name: 'Event and Task Reminders',
       importance: Notifications.AndroidImportance.MAX,
       sound: 'default',
@@ -82,6 +94,13 @@ export const registerReminderCategories = async (): Promise<void> => {
     { identifier: 'SNOOZE_TOMORROW', buttonTitle: 'Move to tomorrow' },
     { identifier: 'SKIP_TODAY', buttonTitle: 'Skip today' },
   ] as ReminderCategoryAction[]);
+
+  await AsyncStorage.setItem(
+    NOTIFICATION_CHANNEL_VERSION_KEY,
+    String(NOTIFICATION_CHANNEL_VERSION)
+  );
+
+  return didMigrateChannels;
 };
 
 export const getCategoryForEntry = (

@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications'
+import { NOTIFICATION_CHANNEL_IDS } from '@/constants/notificationChannels'
 import { ReminderSequenceStage } from '../types/reminders.types'
 
 export async function snoozeFullScreen(params: {
@@ -8,15 +9,15 @@ export async function snoozeFullScreen(params: {
   entryId?: string
   reminderId?: string
   stage?: ReminderSequenceStage
-}): Promise<string> {
+}): Promise<{ notificationId: string; firesAt: Date }> {
 
   const firesAt = new Date(Date.now() + 10 * 60 * 1000)
 
   const channelId = params.type === 'alarm'
-    ? 'vela-alarms'
+    ? NOTIFICATION_CHANNEL_IDS.alarms
     : params.type === 'timer'
-    ? 'vela-timers'
-    : 'vela-reminders'
+    ? NOTIFICATION_CHANNEL_IDS.timers
+    : NOTIFICATION_CHANNEL_IDS.reminders
 
   const notificationId = await
     Notifications.scheduleNotificationAsync({
@@ -44,5 +45,5 @@ export async function snoozeFullScreen(params: {
       }
     })
 
-  return notificationId
+  return { notificationId, firesAt }
 }

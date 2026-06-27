@@ -5,6 +5,7 @@ import {
   REMINDER_MESSAGES,
   ScheduledReminderResult,
 } from '../types/reminders.types';
+import { NOTIFICATION_CHANNEL_IDS } from '@/constants/notificationChannels';
 import { getCategoryForEntry } from './registerReminderCategories';
 
 type EntryType = 'event' | 'task' | 'anchor';
@@ -65,7 +66,7 @@ export const scheduleReminderSequence = async (params: {
         type: 'reminder',
       },
       android: {
-        channelId: 'vela-reminders',
+        channelId: NOTIFICATION_CHANNEL_IDS.reminders,
         priority: 'max',
         fullScreenIntent: true,
         sound: 'default',
@@ -93,7 +94,7 @@ export const scheduleReminderSequence = async (params: {
           type: 'reminder',
         },
         android: {
-          channelId: 'vela-reminders',
+          channelId: NOTIFICATION_CHANNEL_IDS.reminders,
           priority: 'max',
           fullScreenIntent: true,
           sound: 'default',
@@ -120,7 +121,7 @@ export const scheduleReminderSequence = async (params: {
           type: 'reminder',
         },
         android: {
-          channelId: 'vela-reminders',
+          channelId: NOTIFICATION_CHANNEL_IDS.reminders,
           priority: 'max',
           fullScreenIntent: true,
           sound: 'default',

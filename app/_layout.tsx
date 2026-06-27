@@ -3,12 +3,14 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
+import * as Notifications from 'expo-notifications';
 import 'react-native-reanimated';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 
 import { useAppearance } from '@/hooks/useAppearance'
 import { getAllAlarms, updateAlarm, initDB } from '@/db';
 import { registerReminderCategories } from '@/notifications/registerReminderCategories';
+import { useRootNotificationListeners } from '@/notifications/useRootNotificationListeners';
 import { rescheduleAlarm } from '@/utils/alarmScheduler';
 import { getHasOnboarded } from '@/utils/calendarSettings';
 
@@ -17,16 +19,31 @@ export const unstable_settings = {
   anchor: 'capture',
 };
 
+const isExpoGoOnAndroid =
+  Platform.OS === 'android' &&
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+if (!isExpoGoOnAndroid) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+      priority: Notifications.AndroidNotificationPriority.MAX,
+    }),
+  });
+}
+
 export default function RootLayout() {
   const { colorScheme, isLoaded } = useAppearance()
   const router = useRouter();
   const segments = useSegments();
+  useRootNotificationListeners();
 
   const [isBootstrapped, setIsBootstrapped] = useState(false);
   const [isRouteReady, setIsRouteReady] = useState(false);
-
-  const isExpoGoOnAndroid =
-      Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
   useEffect(() => {
     let cancelled = false;
@@ -34,15 +51,14 @@ export default function RootLayout() {
     const bootstrapApp = async () => {
       try {
         if (!isExpoGoOnAndroid) {
-          const Notifications = await import('expo-notifications');
           const { status } = await Notifications.requestPermissionsAsync();
           if (status === 'granted') {
-            await registerReminderCategories();
+            const didMigrateChannels = await registerReminderCategories();
 
             const alarms = await getAllAlarms();
             for (const alarm of alarms) {
               if (!alarm.is_active) continue;
-              if (alarm.notification_ids.length > 0) continue;
+              if (!didMigrateChannels && alarm.notification_ids.length > 0) continue;
               const notificationIds = await rescheduleAlarm(alarm);
               await updateAlarm(alarm.id, { notification_ids: notificationIds });
             }
@@ -69,7 +85,7 @@ export default function RootLayout() {
     return () => {
       cancelled = true;
     };
-  }, [isExpoGoOnAndroid]);
+  }, []);
 
   useEffect(() => {
     if (!isBootstrapped) return;

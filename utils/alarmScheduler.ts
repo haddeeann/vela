@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { NOTIFICATION_CHANNEL_IDS } from '@/constants/notificationChannels';
 import { Alarm } from '../types/alarms.types';
 
 const formatTime12Hour = (time24: string): string => {
@@ -39,7 +40,7 @@ export const scheduleAlarm = async (alarm: Alarm): Promise<string[]> => {
           alarmId: alarm.id,
         },
         android: {
-          channelId: 'vela-alarms',
+          channelId: NOTIFICATION_CHANNEL_IDS.alarms,
           priority: 'max',
           fullScreenIntent: true,
           sound: 'default',

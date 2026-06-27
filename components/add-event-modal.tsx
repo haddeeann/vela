@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Modal, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, View, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Calendar } from 'react-native-calendars';
@@ -93,15 +93,23 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
     formatDateString(new Date())
   );
 
-  const getNextRoundHour = () => {
+  const getNextRoundHour = useCallback(() => {
     const now = new Date();
     const nextHour = new Date(now);
     nextHour.setHours(now.getHours() + 1, 0, 0, 0);
     return nextHour;
-  };
+  }, []);
+
+  const getDefaultTimeRange = useCallback(() => {
+    const start = getNextRoundHour();
+    return {
+      start,
+      end: new Date(start.getTime() + 60 * 60 * 1000),
+    };
+  }, [getNextRoundHour]);
 
   const [startTimeDate, setStartTimeDate] = useState(getNextRoundHour());
-  const [endTimeDate, setEndTimeDate] = useState(new Date(getNextRoundHour().getTime() + 60 * 60 * 1000));
+  const [endTimeDate, setEndTimeDate] = useState(() => getDefaultTimeRange().end);
   const [dueTimeDate, setDueTimeDate] = useState<Date | null>(null);
 
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
@@ -268,6 +276,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
           setEndTimeDate(parsedEndTime);
         }
       } else {
+        const defaultRange = getDefaultTimeRange();
         const resolvedType =
           prefilledType ??
           initialEntryType ??
@@ -275,6 +284,10 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
 
         setEntryType(resolvedType);
         setTitle(prefilledTitle ?? '');
+        setStartTimeDate(defaultRange.start);
+        setEndTimeDate(defaultRange.end);
+        setDueTimeDate(null);
+        setPriority('medium');
 
         const resolvedRecurrence =
           prefilledRecurrence ??
@@ -289,21 +302,17 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
           formatDateString(new Date())
         );
 
-        if (prefilledStartTime) {
-          const parsed = parseTimeLabel(prefilledStartTime);
-          if (parsed) setStartTimeDate(parsed);
-        }
-        if (prefilledEndTime) {
-          const parsed = parseTimeLabel(prefilledEndTime);
-          if (parsed) setEndTimeDate(parsed);
-        }
+        const parsedStart = parseTimeLabel(prefilledStartTime);
+        const parsedEnd = parseTimeLabel(prefilledEndTime);
+        if (parsedStart) setStartTimeDate(parsedStart);
+        if (parsedEnd) setEndTimeDate(parsedEnd);
       }
       setShowStartTimePicker(false);
       setShowEndTimePicker(false);
       setShowDueTimePicker(false);
       setIsDatePickerVisible(false);
     }
-  }, [isVisible, prefilledDate, selectedDate, existingEntry, initialValues, initialEntryType, prefilledType, prefilledStartTime, prefilledEndTime, prefilledTitle, prefilledRecurrence]);
+  }, [isVisible, prefilledDate, selectedDate, existingEntry, initialValues, initialEntryType, prefilledType, prefilledStartTime, prefilledEndTime, prefilledTitle, prefilledRecurrence, getDefaultTimeRange]);
 
   useEffect(() => {
     if (entryType === 'anchor') {
