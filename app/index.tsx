@@ -26,6 +26,7 @@ import { scheduleReminderSequence } from '@/notifications/scheduleReminderSequen
 import { EntryWithMeta } from '@/types';
 import { useCalendarSettings } from '@/utils/calendarSettings';
 import { cancelQuickTimer } from '@/utils/quickTimer';
+import { getTimerRemainingMinutes, TIMER_STORAGE_KEY } from '@/utils/timer';
 
 import {
   formatDateString,
@@ -191,18 +192,18 @@ export default function HomeScreen() {
 
     const loadActiveTimer = async () => {
       try {
-        const raw = await AsyncStorage.getItem('vela_active_timer');
+        const raw = await AsyncStorage.getItem(TIMER_STORAGE_KEY);
         if (!raw || !mounted) return;
 
         const parsed = JSON.parse(raw) as { notificationId?: string; firesAt?: string };
         if (!parsed?.notificationId || !parsed?.firesAt) {
-          await AsyncStorage.removeItem('vela_active_timer');
+          await AsyncStorage.removeItem(TIMER_STORAGE_KEY);
           return;
         }
 
         const firesAt = new Date(parsed.firesAt);
         if (Number.isNaN(firesAt.getTime()) || firesAt.getTime() <= Date.now()) {
-          await AsyncStorage.removeItem('vela_active_timer');
+          await AsyncStorage.removeItem(TIMER_STORAGE_KEY);
           return;
         }
 
@@ -210,7 +211,7 @@ export default function HomeScreen() {
           setActiveTimer({ notificationId: parsed.notificationId, firesAt });
         }
       } catch {
-        await AsyncStorage.removeItem('vela_active_timer');
+        await AsyncStorage.removeItem(TIMER_STORAGE_KEY);
       }
     };
 
@@ -230,13 +231,17 @@ export default function HomeScreen() {
     }
 
     const computeRemaining = () => {
-      const diff = activeTimer.firesAt.getTime() - Date.now();
-      if (diff <= 0) {
+      const remainingMinutes = getTimerRemainingMinutes(
+        activeTimer.firesAt.getTime(),
+        Date.now()
+      );
+
+      if (remainingMinutes === null) {
         setTimerMinutesRemaining(null);
         setActiveTimer(null);
-        AsyncStorage.removeItem('vela_active_timer').catch(() => {});
+        AsyncStorage.removeItem(TIMER_STORAGE_KEY).catch(() => {});
       } else {
-        setTimerMinutesRemaining(Math.ceil(diff / 60000));
+        setTimerMinutesRemaining(remainingMinutes);
       }
     };
 
@@ -855,6 +860,7 @@ export default function HomeScreen() {
       <ThemedView style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity
+            testID="home-menu-button"
             style={styles.hamburgerButton}
             onPress={toggleDrawer}
             activeOpacity={0.7}
@@ -897,10 +903,11 @@ export default function HomeScreen() {
         {activeTimer ? (
           <View style={styles.timerBadgeWrapper}>
             <TimerBadge
+              testID="timer-badge"
               firesAt={activeTimer.firesAt}
               onCancel={async () => {
                 await cancelQuickTimer(activeTimer.notificationId).catch(() => {});
-                await AsyncStorage.removeItem('vela_active_timer');
+                await AsyncStorage.removeItem(TIMER_STORAGE_KEY);
                 setActiveTimer(null);
               }}
               theme={theme}
@@ -922,6 +929,7 @@ export default function HomeScreen() {
         )}
         <ThemedView style={styles.headerIcons}>
           <TouchableOpacity
+            testID="home-add-button"
             style={styles.headerIconButton}
             onPress={() => {
               setQuickAddPrefilledDate(undefined);
@@ -935,6 +943,7 @@ export default function HomeScreen() {
             <Ionicons name="add-outline" size={26} color={theme.textPrimary} />
           </TouchableOpacity>
           <TouchableOpacity
+            testID="home-list-button"
             style={styles.headerIconButton}
             onPress={openDropdown}
             activeOpacity={0.7}
@@ -1070,7 +1079,7 @@ export default function HomeScreen() {
         onTimerSet={async (notificationId, firesAt) => {
           setActiveTimer({ notificationId, firesAt });
           await AsyncStorage.setItem(
-            'vela_active_timer',
+            TIMER_STORAGE_KEY,
             JSON.stringify({ notificationId, firesAt: firesAt.toISOString() })
           );
           setIsTimerSheetVisible(false);
@@ -1080,7 +1089,7 @@ export default function HomeScreen() {
             await cancelQuickTimer(activeTimer.notificationId).catch(() => {});
           }
           setActiveTimer(null);
-          await AsyncStorage.removeItem('vela_active_timer');
+          await AsyncStorage.removeItem(TIMER_STORAGE_KEY);
           setIsTimerSheetVisible(false);
         }}
         theme={theme}
@@ -1172,6 +1181,7 @@ export default function HomeScreen() {
                 <ThemedText style={styles.sectionLabel}>Capture</ThemedText>
 
                 <TouchableOpacity
+                  testID="drawer-capture-button"
                   style={styles.drawerItem}
                   onPress={() => {
                     closeDrawer()
@@ -1198,6 +1208,7 @@ export default function HomeScreen() {
                 <ThemedText style={styles.sectionLabel}>View</ThemedText>
 
                 <TouchableOpacity
+                  testID="drawer-daily-button"
                   style={[
                     styles.drawerItem,
                     viewMode === 'daily' && { backgroundColor: theme.primaryLight }
@@ -1220,6 +1231,7 @@ export default function HomeScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  testID="drawer-weekly-button"
                   style={[
                     styles.drawerItem,
                     viewMode === 'weekly' && { backgroundColor: theme.primaryLight }
@@ -1242,6 +1254,7 @@ export default function HomeScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  testID="drawer-monthly-button"
                   style={[
                     styles.drawerItem,
                     viewMode === 'monthly' && { backgroundColor: theme.primaryLight }
@@ -1268,6 +1281,7 @@ export default function HomeScreen() {
                 <ThemedText style={styles.sectionLabel}>Timer</ThemedText>
 
                 <TouchableOpacity
+                  testID="drawer-timer-button"
                   style={[
                     styles.drawerItem,
                     activeTimer && { backgroundColor: theme.primaryLight },

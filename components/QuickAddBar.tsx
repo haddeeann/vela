@@ -210,6 +210,7 @@ export function QuickAddBar({
 
           <View style={styles.inputRow}>
             <TextInput
+              testID="quick-add-input"
               style={[styles.input, { color: theme.textPrimary }]}
               placeholder={activePlaceholder}
               placeholderTextColor={
@@ -224,7 +225,11 @@ export function QuickAddBar({
               returnKeyType="done"
               onSubmitEditing={handleSubmit}
             />
-            <TouchableOpacity onPress={handleSubmit} style={styles.iconButton}>
+            <TouchableOpacity
+              testID="quick-add-submit-button"
+              onPress={handleSubmit}
+              style={styles.iconButton}
+            >
               <Ionicons name="arrow-forward-circle" size={28} color={theme.primary} />
             </TouchableOpacity>
           </View>

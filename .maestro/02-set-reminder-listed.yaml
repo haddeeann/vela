@@ -1,0 +1,35 @@
+appId: com.thirteensquirrels.vela
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: "onboarding-skip"
+    optional: true
+- assertVisible:
+    id: "capture-screen"
+- tapOn:
+    id: "capture-back-button"
+- assertVisible:
+    id: "home-add-button"
+- tapOn:
+    id: "home-add-button"
+- tapOn:
+    id: "quick-add-input"
+- inputText: "Maestro reminder check today at 11pm"
+- tapOn:
+    id: "quick-add-submit-button"
+- assertVisible: "Add New Event"
+- scrollUntilVisible:
+    element:
+      id: "reminder-option-at-time"
+    direction: DOWN
+- tapOn:
+    id: "reminder-option-at-time"
+- tapOn:
+    id: "entry-save-button"
+- assertVisible:
+    id: "home-list-button"
+- tapOn:
+    id: "home-list-button"
+- tapOn: "Events"
+- assertVisible: "Maestro reminder check"

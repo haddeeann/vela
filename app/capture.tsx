@@ -315,6 +315,7 @@ export default function CaptureScreen() {
 
   return (
     <SafeAreaView
+      testID="capture-screen"
       style={[
         styles.safe,
         { backgroundColor: theme.background }
@@ -327,6 +328,7 @@ export default function CaptureScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
+            testID="capture-back-button"
             onPress={() => {
               if (router.canGoBack()) {
                 router.back()
@@ -372,6 +374,7 @@ export default function CaptureScreen() {
             }
           ]}>
             <TextInput
+              testID="capture-input"
               ref={inputRef}
               style={[
                 styles.input,
@@ -444,6 +447,7 @@ export default function CaptureScreen() {
               />
             </TouchableOpacity>
             <TouchableOpacity
+              testID="capture-add-button"
               onPress={handleAdd}
               style={[
                 styles.addButton,

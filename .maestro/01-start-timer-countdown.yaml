@@ -1,0 +1,29 @@
+appId: com.thirteensquirrels.vela
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: "onboarding-skip"
+    optional: true
+- assertVisible:
+    id: "capture-screen"
+- tapOn:
+    id: "capture-back-button"
+- assertVisible:
+    id: "home-menu-button"
+- tapOn:
+    id: "home-menu-button"
+- tapOn:
+    id: "drawer-timer-button"
+- assertVisible: "Quick Timer"
+- tapOn:
+    id: "quick-timer-message-input"
+- inputText: "Maestro timer"
+- tapOn:
+    id: "quick-timer-custom-minutes-input"
+- inputText: "1"
+- hideKeyboard
+- tapOn:
+    id: "quick-timer-set-button"
+- assertVisible:
+    id: "timer-badge"

@@ -1,35 +1,28 @@
 import * as Notifications from 'expo-notifications';
 import { NOTIFICATION_CHANNEL_IDS } from '@/constants/notificationChannels';
+import {
+  buildQuickTimerNotificationRequest,
+  buildTimerStopPlan,
+  getQuickTimerFiresAt,
+} from '@/utils/timer';
 
 export async function scheduleQuickTimer(
   message: string,
   minutes: number
 ): Promise<{ notificationId: string; firesAt: Date }> {
-  const firesAt = new Date(Date.now() + minutes * 60000);
+  const scheduledAt = Date.now()
+  const firesAt = getQuickTimerFiresAt(scheduledAt, minutes * 60000);
 
   const notificationId = await Notifications.scheduleNotificationAsync({
-    content: {
-      title: 'Timer',
-      body: message.trim() || 'Your timer is up!',
-      sound: 'default',
-      priority: Notifications.AndroidNotificationPriority.MAX,
-      data: { isQuickTimer: true },
-      android: {
-        channelId: NOTIFICATION_CHANNEL_IDS.timers,
-        priority: 'max',
-        fullScreenIntent: true,
-        ongoing: false,
-        sticky: false,
-        vibrate: [0, 500, 200, 500],
-      },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: firesAt,
-    },
+    ...buildQuickTimerNotificationRequest({
+      message,
+      firesAt,
+      androidChannelId: NOTIFICATION_CHANNEL_IDS.timers,
+      androidPriority: Notifications.AndroidNotificationPriority.MAX,
+      dateTriggerType: Notifications.SchedulableTriggerInputTypes.DATE,
+    }),
   });
 
-  const scheduledAt = Date.now()
   console.log('[QuickTimer] Scheduled at:', new Date(scheduledAt).toISOString())
   console.log('[QuickTimer] Should fire at:', firesAt.toISOString())
   console.log('[QuickTimer] Delta ms:', firesAt.getTime() - scheduledAt)
@@ -38,5 +31,14 @@ export async function scheduleQuickTimer(
 }
 
 export async function cancelQuickTimer(notificationId: string): Promise<void> {
-  await Notifications.cancelScheduledNotificationAsync(notificationId);
+  const stopPlan = buildTimerStopPlan(notificationId);
+
+  await Promise.all([
+    ...stopPlan.cancelScheduledNotificationIds.map((id) =>
+      Notifications.cancelScheduledNotificationAsync(id).catch(() => {})
+    ),
+    ...stopPlan.dismissPresentedNotificationIds.map((id) =>
+      Notifications.dismissNotificationAsync(id).catch(() => {})
+    ),
+  ]);
 }

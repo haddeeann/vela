@@ -10,6 +10,7 @@ import { handleReminderAction } from '@/notifications/reminderActionHandler';
 import { handleSnooze } from '@/notifications/snoozeLogic';
 import { markAlarmDismissed } from '@/db';
 import { snoozeFullScreen } from '@/utils/snoozeFullScreen';
+import { buildTimerStopPlan, TIMER_STORAGE_KEY } from '@/utils/timer';
 const ALARM_SOUND = require('../assets/sounds/timer-alarm.wav');
 
 export default function AlarmScreen() {
@@ -50,13 +51,17 @@ export default function AlarmScreen() {
   }, []);
 
   const stopAlerting = async () => {
+    const stopPlan = buildTimerStopPlan(params.notificationId);
+
     Vibration.cancel();
     player.pause();
     await player.seekTo(0).catch(() => {});
 
-    if (params.notificationId) {
-      await Notifications.dismissNotificationAsync(params.notificationId).catch(() => {});
-    }
+    await Promise.all(
+      stopPlan.dismissPresentedNotificationIds.map((notificationId) =>
+        Notifications.dismissNotificationAsync(notificationId).catch(() => {})
+      )
+    );
   };
 
   const leaveAlarmScreen = () => {
@@ -80,7 +85,7 @@ export default function AlarmScreen() {
 
     if (type === 'timer') {
       await AsyncStorage.setItem(
-        'vela_active_timer',
+        TIMER_STORAGE_KEY,
         JSON.stringify({
           notificationId: snoozedTimer.notificationId,
           firesAt: snoozedTimer.firesAt.toISOString(),
@@ -118,7 +123,7 @@ export default function AlarmScreen() {
     } else if (params.type === 'alarm') {
       await markAlarmDismissed(params.notificationId ?? '');
     } else if (params.type === 'timer') {
-      await AsyncStorage.removeItem('vela_active_timer');
+      await AsyncStorage.removeItem(TIMER_STORAGE_KEY);
     }
 
     leaveAlarmScreen();

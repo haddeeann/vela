@@ -1,0 +1,16 @@
+appId: com.thirteensquirrels.vela
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: "onboarding-skip"
+    optional: true
+- assertVisible:
+    id: "capture-screen"
+- assertVisible: "What's on your mind? Just get it out."
+- tapOn:
+    id: "capture-input"
+- inputText: "Maestro capture thought"
+- tapOn:
+    id: "capture-add-button"
+- assertVisible: "Maestro capture thought"

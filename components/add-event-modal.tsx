@@ -435,6 +435,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             <ThemedText style={styles.label}>Title</ThemedText>
             <TextInput
+              testID="entry-title-input"
               style={[styles.input, { color: theme.textPrimary, borderColor: theme.border }]}
               value={title}
               onChangeText={setTitle}
@@ -685,6 +686,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
                   {REMINDER_OPTIONS.map((option) => (
                     <TouchableOpacity
                       key={option.id}
+                      testID={`reminder-option-${option.id}`}
                       style={[
                         styles.categoryItem,
                         { borderColor: theme.primary },
@@ -719,6 +721,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
             </TouchableOpacity>
 
             <TouchableOpacity
+              testID="entry-save-button"
               style={[styles.button, styles.saveButton, { backgroundColor: theme.primary }]}
               onPress={handleSave}
               disabled={isSaving}

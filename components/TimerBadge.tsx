@@ -9,9 +9,10 @@ type TimerBadgeProps = {
   firesAt: Date;
   onCancel: () => void;
   theme: ReturnType<typeof getTheme>;
+  testID?: string;
 };
 
-export function TimerBadge({ firesAt, onCancel, theme }: TimerBadgeProps) {
+export function TimerBadge({ firesAt, onCancel, theme, testID }: TimerBadgeProps) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const [remainingMs, setRemainingMs] = useState(() => firesAt.getTime() - Date.now());
   const [isDone, setIsDone] = useState(false);
@@ -75,7 +76,7 @@ export function TimerBadge({ firesAt, onCancel, theme }: TimerBadgeProps) {
 
   return (
     <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-      <View style={[styles.badge, { backgroundColor: theme.primary }]}>
+      <View testID={testID} style={[styles.badge, { backgroundColor: theme.primary }]}>
         <Ionicons name="alarm-outline" size={14} color={theme.primaryText} />
         <ThemedText style={[styles.countdown, { color: theme.primaryText }]}>{countdownText}</ThemedText>
         <TouchableOpacity onPress={onCancel} activeOpacity={0.7}>

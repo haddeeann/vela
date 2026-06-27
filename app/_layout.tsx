@@ -13,6 +13,7 @@ import { registerReminderCategories } from '@/notifications/registerReminderCate
 import { useRootNotificationListeners } from '@/notifications/useRootNotificationListeners';
 import { rescheduleAlarm } from '@/utils/alarmScheduler';
 import { getHasOnboarded } from '@/utils/calendarSettings';
+import { promptForExactAlarmSettingsIfNeeded } from '@/utils/exactAlarmSettings';
 
 export const unstable_settings = {
   initialRouteName: 'capture',
@@ -54,6 +55,7 @@ export default function RootLayout() {
           const { status } = await Notifications.requestPermissionsAsync();
           if (status === 'granted') {
             const didMigrateChannels = await registerReminderCategories();
+            await promptForExactAlarmSettingsIfNeeded();
 
             const alarms = await getAllAlarms();
             for (const alarm of alarms) {

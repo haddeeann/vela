@@ -100,7 +100,12 @@ export default function OnboardingScreen() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity onPress={handleSkip} activeOpacity={0.7} style={styles.skipContainer}>
+        <TouchableOpacity
+          testID="onboarding-skip"
+          onPress={handleSkip}
+          activeOpacity={0.7}
+          style={styles.skipContainer}
+        >
           <ThemedText style={[styles.skipText, { color: theme.textSecondary }]}>Skip for now</ThemedText>
         </TouchableOpacity>
       </View>

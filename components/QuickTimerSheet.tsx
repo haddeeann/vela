@@ -123,6 +123,7 @@ export const QuickTimerSheet: React.FC<Props> = ({
 
             <ThemedText style={[styles.label, { color: theme.textMuted }]}>What&apos;s this for?</ThemedText>
             <TextInput
+              testID="quick-timer-message-input"
               value={message}
               onChangeText={setMessage}
               placeholder="e.g. check the oven"
@@ -165,6 +166,7 @@ export const QuickTimerSheet: React.FC<Props> = ({
             <View style={styles.customRow}>
               <ThemedText style={[styles.customLabel, { color: theme.textMuted }]}>Or type minutes:</ThemedText>
               <TextInput
+                testID="quick-timer-custom-minutes-input"
                 value={customMinutes}
                 onChangeText={(value) => {
                   const sanitized = value.replace(/[^0-9]/g, '');
@@ -205,6 +207,7 @@ export const QuickTimerSheet: React.FC<Props> = ({
               </View>
             ) : (
               <TouchableOpacity
+                testID="quick-timer-set-button"
                 onPress={handleSetTimer}
                 style={[styles.primaryButton, { backgroundColor: theme.primary, opacity: effectiveMinutes ? 1 : 0.6 }]}
                 disabled={!effectiveMinutes || isSubmitting}
