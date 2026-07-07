@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback } from 'react';
 import { StyleSheet, ScrollView, TouchableOpacity, View, Pressable, Animated, Text } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,7 @@ import {
   findSleepAnchor,
   isHourInSleepRange,
 } from '@/utils/sleepCollapse';
+import { useOvernightCollapse } from '@/contexts/OvernightCollapseContext';
 
 interface Event {
   id: string;
@@ -63,7 +64,7 @@ export function DailyTimeline({
   const theme = getTheme(colorScheme);
   const anchorColors = getEntryColors('anchor', colorScheme);
   const scrollViewRef = useRef<ScrollView>(null);
-  const [sleepExpanded, setSleepExpanded] = useState(false);
+  const { isExpanded: sleepExpanded, setExpanded: setSleepExpanded, resetToCollapsed } = useOvernightCollapse();
 
   const visibleEvents = useMemo(
     () =>
@@ -82,8 +83,8 @@ export function DailyTimeline({
   }, [events, showAnchorsOnDaily]);
 
   useEffect(() => {
-    setSleepExpanded(false);
-  }, [selectedDate]);
+    resetToCollapsed();
+  }, [selectedDate, resetToCollapsed]);
 
   const isSameCalendarDay = (left: Date, right: Date) => {
     return (

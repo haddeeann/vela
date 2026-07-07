@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, Pressable, Animated, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, ScrollView, TouchableOpacity, Pressable, Animated, View, useWindowDimensions, Text } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import { ThemedView } from './themed-view';
@@ -11,6 +11,8 @@ import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
 import { useCalendarSettings } from '@/utils/calendarSettings';
 import { formatDateString, getWeekStart, parseDateString } from '@/utils/dateUtils';
+import { checkWeeklyOvernightUniformity } from '@/utils/sleepCollapse';
+import { useOvernightCollapse } from '@/contexts/OvernightCollapseContext';
 
 interface Event {
   id: string;
@@ -36,10 +38,13 @@ interface WeeklyTimeGridProps {
 const TIMELINE_START_HOUR = 0;
 const TIMELINE_END_HOUR = 24;
 const HOUR_HEIGHT = 60;
+const COLLAPSED_HEIGHT = 32;
 const ROW_HEIGHT = HOUR_HEIGHT;
 const TIME_COLUMN_WIDTH = 50;
 const VISIBLE_START_HOUR = TIMELINE_START_HOUR;
 const VISIBLE_END_HOUR = TIMELINE_END_HOUR;
+const OVERNIGHT_WINDOW_START = 21;
+const OVERNIGHT_WINDOW_END = 5;
 const HOURS = Array.from(
   { length: TIMELINE_END_HOUR - TIMELINE_START_HOUR },
   (_, i) => i + TIMELINE_START_HOUR
@@ -70,8 +75,10 @@ export function WeeklyTimeGrid({
   const { width: screenWidth } = useWindowDimensions();
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
+  const anchorColors = getEntryColors('anchor', colorScheme);
   const { showAnchorsOnWeek } = useCalendarSettings();
   const scrollViewRef = useRef<ScrollView>(null);
+  const { isExpanded: overnightExpanded, setExpanded: setOvernightExpanded } = useOvernightCollapse();
 
   const columnWidth = (screenWidth - TIME_COLUMN_WIDTH - 32) / 7;
 
@@ -142,24 +149,6 @@ export function WeeklyTimeGrid({
     return hours + minutes / 60;
   };
 
-  const getTopPosition = (time: string): number => {
-    const totalHours = parseTimeToHours(time);
-    const offsetFromStart = totalHours - TIMELINE_START_HOUR;
-    if (offsetFromStart < 0) return 0;
-    return offsetFromStart * ROW_HEIGHT;
-  };
-
-  const getBlockHeight = (
-    startTime: string,
-    endTime: string
-  ): number => {
-    const start = parseTimeToHours(startTime);
-    const end = parseTimeToHours(endTime);
-    const duration = end - start;
-    if (duration <= 0) return ROW_HEIGHT;
-    return duration * ROW_HEIGHT;
-  };
-
   const getEventsForDay = (date: Date) => {
     const targetDate = parseDateString(formatDateString(date));
     targetDate.setHours(0, 0, 0, 0);
@@ -190,6 +179,102 @@ export function WeeklyTimeGrid({
     });
   }, [events, startOfWeek, endOfWeek]);
 
+  const overnightCheck = useMemo(() => {
+    if (!showAnchorsOnWeek) return { isUniform: false, anchor: null };
+    return checkWeeklyOvernightUniformity(
+      weekDays,
+      getEventsForDay,
+      OVERNIGHT_WINDOW_START,
+      OVERNIGHT_WINDOW_END
+    );
+  }, [weekDays, events, showAnchorsOnWeek]);
+
+  const shouldRenderCollapsed = !overnightExpanded && overnightCheck.isUniform && overnightCheck.anchor;
+
+  const isHourInOvernightRange = (hour: number): boolean => {
+    if (!overnightCheck.anchor) return false;
+    const { startHour, endHour, isOvernight } = overnightCheck.anchor;
+    if (isOvernight) {
+      return hour >= Math.floor(startHour) || hour < Math.ceil(endHour);
+    }
+    return hour >= Math.floor(startHour) && hour < Math.ceil(endHour);
+  };
+
+  const getAdjustedTopPosition = (time: string): number => {
+    const totalHours = parseTimeToHours(time);
+    const hour = Math.floor(totalHours);
+    const fraction = totalHours - hour;
+    
+    if (!shouldRenderCollapsed) {
+      return totalHours * ROW_HEIGHT;
+    }
+    
+    let pixelTop = 0;
+    for (let h = 0; h < hour; h++) {
+      const inOvernight = isHourInOvernightRange(h);
+      const isFirst = overnightCheck.anchor && h === Math.floor(overnightCheck.anchor.startHour);
+      
+      if (inOvernight && isFirst) {
+        pixelTop += COLLAPSED_HEIGHT;
+      } else if (inOvernight) {
+        pixelTop += 0;
+      } else {
+        pixelTop += ROW_HEIGHT;
+      }
+    }
+    
+    const currentInOvernight = isHourInOvernightRange(hour);
+    const currentIsFirst = overnightCheck.anchor && hour === Math.floor(overnightCheck.anchor.startHour);
+    
+    if (!(currentInOvernight && currentIsFirst) && !currentInOvernight) {
+      pixelTop += fraction * ROW_HEIGHT;
+    }
+    
+    return pixelTop;
+  };
+
+  const getAdjustedBlockHeight = (startTime: string, endTime: string): number => {
+    if (!shouldRenderCollapsed) {
+      const start = parseTimeToHours(startTime);
+      const end = parseTimeToHours(endTime);
+      const duration = end - start;
+      if (duration <= 0) return ROW_HEIGHT;
+      return duration * ROW_HEIGHT;
+    }
+    
+    const top = getAdjustedTopPosition(startTime);
+    const bottom = getAdjustedTopPosition(endTime);
+    return Math.max(ROW_HEIGHT * 0.25, bottom - top);
+  };
+
+  const formatHourLabel = (hour: number): string => {
+    if (hour === 0) return '12 AM';
+    if (hour === 12) return '12 PM';
+    if (hour < 12) return `${hour} AM`;
+    return `${hour - 12} PM`;
+  };
+
+  const timelineHeight = useMemo(() => {
+    if (!shouldRenderCollapsed) {
+      return HOURS.length * ROW_HEIGHT;
+    }
+    
+    let height = 0;
+    for (let h = 0; h < 24; h++) {
+      const inOvernight = isHourInOvernightRange(h);
+      const isFirst = overnightCheck.anchor && h === Math.floor(overnightCheck.anchor.startHour);
+      
+      if (inOvernight && isFirst) {
+        height += COLLAPSED_HEIGHT;
+      } else if (inOvernight) {
+        height += 0;
+      } else {
+        height += ROW_HEIGHT;
+      }
+    }
+    return height;
+  }, [shouldRenderCollapsed, overnightCheck]);
+
   console.log('[WeeklyView] weekStart:', formatDateString(startOfWeek));
   console.log('[WeeklyView] weekEnd:', formatDateString(endOfWeek));
   console.log('[WeeklyView] all events:', events.length);
@@ -198,13 +283,6 @@ export function WeeklyTimeGrid({
 
   const flashedCellRef = useRef<string | null>(null);
   const flashOpacity = useRef(new Animated.Value(0)).current;
-
-  const formatHourLabel = (hour: number): string => {
-    if (hour === 0) return '12 AM';
-    if (hour === 12) return '12 PM';
-    if (hour < 12) return `${hour} AM`;
-    return `${hour - 12} PM`;
-  };
 
   const formatSlotTimeLabel = (hour: number) => {
     const h = hour % 24;
@@ -313,16 +391,27 @@ export function WeeklyTimeGrid({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-        <View style={styles.gridContainer}>
+        <View style={[styles.gridContainer, { height: timelineHeight }]}>
           {/* Time Column */}
           <View style={styles.timeColumn}>
-            {HOURS.map(hour => (
-              <View key={hour} style={[styles.hourRow, { height: HOUR_HEIGHT }]}>
-                <ThemedText style={styles.timeLabel}>
-                  {formatHourLabel(hour)}
-                </ThemedText>
-              </View>
-            ))}
+            {HOURS.map(hour => {
+              const inOvernight = shouldRenderCollapsed && isHourInOvernightRange(hour);
+              const isFirst = shouldRenderCollapsed && overnightCheck.anchor && hour === Math.floor(overnightCheck.anchor.startHour);
+              
+              if (inOvernight && !isFirst) {
+                return null;
+              }
+              
+              const hourHeight = (inOvernight && isFirst) ? COLLAPSED_HEIGHT : HOUR_HEIGHT;
+              
+              return (
+                <View key={hour} style={[styles.hourRow, { height: hourHeight }]}>
+                  <ThemedText style={styles.timeLabel}>
+                    {formatHourLabel(hour)}
+                  </ThemedText>
+                </View>
+              );
+            })}
           </View>
 
           {/* Day Columns */}
@@ -340,16 +429,24 @@ export function WeeklyTimeGrid({
                 <View style={[styles.selectedColumnTint, { backgroundColor: hexToRgba(theme.primary, 0.05) }]} />
               ) : null}
               {HOURS.map(hour => {
+                const inOvernight = shouldRenderCollapsed && isHourInOvernightRange(hour);
+                const isFirst = shouldRenderCollapsed && overnightCheck.anchor && hour === Math.floor(overnightCheck.anchor.startHour);
+                
+                if (inOvernight && !isFirst) {
+                  return null;
+                }
+                
                 const hourStart = hour;
                 const hourEnd = hour + 1;
                 const isOccupied = visibleSegments.some(segment => segment.start < hourEnd && segment.end > hourStart);
                 const hourCellKey = `${dayDate}-${hour}`;
+                const hourHeight = (inOvernight && isFirst) ? COLLAPSED_HEIGHT : HOUR_HEIGHT;
 
                 return (
                   <Pressable
                     key={hour}
-                    style={[styles.hourCell, { height: HOUR_HEIGHT, borderBottomColor: theme.border, zIndex: 0 }]}
-                    disabled={isOccupied}
+                    style={[styles.hourCell, { height: hourHeight, borderBottomColor: theme.border, zIndex: 0 }]}
+                    disabled={isOccupied || (inOvernight && isFirst)}
                     onPress={() => handleEmptySlotPress(dayDate, hour)}
                   >
                     {!isOccupied && flashedCellRef.current === hourCellKey ? (
@@ -404,16 +501,29 @@ export function WeeklyTimeGrid({
 
                 if (isAnchor) {
                   if (!showAnchorsOnWeek) return null;
+                  
+                  if (shouldRenderCollapsed && overnightCheck.anchor) {
+                    const matchesCollapsedAnchor = 
+                      event.title === overnightCheck.anchor.title &&
+                      event.startTime === overnightCheck.anchor.startTime &&
+                      event.endTime === overnightCheck.anchor.endTime;
+                    if (matchesCollapsedAnchor) return null;
+                  }
 
+                  const isOvernight = end <= start;
                   const effectiveStart = Math.max(VISIBLE_START_HOUR, start);
-                  const effectiveEnd = end <= start
+                  const effectiveEnd = isOvernight
                     ? VISIBLE_END_HOUR
                     : Math.min(VISIBLE_END_HOUR, end);
                   const duration = Math.max(0, effectiveEnd - effectiveStart);
 
                   if (duration <= 0) return null;
 
-                  const blockHeight = duration * HOUR_HEIGHT;
+                  const blockHeight = getAdjustedBlockHeight(
+                    formatSlotTimeLabel(effectiveStart),
+                    formatSlotTimeLabel(effectiveEnd)
+                  );
+                  const topPosition = getAdjustedTopPosition(formatSlotTimeLabel(effectiveStart));
 
                   return (
                     <TouchableOpacity
@@ -422,7 +532,7 @@ export function WeeklyTimeGrid({
                         styles.eventBlock,
                         styles.anchorBlock,
                         {
-                          top: getTopPosition(formatSlotTimeLabel(effectiveStart)),
+                          top: topPosition,
                           height: blockHeight,
                           width: columnWidth - 2,
                           backgroundColor: entryColors.background,
@@ -438,10 +548,8 @@ export function WeeklyTimeGrid({
                   );
                 }
 
-                const blockHeight = Math.max(
-                  getBlockHeight(event.startTime, event.endTime),
-                  0.5 * ROW_HEIGHT
-                );
+                const blockHeight = getAdjustedBlockHeight(event.startTime, event.endTime);
+                const topPosition = getAdjustedTopPosition(event.startTime);
 
                 return (
                   <TouchableOpacity
@@ -451,8 +559,8 @@ export function WeeklyTimeGrid({
                       {
                         backgroundColor: entryColors.primary,
                         opacity: 0.8,
-                        top: getTopPosition(event.startTime),
-                        height: blockHeight,
+                        top: topPosition,
+                        height: Math.max(blockHeight, 0.5 * ROW_HEIGHT),
                         width: columnWidth - 2,
                         zIndex: 1,
                       }
@@ -467,6 +575,36 @@ export function WeeklyTimeGrid({
               })}
             </View>
           )})}
+
+          {/* Collapsed overnight band (spans all columns) */}
+          {shouldRenderCollapsed && overnightCheck.anchor && (
+            <TouchableOpacity
+              style={[
+                styles.collapsedBand,
+                {
+                  left: TIME_COLUMN_WIDTH,
+                  width: columnWidth * 7,
+                  top: getAdjustedTopPosition(formatSlotTimeLabel(Math.floor(overnightCheck.anchor.startHour))),
+                  height: COLLAPSED_HEIGHT,
+                  backgroundColor: anchorColors.background,
+                  borderLeftColor: anchorColors.primary,
+                },
+              ]}
+              onPress={() => setOvernightExpanded(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="moon-outline" size={14} color={anchorColors.primary} />
+              <Text style={[styles.collapsedLabel, { color: anchorColors.primary }]}>
+                {overnightCheck.anchor.title}
+              </Text>
+              <Text style={[styles.collapsedTime, { color: anchorColors.badgeText }]}>
+                {formatHourLabel(Math.floor(overnightCheck.anchor.startHour))}
+                {' – '}
+                {formatHourLabel(Math.floor(overnightCheck.anchor.endHour))}
+              </Text>
+              <Ionicons name="chevron-down-outline" size={14} color={anchorColors.primary} />
+            </TouchableOpacity>
+          )}
         </View>
         </ScrollView>
       ) : (
@@ -587,5 +725,22 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: '#FFF',
     fontWeight: 'bold',
+  },
+  collapsedBand: {
+    position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    borderLeftWidth: 3,
+    zIndex: 100,
+  },
+  collapsedLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  collapsedTime: {
+    fontSize: 11,
   },
 });

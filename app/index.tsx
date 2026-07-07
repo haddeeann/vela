@@ -27,6 +27,7 @@ import { EntryWithMeta } from '@/types';
 import { useCalendarSettings } from '@/utils/calendarSettings';
 import { cancelQuickTimer } from '@/utils/quickTimer';
 import { getTimerRemainingMinutes, TIMER_STORAGE_KEY } from '@/utils/timer';
+import { OvernightCollapseProvider } from '@/contexts/OvernightCollapseContext';
 
 import {
   formatDateString,
@@ -856,7 +857,8 @@ export default function HomeScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
+    <OvernightCollapseProvider>
+      <ThemedView style={styles.container}>
       <ThemedView style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity
@@ -1349,6 +1351,7 @@ export default function HomeScreen() {
         </Pressable>
       </Modal>
     </ThemedView>
+    </OvernightCollapseProvider>
   );
 }
 
