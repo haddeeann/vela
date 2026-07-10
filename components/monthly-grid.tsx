@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
 import { AnchorStripe } from './AnchorStripe';
-import { getTheme, getEntryColors } from '@/constants/theme';
+import { getTheme, resolveEntryColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
@@ -20,6 +20,7 @@ interface Event {
   categoryId: string;
   recurrence: RecurrenceType;
   entryType?: 'event' | 'task' | 'anchor' | 'custom';
+  colorOverride?: string | null;
 }
 
 interface MonthlyGridProps {
@@ -134,7 +135,10 @@ export function MonthlyGrid({ selectedDate, events, onDateSelect, onDayPress, on
     isCurrentMonth: boolean,
     options?: { opacity?: number }
   ) => {
-    const entryColors = getEntryColors(entry.entryType, colorScheme);
+    const entryColors = resolveEntryColors(
+      { entryType: entry.entryType, colorOverride: entry.colorOverride },
+      colorScheme
+    );
     const opacity = isCurrentMonth ? 'FF' : '4D'; // 100% or 30%
     const pillOpacity = options?.opacity;
 

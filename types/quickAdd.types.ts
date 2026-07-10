@@ -30,5 +30,6 @@ export interface QuickAddSaveInput {
   remind_before_minutes?: number | null
   category: string
   notes?: string
+  color_override?: string | null
   recurrence?: ParsedRecurrence
 }

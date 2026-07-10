@@ -83,6 +83,74 @@ export const getEntryColors = (
   return isDark ? colors.dark : colors.light
 }
 
+export const EVENT_COLOR_OVERRIDE_SWATCHES = [
+  '#D4793A',
+  '#B5882B',
+  '#2F4E8F',
+  '#1F3A68',
+  '#2E6F95',
+  '#4A5AA8',
+  '#7A4E9D',
+  '#8C4B3F',
+  '#2E7D6B',
+] as const
+
+const normalizeHexColor = (value: string): string | null => {
+  if (!value) return null
+  const trimmed = value.trim()
+  const hex = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed
+  if (!/^[0-9a-fA-F]{6}$/.test(hex)) return null
+  return `#${hex.toUpperCase()}`
+}
+
+const mixHexColors = (foreground: string, background: string, ratio: number): string => {
+  const safeRatio = Math.min(1, Math.max(0, ratio))
+  const fg = normalizeHexColor(foreground) ?? '#000000'
+  const bg = normalizeHexColor(background) ?? '#000000'
+
+  const fgR = parseInt(fg.slice(1, 3), 16)
+  const fgG = parseInt(fg.slice(3, 5), 16)
+  const fgB = parseInt(fg.slice(5, 7), 16)
+  const bgR = parseInt(bg.slice(1, 3), 16)
+  const bgG = parseInt(bg.slice(3, 5), 16)
+  const bgB = parseInt(bg.slice(5, 7), 16)
+
+  const r = Math.round(fgR * safeRatio + bgR * (1 - safeRatio))
+  const g = Math.round(fgG * safeRatio + bgG * (1 - safeRatio))
+  const b = Math.round(fgB * safeRatio + bgB * (1 - safeRatio))
+
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`.toUpperCase()
+}
+
+type EntryColorInput = {
+  entryType?: string
+  colorOverride?: string | null
+}
+
+export const resolveEntryColors = (
+  entry: EntryColorInput,
+  colorScheme: ColorSchemeName
+) => {
+  const entryType = entry.entryType ?? 'event'
+  const fallback = getEntryColors(entryType, colorScheme)
+  const overrideHex = normalizeHexColor(entry.colorOverride ?? '')
+
+  if (entryType !== 'event' || !overrideHex) {
+    return fallback
+  }
+
+  const isDark = colorScheme === 'dark'
+  const backgroundBase = isDark ? '#1C1A17' : '#FFFFFF'
+  const badgeBase = isDark ? '#000000' : '#FFFFFF'
+
+  return {
+    primary: overrideHex,
+    background: mixHexColors(overrideHex, backgroundBase, isDark ? 0.26 : 0.12),
+    badge: mixHexColors(overrideHex, badgeBase, isDark ? 0.34 : 0.20),
+    badgeText: isDark ? '#FFFFFF' : mixHexColors(overrideHex, '#000000', 0.55),
+  }
+}
+
 export interface VelaTheme {
   background: string
   surface: string

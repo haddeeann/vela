@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, FlatList, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, FlatList, TouchableOpacity, View, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { getTheme, getEntryColors } from '@/constants/theme';
+import { getTheme, resolveEntryColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getAllEntries, createEntry, createRecurrenceRule } from '@/db';
 import { EntryWithMeta } from '@/types';
@@ -12,6 +12,7 @@ import { AddEventModal } from '@/components/add-event-modal';
 import { QuickAddBar } from '@/components/QuickAddBar';
 import { EmptyState } from '@/components/EmptyState';
 import { formatDateString, parseDateString } from '@/utils/dateUtils';
+import { scheduleEventReminderForEntry } from '@/notifications/eventReminderScheduler';
 
 export default function EventsScreen() {
   const colorScheme = useColorScheme();
@@ -56,10 +57,32 @@ export default function EventsScreen() {
         entry_type: eventData.entryType,
         is_completable: 0,
         notes: eventData.notes ?? '',
+        color_override: eventData.colorOverride ?? null,
+        reminder_mode: eventData.reminderMode ?? 'use-default',
       });
 
       if (eventData.recurrence && eventData.recurrence !== 'none') {
         await createRecurrenceRule(id, eventData.recurrence, null, null);
+      }
+
+      if (eventData.entryType === 'event') {
+        const reminderResult = await scheduleEventReminderForEntry({
+          id,
+          title: eventData.title,
+          date: eventData.date,
+          start_time: eventData.startTime,
+          entry_type: 'event',
+          recurrence: eventData.recurrence,
+          reminder_mode: eventData.reminderMode ?? 'use-default',
+          reminder_notification_id: null,
+        });
+
+        if (reminderResult.status === 'permission-denied') {
+          Alert.alert(
+            'Notifications disabled',
+            'Enable notifications in system settings to receive event reminders.'
+          );
+        }
       }
 
       setIsModalVisible(false);
@@ -70,7 +93,10 @@ export default function EventsScreen() {
   };
 
   const renderEventItem = ({ item, index }: { item: EntryWithMeta, index: number }) => {
-    const entryColors = getEntryColors(item.entry_type, colorScheme);
+    const entryColors = resolveEntryColors(
+      { entryType: item.entry_type, colorOverride: item.color_override },
+      colorScheme
+    );
     const showDateHeader = index === 0 || events[index - 1].date !== item.date;
 
     const d = parseDateString(item.date);

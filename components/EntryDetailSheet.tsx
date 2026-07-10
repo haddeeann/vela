@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { getTheme, getEntryColors } from '../constants/theme';
+import { getTheme, resolveEntryColors } from '../constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '../constants/categories';
 import { deleteEntry } from '../db';
@@ -28,6 +28,7 @@ type EntryDetail = {
   end_time?: string;
   category: string;
   notes?: string;
+  color_override?: string | null;
   recurrence?: {
     frequency: 'daily' | 'weekly' | 'monthly';
     end_date?: string;
@@ -171,7 +172,10 @@ export const EntryDetailSheet: React.FC<EntryDetailSheetProps> = ({
             </View>
 
             {entry ? (() => {
-              const entryColors = getEntryColors(entry.entry_type, colorScheme);
+              const entryColors = resolveEntryColors(
+                { entryType: entry.entry_type, colorOverride: entry.color_override },
+                colorScheme
+              );
               return (
               <>
                 <View style={styles.typeRow}>

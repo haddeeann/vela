@@ -68,6 +68,22 @@ export const registerReminderCategories = async (): Promise<boolean> => {
     }
   )
 
+  await Notifications.setNotificationChannelAsync(
+    NOTIFICATION_CHANNEL_IDS.eventReminders, {
+      name: 'Event Reminders',
+      importance: Notifications.AndroidImportance.HIGH,
+      sound: 'default',
+      vibrationPattern: [0, 300, 150, 300],
+      enableVibrate: true,
+      enableLights: true,
+      lightColor: '#D4793A',
+      showBadge: true,
+      bypassDnd: false,
+      lockscreenVisibility:
+        Notifications.AndroidNotificationVisibility.PUBLIC,
+    }
+  )
+
   await Notifications.setNotificationCategoryAsync('REMINDER_EVENT', [
     { identifier: 'SNOOZE_5_MIN', buttonTitle: '5 more min' },
     { identifier: 'ON_MY_WAY', buttonTitle: 'On my way' },

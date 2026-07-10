@@ -26,6 +26,7 @@ interface Event {
   recurrence: RecurrenceType;
   entryType?: 'event' | 'task' | 'anchor' | 'custom';
   notes?: string;
+  colorOverride?: string | null;
 }
 
 interface CalendarProps {

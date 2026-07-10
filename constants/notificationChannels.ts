@@ -7,6 +7,7 @@ export const NOTIFICATION_CHANNEL_IDS = {
   alarms: 'vela-alarms-v2',
   timers: 'vela-timers-v2',
   reminders: 'vela-reminders-v2',
+  eventReminders: 'vela-event-reminders-v2',
 } as const;
 
 export const LEGACY_NOTIFICATION_CHANNEL_IDS = [

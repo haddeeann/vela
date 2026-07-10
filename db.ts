@@ -99,6 +99,9 @@ export const initDB = async (): Promise<SQLite.SQLiteDatabase> => {
           end_time TEXT NOT NULL,
           category TEXT CHECK(category IN ('work', 'personal', 'health', 'social', 'other')) NOT NULL,
           notes TEXT,
+          color_override TEXT,
+          reminder_mode TEXT,
+          reminder_notification_id TEXT,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         );
@@ -165,6 +168,27 @@ export const initDB = async (): Promise<SQLite.SQLiteDatabase> => {
         // Column already exists — ignore error
       })
 
+      await db.execAsync(`
+        ALTER TABLE entries
+        ADD COLUMN color_override TEXT DEFAULT NULL
+      `).catch(() => {
+        // Column already exists — ignore error
+      })
+
+      await db.execAsync(`
+        ALTER TABLE entries
+        ADD COLUMN reminder_mode TEXT DEFAULT NULL
+      `).catch(() => {
+        // Column already exists — ignore error
+      })
+
+      await db.execAsync(`
+        ALTER TABLE entries
+        ADD COLUMN reminder_notification_id TEXT DEFAULT NULL
+      `).catch(() => {
+        // Column already exists — ignore error
+      })
+
       console.log('Database initialized successfully');
       return db;
     } catch (error) {
@@ -195,6 +219,9 @@ export interface CreateEntryData {
   end_time: string;
   category: CategoryId;
   notes?: string | null;
+  color_override?: string | null;
+  reminder_mode?: string | null;
+  reminder_notification_id?: string | null;
   is_completable?: number;
   custom_type_name?: string | null;
 }
@@ -214,15 +241,18 @@ export const createEntry = async (entryData: CreateEntryData): Promise<{ id: str
       end_time,
       category,
       notes = null,
+      color_override = null,
+      reminder_mode = null,
+      reminder_notification_id = null,
       is_completable = 0,
       custom_type_name = null
     } = entryData;
 
     await sqlite.withTransactionAsync(async () => {
       await sqlite.runAsync(
-        `INSERT INTO entries (id, title, entry_type, date, start_time, end_time, category, notes, created_at, updated_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-        [id, title, entry_type, date, start_time, end_time, category, notes, now, now]
+        `INSERT INTO entries (id, title, entry_type, date, start_time, end_time, category, notes, color_override, reminder_mode, reminder_notification_id, created_at, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [id, title, entry_type, date, start_time, end_time, category, notes, color_override, reminder_mode, reminder_notification_id, now, now]
       );
 
       await sqlite.runAsync(
@@ -304,6 +334,9 @@ export interface UpdateEntryData {
   end_time?: string;
   category?: CategoryId;
   notes?: string | null;
+  color_override?: string | null;
+  reminder_mode?: string | null;
+  reminder_notification_id?: string | null;
   recurrence?: {
     frequency: RecurrenceType;
     end_date?: string | null;
@@ -326,6 +359,9 @@ export const updateEntry = async (id: string, entryData: UpdateEntryData): Promi
       end_time,
       category,
       notes,
+      color_override,
+      reminder_mode,
+      reminder_notification_id,
       recurrence,
       is_completable,
       completed_at,
@@ -344,6 +380,9 @@ export const updateEntry = async (id: string, entryData: UpdateEntryData): Promi
       if (end_time !== undefined) { entryFields.push('end_time = ?'); entryValues.push(end_time); }
       if (category !== undefined) { entryFields.push('category = ?'); entryValues.push(category); }
       if (notes !== undefined) { entryFields.push('notes = ?'); entryValues.push(notes); }
+      if (color_override !== undefined) { entryFields.push('color_override = ?'); entryValues.push(color_override); }
+      if (reminder_mode !== undefined) { entryFields.push('reminder_mode = ?'); entryValues.push(reminder_mode); }
+      if (reminder_notification_id !== undefined) { entryFields.push('reminder_notification_id = ?'); entryValues.push(reminder_notification_id); }
 
       entryFields.push('updated_at = ?');
       entryValues.push(now);
@@ -407,9 +446,18 @@ export const deleteEntry = async (id: string): Promise<void> => {
       [id]
     ) as Array<{ expo_notification_id: string | null }>;
 
+    const eventReminderRow = await sqlite.getFirstAsync(
+      'SELECT reminder_notification_id FROM entries WHERE id = ?',
+      [id]
+    ) as { reminder_notification_id: string | null } | null;
+
     const notificationIds = reminderRows
       .map((row) => row.expo_notification_id)
       .filter((notificationId): notificationId is string => Boolean(notificationId));
+
+    if (eventReminderRow?.reminder_notification_id) {
+      notificationIds.push(eventReminderRow.reminder_notification_id);
+    }
 
     if (notificationIds.length > 0) {
       await cancelReminderNotifications(notificationIds);
@@ -437,8 +485,8 @@ export const createCaptureItem = async (title: string, imageUri?: string): Promi
 
   await sqlite.runAsync(
     `INSERT INTO entries 
-     (id, title, entry_type, date, start_time, end_time, category, notes, image_uri, created_at, updated_at)
-     VALUES (?, ?, 'capture', '', '', '', 'other', '', ?, ?, ?)`,
+     (id, title, entry_type, date, start_time, end_time, category, notes, color_override, image_uri, created_at, updated_at)
+     VALUES (?, ?, 'capture', '', '', '', 'other', '', NULL, ?, ?, ?)`,
     [id, title, imageUri ?? null, now, now]
   );
 
@@ -567,6 +615,9 @@ export const saveQuickAddEntry = async (input: QuickAddSaveInput): Promise<strin
       end_time = '',
       category = 'personal',
       notes = null,
+      color_override = null,
+      reminder_mode = null,
+      reminder_notification_id = null,
       recurrence,
       remind_before_minutes = null,
     } = input;
@@ -577,9 +628,9 @@ export const saveQuickAddEntry = async (input: QuickAddSaveInput): Promise<strin
     await sqlite.withTransactionAsync(async () => {
       // 4. Insert a row into the entries table
       await sqlite.runAsync(
-        `INSERT INTO entries (id, title, entry_type, date, start_time, end_time, category, notes, created_at, updated_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-        [id, title, entry_type, date, start_time, end_time, category, notes, now, now]
+        `INSERT INTO entries (id, title, entry_type, date, start_time, end_time, category, notes, color_override, reminder_mode, reminder_notification_id, created_at, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [id, title, entry_type, date, start_time, end_time, category, notes, color_override, reminder_mode, reminder_notification_id, now, now]
       );
 
       // 5. Insert a row into entry_meta

@@ -6,7 +6,7 @@ import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
 import { EmptyState } from './EmptyState';
 import { OvernightCollapsedBar } from './OvernightCollapsedBar';
-import { getTheme, getEntryColors } from '@/constants/theme';
+import { getTheme, getEntryColors, resolveEntryColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
@@ -26,6 +26,7 @@ interface Event {
   entryType?: 'event' | 'task' | 'anchor' | 'custom';
   completedAt?: number | null;
   notes?: string;
+  colorOverride?: string | null;
 }
 
 interface WeeklyTimeGridProps {
@@ -549,7 +550,13 @@ export function WeeklyTimeGrid({
               ) : null}
               {/* Events for this day */}
               {visibleTimedSegments.map(segment => {
-                const entryColors = getEntryColors(segment.event.entryType || 'event', colorScheme);
+                const entryColors = resolveEntryColors(
+                  {
+                    entryType: segment.event.entryType || 'event',
+                    colorOverride: segment.event.colorOverride,
+                  },
+                  colorScheme
+                );
                 const blockHeight = getAdjustedBlockHeight(segment.start, segment.end);
                 const topPosition = getAdjustedTopPosition(segment.start);
 

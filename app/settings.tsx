@@ -6,6 +6,9 @@ import { useAppearance } from '@/hooks/useAppearance'
 import { AppearanceMode } from '@/utils/appearanceSettings'
 import { getTheme } from '@/constants/theme';
 import { useCalendarSettings } from '@/utils/calendarSettings';
+import { DEFAULT_REMINDER_OPTIONS, ReminderType } from '@/constants/reminders';
+import { useEventReminderSettings } from '@/utils/eventReminderSettings';
+import { reapplyDefaultEventReminders } from '@/notifications/eventReminderScheduler';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
@@ -13,6 +16,16 @@ export default function SettingsScreen() {
   const { mode, colorScheme, updateMode } = useAppearance();
   const theme = getTheme(colorScheme);
   const { showAnchors, setShowAnchors } = useCalendarSettings();
+  const { defaultReminder, setDefaultReminder } = useEventReminderSettings();
+
+  const reminderLabelMap: Record<Exclude<ReminderType, 'use-default'>, string> = {
+    none: 'None',
+    'at-start': 'At start time',
+    '5-min': '5 minutes before',
+    '10-min': '10 minutes before',
+    '30-min': '30 minutes before',
+    '1-hour': '1 hour before',
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -109,6 +122,61 @@ export default function SettingsScreen() {
                 thumbColor="#FFFFFF"
               />
             </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <ThemedText style={[styles.sectionLabel, { color: theme.textMuted }]}>
+            Event reminders
+          </ThemedText>
+
+          <View style={[
+            styles.settingCard,
+            { backgroundColor: theme.surface, borderColor: theme.border }
+          ]}>
+            {DEFAULT_REMINDER_OPTIONS.map((option, index, arr) => (
+              <TouchableOpacity
+                key={option.id}
+                style={[
+                  styles.optionRow,
+                  {
+                    borderBottomColor: theme.border,
+                    borderBottomWidth: index < arr.length - 1 ? 0.5 : 0
+                  }
+                ]}
+                onPress={async () => {
+                  const value = option.id as Exclude<ReminderType, 'use-default'>;
+                  await setDefaultReminder(value);
+                  await reapplyDefaultEventReminders();
+                }}
+              >
+                <View style={styles.optionLeft}>
+                  <Ionicons
+                    name="notifications-outline"
+                    size={20}
+                    color={defaultReminder === option.id ? theme.primary : theme.textMuted}
+                    style={{ marginRight: 12 }}
+                  />
+                  <ThemedText style={[
+                    styles.optionLabel,
+                    {
+                      color: defaultReminder === option.id
+                        ? theme.primary
+                        : theme.textPrimary
+                    }
+                  ]}>
+                    {reminderLabelMap[option.id as Exclude<ReminderType, 'use-default'>]}
+                  </ThemedText>
+                </View>
+                {defaultReminder === option.id && (
+                  <Ionicons
+                    name="checkmark"
+                    size={20}
+                    color={theme.primary}
+                  />
+                )}
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
       </SafeAreaView>

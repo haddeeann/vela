@@ -52,18 +52,15 @@ export default function RootLayout() {
     const bootstrapApp = async () => {
       try {
         if (!isExpoGoOnAndroid) {
-          const { status } = await Notifications.requestPermissionsAsync();
-          if (status === 'granted') {
-            const didMigrateChannels = await registerReminderCategories();
-            await promptForExactAlarmSettingsIfNeeded();
+          const didMigrateChannels = await registerReminderCategories();
+          await promptForExactAlarmSettingsIfNeeded();
 
-            const alarms = await getAllAlarms();
-            for (const alarm of alarms) {
-              if (!alarm.is_active) continue;
-              if (!didMigrateChannels && alarm.notification_ids.length > 0) continue;
-              const notificationIds = await rescheduleAlarm(alarm);
-              await updateAlarm(alarm.id, { notification_ids: notificationIds });
-            }
+          const alarms = await getAllAlarms();
+          for (const alarm of alarms) {
+            if (!alarm.is_active) continue;
+            if (!didMigrateChannels && alarm.notification_ids.length > 0) continue;
+            const notificationIds = await rescheduleAlarm(alarm);
+            await updateAlarm(alarm.id, { notification_ids: notificationIds });
           }
         }
       } catch (error) {

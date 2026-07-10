@@ -19,15 +19,14 @@ import { QuickTimerSheet } from '@/components/QuickTimerSheet';
 import { TimerBadge } from '@/components/TimerBadge';
 import { CategoryId } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
-import { REMINDER_OPTIONS, ReminderType } from '@/constants/reminders';
-import { createEntry, createRecurrenceRule, createReminder, getAllEntries, initDB } from '@/db';
-import { saveNotificationIds } from '@/db/reminderQueries';
-import { scheduleReminderSequence } from '@/notifications/scheduleReminderSequence';
+import { ReminderType } from '@/constants/reminders';
+import { createEntry, createRecurrenceRule, getAllEntries, initDB } from '@/db';
 import { EntryWithMeta } from '@/types';
 import { useCalendarSettings } from '@/utils/calendarSettings';
 import { cancelQuickTimer } from '@/utils/quickTimer';
 import { getTimerRemainingMinutes, TIMER_STORAGE_KEY } from '@/utils/timer';
 import { OvernightCollapseProvider } from '@/contexts/OvernightCollapseContext';
+import { scheduleEventReminderForEntry } from '@/notifications/eventReminderScheduler';
 
 import {
   formatDateString,
@@ -47,6 +46,8 @@ type EditableEntry = {
   end_time?: string;
   category: CategoryId;
   notes?: string;
+  color_override?: string | null;
+  reminder_mode?: ReminderType | null;
   recurrence?: {
     frequency: RecurrenceType;
     end_date?: string;
@@ -62,6 +63,8 @@ type EntryDetailForActions = {
   end_time?: string;
   category: string;
   notes?: string;
+  color_override?: string | null;
+  reminder_mode?: ReminderType | null;
   recurrence?: {
     frequency: RecurrenceType;
     end_date?: string;
@@ -369,6 +372,9 @@ export default function HomeScreen() {
     recurrenceEndDate?: string | null;
     entryType?: 'event' | 'task' | 'anchor' | 'custom';
     notes?: string | undefined;
+    colorOverride?: string | null;
+    reminderMode?: ReminderType | null;
+    reminderNotificationId?: string | null;
   }
 
   const [allEvents, setAllEvents] = useState<CalendarEvent[]>([]);
@@ -389,6 +395,9 @@ export default function HomeScreen() {
         recurrenceEndDate: entry.end_date,
         entryType: entry.entry_type,
         notes: entry.notes ?? undefined,
+        colorOverride: entry.color_override,
+        reminderMode: (entry.reminder_mode as ReminderType | null) ?? null,
+        reminderNotificationId: entry.reminder_notification_id ?? null,
       }));
       setAllEvents(mappedAllEvents);
     } catch (error) {
@@ -408,22 +417,6 @@ export default function HomeScreen() {
     }, [fetchEvents])
   );
 
-  const getEntryDateTimeMs = (date: string, startTime?: string): number => {
-    const entryDateTime = parseDateString(date);
-
-    if (startTime && startTime.trim() !== '') {
-      const [time, period] = startTime.split(' ');
-      let [hours, minutes] = time.split(':').map(Number);
-      if (period === 'PM' && hours < 12) hours += 12;
-      if (period === 'AM' && hours === 12) hours = 0;
-      entryDateTime.setHours(hours, minutes, 0, 0);
-    } else {
-      entryDateTime.setHours(0, 0, 0, 0);
-    }
-
-    return entryDateTime.getTime();
-  };
-
   const createEntryFromEventPayload = useCallback(async (newEvent: {
     title: string;
     date: string;
@@ -435,12 +428,12 @@ export default function HomeScreen() {
     entryType: 'event' | 'task' | 'anchor';
     priority?: 'low' | 'medium' | 'high';
     notes?: string;
+    colorOverride?: string | null;
+    reminderMode?: ReminderType;
   }, options?: {
     withRecurrence?: boolean;
-    withReminder?: boolean;
   }) => {
     const withRecurrence = options?.withRecurrence ?? true;
-    const withReminder = options?.withReminder ?? true;
 
     const { id } = await createEntry({
       title: newEvent.title,
@@ -453,30 +446,13 @@ export default function HomeScreen() {
         newEvent.entryType === 'task'
           ? JSON.stringify({ priority: newEvent.priority })
           : (newEvent.notes ?? ''),
+      color_override: newEvent.entryType === 'event' ? (newEvent.colorOverride ?? null) : null,
+      reminder_mode: newEvent.entryType === 'event' ? (newEvent.reminderMode ?? 'use-default') : null,
       is_completable: newEvent.entryType === 'task' ? 1 : 0
     });
 
     if (withRecurrence && newEvent.recurrence !== 'none') {
       await createRecurrenceRule(id, newEvent.recurrence, null, null);
-    }
-
-    if (withReminder && newEvent.reminder !== 'none') {
-      const reminderOption = REMINDER_OPTIONS.find(r => r.id === newEvent.reminder);
-      if (reminderOption && reminderOption.minutesBefore !== null) {
-        const reminderId = await createReminder(id, reminderOption.minutesBefore);
-        const entryDateTimeMs = getEntryDateTimeMs(newEvent.date, newEvent.startTime);
-        const scheduledAt = entryDateTimeMs - reminderOption.minutesBefore * 60 * 1000;
-
-        const result = await scheduleReminderSequence({
-          reminderId,
-          entryId: id,
-          entryType: newEvent.entryType,
-          entryTitle: newEvent.title,
-          scheduledAt,
-        });
-
-        await saveNotificationIds(reminderId, result);
-      }
     }
 
     return id;
@@ -493,9 +469,31 @@ export default function HomeScreen() {
     entryType: 'event' | 'task' | 'anchor';
     priority?: 'low' | 'medium' | 'high';
     notes?: string;
+    colorOverride?: string | null;
+    reminderMode?: ReminderType;
   }) => {
     try {
-      await createEntryFromEventPayload(newEvent);
+      const newEntryId = await createEntryFromEventPayload(newEvent);
+
+      if (newEvent.entryType === 'event') {
+        const reminderResult = await scheduleEventReminderForEntry({
+          id: newEntryId,
+          title: newEvent.title,
+          date: newEvent.date,
+          start_time: newEvent.startTime,
+          entry_type: 'event',
+          recurrence: newEvent.recurrence,
+          reminder_mode: newEvent.reminderMode ?? 'use-default',
+          reminder_notification_id: null,
+        });
+
+        if (reminderResult.status === 'permission-denied') {
+          Alert.alert(
+            'Notifications disabled',
+            'Enable notifications in system settings to receive event reminders.'
+          );
+        }
+      }
 
       setIsModalVisible(false);
       setSelectedDate(newEvent.date);
@@ -530,9 +528,10 @@ export default function HomeScreen() {
       reminder: 'none',
       entryType: 'event',
       notes: entry.notes ?? '',
+      colorOverride: entry.color_override ?? null,
+      reminderMode: (entry.reminder_mode as ReminderType | null) ?? 'use-default',
     }, {
       withRecurrence: false,
-      withReminder: false,
     });
 
     setSelectedDate(targetDate);
@@ -547,6 +546,8 @@ export default function HomeScreen() {
       end_time: endTime,
       category: categoryId,
       notes: entry.notes,
+      color_override: entry.color_override ?? null,
+      reminder_mode: (entry.reminder_mode as ReminderType | null) ?? 'use-default',
       recurrence: undefined,
     });
   }, [createEntryFromEventPayload, fetchEvents]);
@@ -606,6 +607,9 @@ export default function HomeScreen() {
     end_time?: string;
     category: string;
     notes?: string;
+    color_override?: string | null;
+    reminder_mode?: ReminderType | null;
+    reminder_notification_id?: string | null;
     recurrence?: {
       frequency: RecurrenceType;
       end_date?: string;
@@ -620,7 +624,10 @@ export default function HomeScreen() {
       end_time: entryFromSheet.end_time,
       category: entryFromSheet.category as CategoryId,
       notes: entryFromSheet.notes,
+      color_override: entryFromSheet.color_override ?? null,
+      reminder_mode: entryFromSheet.reminder_mode ?? 'use-default',
       recurrence: entryFromSheet.recurrence,
+      reminder_notification_id: entryFromSheet.reminder_notification_id ?? null,
     });
     closeEntryDetail();
   }, [closeEntryDetail]);
@@ -1114,6 +1121,7 @@ export default function HomeScreen() {
           categoryId: selectedEntry.categoryId as CategoryId,
           recurrence: selectedEntry.recurrence,
           entryType: (selectedEntry.entryType || 'event') as 'event' | 'task' | 'anchor',
+          colorOverride: selectedEntry.colorOverride ?? null,
         } : undefined}
         prefilledDate={quickAddPrefilledDate}
         prefilledStartTime={quickAddPrefilledStartTime}
@@ -1175,6 +1183,9 @@ export default function HomeScreen() {
           end_time: selectedEntry.endTime,
           category: selectedEntry.categoryId,
           notes: selectedEntry.notes || undefined,
+          color_override: selectedEntry.colorOverride ?? null,
+          reminder_mode: selectedEntry.reminderMode ?? 'use-default',
+          reminder_notification_id: selectedEntry.reminderNotificationId ?? null,
           recurrence: selectedEntry.recurrence !== 'none'
             ? {
                 frequency: selectedEntry.recurrence,

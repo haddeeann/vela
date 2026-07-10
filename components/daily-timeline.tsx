@@ -6,7 +6,7 @@ import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
 import { EmptyState } from './EmptyState';
 import { OvernightCollapsedBar } from './OvernightCollapsedBar';
-import { getTheme, getEntryColors } from '@/constants/theme';
+import { getTheme, getEntryColors, resolveEntryColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
 import { RecurrenceType } from '@/constants/recurrence';
@@ -28,6 +28,7 @@ interface Event {
   entryType?: 'event' | 'task' | 'anchor' | 'custom';
   completedAt?: number | null;
   notes?: string;
+  colorOverride?: string | null;
 }
 
 interface DailyTimelineProps {
@@ -358,7 +359,10 @@ export function DailyTimeline({
       .map(segment => {
         const { event, start, end, continuedFromPrevious, continuesToNext } = segment;
         const showContinuesLabel = continuesToNext && end >= 24;
-        const entryColors = getEntryColors(event.entryType || 'event', colorScheme);
+        const entryColors = resolveEntryColors(
+          { entryType: event.entryType || 'event', colorOverride: event.colorOverride },
+          colorScheme
+        );
         const isAnchor = event.entryType === 'anchor';
         const isCompleted = !!event.completedAt;
         const hasNotes = !!event.notes?.trim();

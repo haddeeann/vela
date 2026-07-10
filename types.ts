@@ -10,6 +10,9 @@ export interface Entry {
   end_time: string;
   category: CategoryId;
   notes: string | null;
+  color_override: string | null;
+  reminder_mode: string | null;
+  reminder_notification_id: string | null;
   created_at: number;
   updated_at: number;
 }

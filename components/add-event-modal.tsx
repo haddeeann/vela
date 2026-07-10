@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Modal, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, View, ActivityIndicator } from 'react-native';
+import { Modal, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, View, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Calendar } from 'react-native-calendars';
 import DateTimePicker, { DateTimePickerEvent, DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
-import { getTheme, getEntryColors } from '@/constants/theme';
+import { EVENT_COLOR_OVERRIDE_SWATCHES, getTheme, getEntryColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import { formatDateString } from '@/utils/dateUtils';
@@ -13,6 +13,7 @@ import { CATEGORIES, CategoryId } from '@/constants/categories';
 import { RecurrenceType, RECURRENCE_OPTIONS } from '@/constants/recurrence';
 import { ReminderType, REMINDER_OPTIONS } from '@/constants/reminders';
 import { updateEntry } from '@/db';
+import { scheduleEventReminderForEntry } from '@/notifications/eventReminderScheduler';
 
 type ExistingEntry = {
   id: string;
@@ -23,6 +24,9 @@ type ExistingEntry = {
   end_time?: string;
   category: CategoryId;
   notes?: string;
+  color_override?: string | null;
+  reminder_mode?: ReminderType | null;
+  reminder_notification_id?: string | null;
   recurrence?: {
     frequency: RecurrenceType;
     end_date?: string;
@@ -43,6 +47,8 @@ interface AddEventModalProps {
     entryType: 'event' | 'task' | 'anchor';
     priority?: 'low' | 'medium' | 'high';
     notes?: string;
+    colorOverride?: string | null;
+    reminderMode?: ReminderType;
   }) => void | Promise<void>;
   selectedDate: string;
   initialEntryType?: 'event' | 'task' | 'anchor';
@@ -56,6 +62,7 @@ interface AddEventModalProps {
     categoryId?: CategoryId;
     recurrence?: RecurrenceType;
     entryType?: 'event' | 'task' | 'anchor';
+    colorOverride?: string | null;
   };
   prefilledDate?: string;
   prefilledStartTime?: string;
@@ -118,9 +125,10 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
   const [showDueTimePicker, setShowDueTimePicker] = useState(false);
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [notes, setNotes] = useState('');
+  const [colorOverride, setColorOverride] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState<CategoryId>('personal');
   const [recurrence, setRecurrence] = useState<RecurrenceType>('none');
-  const [reminder, setReminder] = useState<ReminderType>('none');
+  const [reminder, setReminder] = useState<ReminderType>('use-default');
   const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -252,8 +260,10 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
         setDate(existingEntry.date);
         setEntryType(existingEntry.entry_type);
         setNotes(existingEntry.notes ?? '');
+        setColorOverride(existingEntry.color_override ?? null);
         setCategoryId(existingEntry.category || 'personal');
         setRecurrence(existingEntry.recurrence?.frequency || 'none');
+        setReminder(existingEntry.reminder_mode ?? 'use-default');
 
         const parsedStartTime = parseTimeLabel(existingEntry.start_time);
         const parsedEndTime = parseTimeLabel(existingEntry.end_time);
@@ -268,8 +278,10 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
         setDate(initialValues.date);
         setEntryType(initialValues.entryType || 'event');
         setNotes('');
+        setColorOverride(initialValues.colorOverride ?? null);
         setCategoryId(initialValues.categoryId || 'personal');
         setRecurrence(initialValues.recurrence || 'none');
+        setReminder('use-default');
 
         const parsedStartTime = parseTimeLabel(initialValues.startTime);
         const parsedEndTime = parseTimeLabel(initialValues.endTime);
@@ -289,6 +301,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
         setEntryType(resolvedType);
         setTitle(prefilledTitle ?? '');
         setNotes('');
+        setColorOverride(null);
         setStartTimeDate(defaultRange.start);
         setEndTimeDate(defaultRange.end);
         setDueTimeDate(null);
@@ -300,6 +313,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
 
         setRecurrence(resolvedRecurrence);
         setCategoryId('personal');
+        setReminder('use-default');
 
         setDate(
           prefilledDate ??
@@ -343,6 +357,9 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
           end_time: endTime,
           category: entryType === 'task' ? 'other' : categoryId,
           notes: notes,
+          // Recurring rows share one entry record, so override is series-level.
+          color_override: entryType === 'event' ? colorOverride : null,
+          reminder_mode: entryType === 'event' ? reminder : null,
           recurrence: recurrence === 'none'
             ? null
             : {
@@ -350,6 +367,27 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
                 end_date: existingEntry.recurrence?.end_date,
               },
         });
+
+        if (entryType === 'event') {
+          const result = await scheduleEventReminderForEntry({
+            id: existingEntry.id,
+            title,
+            date,
+            start_time: startTime,
+            entry_type: 'event',
+            recurrence,
+            reminder_mode: reminder,
+            reminder_notification_id: existingEntry.reminder_notification_id ?? null,
+          });
+
+          if (result.status === 'permission-denied') {
+            // Gracefully hint where to enable notifications.
+            Alert.alert(
+              'Notifications disabled',
+              'Enable notifications in system settings to receive event reminders.'
+            );
+          }
+        }
 
         onSaved?.();
         onClose();
@@ -367,18 +405,22 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
         entryType,
         priority: entryType === 'task' ? priority : undefined,
         notes: entryType === 'event' ? notes : undefined,
+        // Recurrence in Vela is entry-level; per-instance override is out of scope.
+        colorOverride: entryType === 'event' ? colorOverride : null,
+        reminderMode: entryType === 'event' ? reminder : 'none',
       }));
 
       setTitle('');
       setEntryType('event');
       setNotes('');
+      setColorOverride(null);
       setDueTimeDate(null);
       setStartTimeDate(getNextRoundHour());
       setEndTimeDate(new Date(getNextRoundHour().getTime() + 60 * 60 * 1000));
       setPriority('medium');
       setCategoryId('personal');
       setRecurrence('none');
-      setReminder('none');
+      setReminder('use-default');
       onClose();
     } catch {
       // DB layer handles user-facing alerts. Keep modal open so user can retry.
@@ -686,7 +728,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
               ))}
             </ThemedView>
 
-            {entryType !== 'anchor' && (
+            {entryType === 'event' && (
               <>
                 <ThemedText style={styles.label}>Remind me</ThemedText>
                 <ThemedView style={styles.categoryPicker}>
@@ -725,6 +767,44 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
                   multiline
                   textAlignVertical="top"
                 />
+              </>
+            )}
+
+            {entryType === 'event' && (
+              <>
+                <ThemedText style={styles.label}>Color</ThemedText>
+                <ThemedView style={styles.categoryPicker}>
+                  <TouchableOpacity
+                    style={[
+                      styles.categoryItem,
+                      { borderColor: theme.border },
+                      colorOverride === null && { backgroundColor: theme.primary + '20', borderColor: theme.primary },
+                    ]}
+                    onPress={() => setColorOverride(null)}
+                  >
+                    <ThemedText
+                      style={[
+                        styles.categoryText,
+                        colorOverride === null && { fontWeight: 'bold', color: theme.primary },
+                      ]}
+                    >
+                      Default
+                    </ThemedText>
+                  </TouchableOpacity>
+                  {EVENT_COLOR_OVERRIDE_SWATCHES.map((swatch) => (
+                    <TouchableOpacity
+                      key={swatch}
+                      style={[
+                        styles.colorSwatchItem,
+                        { borderColor: colorOverride === swatch ? theme.primary : theme.border },
+                        colorOverride === swatch && { backgroundColor: theme.primary + '20' },
+                      ]}
+                      onPress={() => setColorOverride(swatch)}
+                    >
+                      <View style={[styles.colorSwatchDot, { backgroundColor: swatch }]} />
+                    </TouchableOpacity>
+                  ))}
+                </ThemedView>
               </>
             )}
           </ScrollView>
@@ -912,6 +992,19 @@ const styles = StyleSheet.create({
   },
   notesInput: {
     minHeight: 96,
+  },
+  colorSwatchItem: {
+    width: 40,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colorSwatchDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
   },
   endTimeRow: {
     flexDirection: 'row',

@@ -1,4 +1,11 @@
-export type ReminderType = 'none' | 'at-time' | '15-min' | '1-hour' | '1-day';
+export type ReminderType =
+  | 'use-default'
+  | 'none'
+  | 'at-start'
+  | '5-min'
+  | '10-min'
+  | '30-min'
+  | '1-hour';
 
 export interface ReminderOption {
   id: ReminderType;
@@ -7,9 +14,15 @@ export interface ReminderOption {
 }
 
 export const REMINDER_OPTIONS: ReminderOption[] = [
+  { id: 'use-default', name: 'Use default', minutesBefore: null },
   { id: 'none', name: 'None', minutesBefore: null },
-  { id: 'at-time', name: 'At time of event', minutesBefore: 0 },
-  { id: '15-min', name: '15 minutes before', minutesBefore: 15 },
+  { id: 'at-start', name: 'At start time', minutesBefore: 0 },
+  { id: '5-min', name: '5 minutes before', minutesBefore: 5 },
+  { id: '10-min', name: '10 minutes before', minutesBefore: 10 },
+  { id: '30-min', name: '30 minutes before', minutesBefore: 30 },
   { id: '1-hour', name: '1 hour before', minutesBefore: 60 },
-  { id: '1-day', name: '1 day before', minutesBefore: 1440 },
 ];
+
+export const DEFAULT_REMINDER_OPTIONS: ReminderOption[] = REMINDER_OPTIONS.filter(
+  (option) => option.id !== 'use-default'
+);
