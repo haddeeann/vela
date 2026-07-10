@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
 import { EmptyState } from './EmptyState';
+import { OvernightCollapsedBar } from './OvernightCollapsedBar';
 import { getTheme, getEntryColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
@@ -42,7 +43,6 @@ const TIMELINE_START_HOUR = 0;
 const TIMELINE_END_HOUR = 24;
 const COLLAPSED_HEIGHT = 32;
 const NORMAL_ROW_HEIGHT = 60;
-const ROW_HEIGHT = NORMAL_ROW_HEIGHT;
 
 interface EventSegment {
   id: string;
@@ -64,7 +64,7 @@ export function DailyTimeline({
   const theme = getTheme(colorScheme);
   const anchorColors = getEntryColors('anchor', colorScheme);
   const scrollViewRef = useRef<ScrollView>(null);
-  const { isExpanded: sleepExpanded, setExpanded: setSleepExpanded, resetToCollapsed } = useOvernightCollapse();
+  const { isExpanded: sleepExpanded, setExpanded: setSleepExpanded } = useOvernightCollapse();
 
   const visibleEvents = useMemo(
     () =>
@@ -81,10 +81,6 @@ export function DailyTimeline({
     if (!showAnchorsOnDaily) return null;
     return findSleepAnchor(events);
   }, [events, showAnchorsOnDaily]);
-
-  useEffect(() => {
-    resetToCollapsed();
-  }, [selectedDate, resetToCollapsed]);
 
   const isSameCalendarDay = (left: Date, right: Date) => {
     return (
@@ -461,43 +457,16 @@ export function DailyTimeline({
             </ThemedText>
           </View>
           <View style={[styles.hourContent, { borderTopColor: theme.border }]}>
-            <TouchableOpacity
+            <OvernightCollapsedBar
               onPress={() => setSleepExpanded(true)}
-              style={[
-                styles.sleepBar,
-                {
-                  height: COLLAPSED_HEIGHT,
-                  backgroundColor: anchorColors.background,
-                  borderLeftColor: anchorColors.primary,
-                },
-              ]}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name="moon-outline"
-                size={14}
-                color={anchorColors.primary}
-              />
-              <Text style={[
-                styles.sleepBarLabel,
-                { color: anchorColors.primary },
-              ]}>
-                {sleepRange.label}
-              </Text>
-              <Text style={[
-                styles.sleepBarTime,
-                { color: anchorColors.badgeText },
-              ]}>
-                {formatHourLabel(Math.floor(sleepRange.startHour))}
-                {' – '}
-                {formatHourLabel(Math.floor(sleepRange.endHour))}
-              </Text>
-              <Ionicons
-                name="chevron-down-outline"
-                size={14}
-                color={anchorColors.primary}
-              />
-            </TouchableOpacity>
+              label={sleepRange.label}
+              startLabel={formatHourLabel(Math.floor(sleepRange.startHour))}
+              endLabel={formatHourLabel(Math.floor(sleepRange.endHour))}
+              primaryColor={anchorColors.primary}
+              backgroundColor={anchorColors.background}
+              secondaryTextColor={anchorColors.badgeText}
+              style={{ height: COLLAPSED_HEIGHT, flex: 1 }}
+            />
           </View>
         </View>
       );
@@ -632,22 +601,6 @@ const styles = StyleSheet.create({
     flex: 1,
     borderTopWidth: 1,
     position: 'relative',
-  },
-  sleepBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    borderLeftWidth: 3,
-    flex: 1,
-  },
-  sleepBarLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    flex: 1,
-  },
-  sleepBarTime: {
-    fontSize: 11,
   },
   emptyHourPressable: {
     ...StyleSheet.absoluteFillObject,

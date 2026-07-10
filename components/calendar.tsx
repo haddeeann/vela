@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, TouchableOpacity, Platform, useWindowDimensions, View } from 'react-native';
 import { CalendarProvider } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import { RecurrenceType } from '@/constants/recurrence';
 import { formatDateString, parseDateString } from '@/utils/dateUtils';
+import { useOvernightCollapse } from '@/contexts/OvernightCollapseContext';
 
 import { DailyTimeline } from './daily-timeline';
 import { WeeklyTimeGrid } from './weekly-time-grid';
@@ -62,6 +63,11 @@ export default function Calendar({
   const colorScheme = useColorScheme();
   const theme = getTheme(colorScheme);
   const today = formatDateString(new Date());
+  const { resetToCollapsed } = useOvernightCollapse();
+
+  useEffect(() => {
+    resetToCollapsed();
+  }, [selectedDate, resetToCollapsed]);
 
   const handlePrevMonth = () => {
     const date = parseDateString(selectedDate);

@@ -1,10 +1,11 @@
-import React, { useRef, useEffect, useMemo } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, Pressable, Animated, View, useWindowDimensions, Text } from 'react-native';
+import React, { useRef, useEffect, useMemo, useCallback } from 'react';
+import { StyleSheet, ScrollView, TouchableOpacity, Pressable, Animated, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import { ThemedView } from './themed-view';
 import { ThemedText } from './themed-text';
 import { EmptyState } from './EmptyState';
+import { OvernightCollapsedBar } from './OvernightCollapsedBar';
 import { getTheme, getEntryColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { CATEGORIES } from '@/constants/categories';
@@ -86,12 +87,6 @@ export function WeeklyTimeGrid({
     return getWeekStart(parseDateString(selectedDate));
   }, [selectedDate]);
 
-  const endOfWeek = useMemo(() => {
-    const date = new Date(startOfWeek);
-    date.setDate(startOfWeek.getDate() + 6);
-    return date;
-  }, [startOfWeek]);
-
   const isSameCalendarDay = (left: Date, right: Date) => {
     return (
       left.getFullYear() === right.getFullYear() &&
@@ -149,7 +144,7 @@ export function WeeklyTimeGrid({
     return hours + minutes / 60;
   };
 
-  const getEventsForDay = (date: Date) => {
+  const getEventsForDay = useCallback((date: Date) => {
     const targetDate = parseDateString(formatDateString(date));
     targetDate.setHours(0, 0, 0, 0);
 
@@ -169,39 +164,26 @@ export function WeeklyTimeGrid({
       }
       return false;
     });
-  };
-
-  const weekEvents = useMemo(() => {
-    return events.filter((event) => {
-      const eventDate = parseDateString(event.date);
-      eventDate.setHours(0, 0, 0, 0);
-      return eventDate >= startOfWeek && eventDate <= endOfWeek;
-    });
-  }, [events, startOfWeek, endOfWeek]);
+  }, [events]);
 
   const overnightCheck = useMemo(() => {
-    if (!showAnchorsOnWeek) return { isUniform: false, anchor: null };
+    if (!showAnchorsOnWeek) return { isUniform: false, anchor: null, anchors: [] };
     return checkWeeklyOvernightUniformity(
       weekDays,
       getEventsForDay,
       OVERNIGHT_WINDOW_START,
       OVERNIGHT_WINDOW_END
     );
-  }, [weekDays, events, showAnchorsOnWeek]);
+  }, [weekDays, getEventsForDay, showAnchorsOnWeek]);
 
-  const shouldRenderCollapsed = !overnightExpanded && overnightCheck.isUniform && overnightCheck.anchor;
+  const shouldRenderCollapsed = !overnightExpanded && overnightCheck.isUniform && Boolean(overnightCheck.anchor);
+  const showUniformityHint = !overnightExpanded && !overnightCheck.isUniform && !!overnightCheck.reason;
 
   const isHourInOvernightRange = (hour: number): boolean => {
-    if (!overnightCheck.anchor) return false;
-    const { startHour, endHour, isOvernight } = overnightCheck.anchor;
-    if (isOvernight) {
-      return hour >= Math.floor(startHour) || hour < Math.ceil(endHour);
-    }
-    return hour >= Math.floor(startHour) && hour < Math.ceil(endHour);
+    return hour >= OVERNIGHT_WINDOW_START || hour < OVERNIGHT_WINDOW_END;
   };
 
-  const getAdjustedTopPosition = (time: string): number => {
-    const totalHours = parseTimeToHours(time);
+  const getAdjustedTopPosition = (totalHours: number): number => {
     const hour = Math.floor(totalHours);
     const fraction = totalHours - hour;
     
@@ -212,7 +194,7 @@ export function WeeklyTimeGrid({
     let pixelTop = 0;
     for (let h = 0; h < hour; h++) {
       const inOvernight = isHourInOvernightRange(h);
-      const isFirst = overnightCheck.anchor && h === Math.floor(overnightCheck.anchor.startHour);
+      const isFirst = h === OVERNIGHT_WINDOW_START;
       
       if (inOvernight && isFirst) {
         pixelTop += COLLAPSED_HEIGHT;
@@ -224,7 +206,7 @@ export function WeeklyTimeGrid({
     }
     
     const currentInOvernight = isHourInOvernightRange(hour);
-    const currentIsFirst = overnightCheck.anchor && hour === Math.floor(overnightCheck.anchor.startHour);
+    const currentIsFirst = hour === OVERNIGHT_WINDOW_START;
     
     if (!(currentInOvernight && currentIsFirst) && !currentInOvernight) {
       pixelTop += fraction * ROW_HEIGHT;
@@ -233,17 +215,15 @@ export function WeeklyTimeGrid({
     return pixelTop;
   };
 
-  const getAdjustedBlockHeight = (startTime: string, endTime: string): number => {
+  const getAdjustedBlockHeight = (startHours: number, endHours: number): number => {
     if (!shouldRenderCollapsed) {
-      const start = parseTimeToHours(startTime);
-      const end = parseTimeToHours(endTime);
-      const duration = end - start;
+      const duration = endHours - startHours;
       if (duration <= 0) return ROW_HEIGHT;
       return duration * ROW_HEIGHT;
     }
     
-    const top = getAdjustedTopPosition(startTime);
-    const bottom = getAdjustedTopPosition(endTime);
+    const top = getAdjustedTopPosition(startHours);
+    const bottom = getAdjustedTopPosition(endHours);
     return Math.max(ROW_HEIGHT * 0.25, bottom - top);
   };
 
@@ -262,7 +242,7 @@ export function WeeklyTimeGrid({
     let height = 0;
     for (let h = 0; h < 24; h++) {
       const inOvernight = isHourInOvernightRange(h);
-      const isFirst = overnightCheck.anchor && h === Math.floor(overnightCheck.anchor.startHour);
+      const isFirst = h === OVERNIGHT_WINDOW_START;
       
       if (inOvernight && isFirst) {
         height += COLLAPSED_HEIGHT;
@@ -273,13 +253,7 @@ export function WeeklyTimeGrid({
       }
     }
     return height;
-  }, [shouldRenderCollapsed, overnightCheck]);
-
-  console.log('[WeeklyView] weekStart:', formatDateString(startOfWeek));
-  console.log('[WeeklyView] weekEnd:', formatDateString(endOfWeek));
-  console.log('[WeeklyView] all events:', events.length);
-  console.log('[WeeklyView] filtered for week:', weekEvents.length);
-  console.log('[WeeklyView] sample event date:', events[0]?.date);
+  }, [shouldRenderCollapsed]);
 
   const flashedCellRef = useRef<string | null>(null);
   const flashOpacity = useRef(new Animated.Value(0)).current;
@@ -310,27 +284,98 @@ export function WeeklyTimeGrid({
     onEntryPress?.(event);
   };
 
-  const getVisibleSegmentsForDay = (date: Date) => {
-    return getEventsForDay(date).flatMap(event => {
+  interface TimedSegment {
+    key: string;
+    event: Event;
+    start: number;
+    end: number;
+    isAnchor: boolean;
+    hideWhenCollapsed: boolean;
+  }
+
+  const isCollapsedAnchorEvent = (event: Event): boolean => {
+    if (!overnightCheck.anchor) return false;
+    return (
+      event.entryType === 'anchor' &&
+      event.title === overnightCheck.anchor.title &&
+      event.startTime === overnightCheck.anchor.startTime &&
+      event.endTime === overnightCheck.anchor.endTime
+    );
+  };
+
+  const buildTimedSegmentsForDay = useCallback((date: Date): TimedSegment[] => {
+    const dayDate = formatDateString(date);
+    const previousDay = new Date(date);
+    previousDay.setDate(previousDay.getDate() - 1);
+
+    const currentDayEvents = getEventsForDay(date).filter((event) => !!event.startTime && !!event.endTime);
+    const previousDayEvents = getEventsForDay(previousDay).filter((event) => !!event.startTime && !!event.endTime);
+    const segments: TimedSegment[] = [];
+
+    for (const event of currentDayEvents) {
+      if (!event.startTime || !event.endTime) continue;
       const start = parseTimeToHours(event.startTime);
-      const end = event.endTime ? parseTimeToHours(event.endTime) : start + 0.5;
+      const end = parseTimeToHours(event.endTime);
       const isAnchor = event.entryType === 'anchor';
 
-      if (isAnchor && !showAnchorsOnWeek) return [];
+      if (isAnchor && !showAnchorsOnWeek) continue;
 
       if (isAnchor && end <= start) {
         const clippedStart = Math.max(VISIBLE_START_HOUR, start);
         const clippedEnd = VISIBLE_END_HOUR;
-        if (clippedEnd <= clippedStart) return [];
-        return [{ start: clippedStart, end: clippedEnd }];
+        if (clippedEnd > clippedStart) {
+          segments.push({
+            key: `${event.id}-${dayDate}-evening`,
+            event,
+            start: clippedStart,
+            end: clippedEnd,
+            isAnchor: true,
+            hideWhenCollapsed: isCollapsedAnchorEvent(event),
+          });
+        }
+        continue;
       }
 
       const clippedStart = Math.max(VISIBLE_START_HOUR, start);
+      const effectiveEnd = end <= start && !isAnchor ? Math.min(start + 1, VISIBLE_END_HOUR) : end;
+      const clippedEnd = Math.min(VISIBLE_END_HOUR, effectiveEnd);
+      if (clippedEnd <= clippedStart) continue;
+
+      segments.push({
+        key: `${event.id}-${dayDate}-default`,
+        event,
+        start: clippedStart,
+        end: clippedEnd,
+        isAnchor,
+        hideWhenCollapsed: isAnchor && isCollapsedAnchorEvent(event),
+      });
+    }
+
+    // Render carry-over morning leg for overnight anchors started on the previous day.
+    for (const event of previousDayEvents) {
+      if (!event.startTime || !event.endTime) continue;
+      if (event.entryType !== 'anchor' || !showAnchorsOnWeek) continue;
+
+      const start = parseTimeToHours(event.startTime);
+      const end = parseTimeToHours(event.endTime);
+      const isOvernight = end <= start;
+      if (!isOvernight) continue;
+
       const clippedEnd = Math.min(VISIBLE_END_HOUR, end);
-      if (clippedEnd <= clippedStart) return [];
-      return [{ start: clippedStart, end: clippedEnd }];
-    });
-  };
+      if (clippedEnd <= VISIBLE_START_HOUR) continue;
+
+      segments.push({
+        key: `${event.id}-${dayDate}-morning-carry`,
+        event,
+        start: VISIBLE_START_HOUR,
+        end: clippedEnd,
+        isAnchor: true,
+        hideWhenCollapsed: isCollapsedAnchorEvent(event),
+      });
+    }
+
+    return segments;
+  }, [getEventsForDay, overnightCheck.anchor, showAnchorsOnWeek]);
 
   const handleEmptySlotPress = (date: string, hour: number) => {
     const startTime = formatSlotTimeLabel(hour);
@@ -342,7 +387,28 @@ export function WeeklyTimeGrid({
   };
 
   const todayStr = formatDateString(new Date());
-  const hasWeekEntries = weekDays.some(day => getVisibleSegmentsForDay(day).length > 0);
+  const dayColumnData = useMemo(
+    () =>
+      weekDays.map((day) => {
+        const dayEvents = getEventsForDay(day);
+        const timelessEvents = dayEvents.filter((event) => !event.startTime || !event.endTime);
+        const timedSegments = buildTimedSegmentsForDay(day);
+        const visibleTimedSegments = timedSegments.filter(
+          (segment) => !(shouldRenderCollapsed && segment.hideWhenCollapsed)
+        );
+        return {
+          day,
+          dayDate: formatDateString(day),
+          timelessEvents,
+          visibleTimedSegments,
+        };
+      }),
+    [weekDays, getEventsForDay, buildTimedSegmentsForDay, shouldRenderCollapsed]
+  );
+
+  const hasWeekEntries = dayColumnData.some(
+    (column) => column.timelessEvents.length > 0 || column.visibleTimedSegments.length > 0
+  );
 
   return (
     <ThemedView style={styles.container}>
@@ -383,6 +449,11 @@ export function WeeklyTimeGrid({
           );
         })}
       </View>
+      {showUniformityHint ? (
+        <ThemedText style={[styles.uniformityHint, { color: theme.textMuted }]}>
+          {overnightCheck.reason}
+        </ThemedText>
+      ) : null}
 
       {/* Grid */}
       {hasWeekEntries ? (
@@ -415,13 +486,8 @@ export function WeeklyTimeGrid({
           </View>
 
           {/* Day Columns */}
-          {weekDays.map((day, dayIndex) => {
-            const dayDate = formatDateString(day);
+          {dayColumnData.map(({ day, dayDate, timelessEvents, visibleTimedSegments }, dayIndex) => {
             const isSelectedColumn = dayDate === selectedDate;
-            const visibleSegments = getVisibleSegmentsForDay(day);
-            const dayEvents = getEventsForDay(day);
-            const timelessEvents = dayEvents.filter((event) => !event.startTime || !event.endTime);
-            const timedEvents = dayEvents.filter((event) => !!event.startTime && !!event.endTime);
 
             return (
             <View key={dayIndex} style={[styles.dayColumn, { width: columnWidth, borderLeftColor: theme.border }]}>
@@ -430,7 +496,7 @@ export function WeeklyTimeGrid({
               ) : null}
               {HOURS.map(hour => {
                 const inOvernight = shouldRenderCollapsed && isHourInOvernightRange(hour);
-                const isFirst = shouldRenderCollapsed && overnightCheck.anchor && hour === Math.floor(overnightCheck.anchor.startHour);
+                const isFirst = shouldRenderCollapsed && hour === OVERNIGHT_WINDOW_START;
                 
                 if (inOvernight && !isFirst) {
                   return null;
@@ -438,7 +504,7 @@ export function WeeklyTimeGrid({
                 
                 const hourStart = hour;
                 const hourEnd = hour + 1;
-                const isOccupied = visibleSegments.some(segment => segment.start < hourEnd && segment.end > hourStart);
+                const isOccupied = visibleTimedSegments.some(segment => segment.start < hourEnd && segment.end > hourStart);
                 const hourCellKey = `${dayDate}-${hour}`;
                 const hourHeight = (inOvernight && isFirst) ? COLLAPSED_HEIGHT : HOUR_HEIGHT;
 
@@ -481,53 +547,15 @@ export function WeeklyTimeGrid({
                 </View>
               ) : null}
               {/* Events for this day */}
-              {timedEvents.map(event => {
-                console.log('[WeeklyView] rendering event:', {
-                  title: event.title,
-                  startTime: event.startTime,
-                  date: event.date,
-                  entryType: event.entryType,
-                });
-                if (!event.startTime || !event.endTime) {
-                  return null;
-                }
+              {visibleTimedSegments.map(segment => {
+                const entryColors = getEntryColors(segment.event.entryType || 'event', colorScheme);
+                const blockHeight = getAdjustedBlockHeight(segment.start, segment.end);
+                const topPosition = getAdjustedTopPosition(segment.start);
 
-                const start = parseTimeToHours(event.startTime);
-                const end = parseTimeToHours(event.endTime);
-                if (start < TIMELINE_START_HOUR || start >= TIMELINE_END_HOUR) return null;
-
-                const entryColors = getEntryColors(event.entryType || 'event', colorScheme);
-                const isAnchor = event.entryType === 'anchor';
-
-                if (isAnchor) {
-                  if (!showAnchorsOnWeek) return null;
-                  
-                  if (shouldRenderCollapsed && overnightCheck.anchor) {
-                    const matchesCollapsedAnchor = 
-                      event.title === overnightCheck.anchor.title &&
-                      event.startTime === overnightCheck.anchor.startTime &&
-                      event.endTime === overnightCheck.anchor.endTime;
-                    if (matchesCollapsedAnchor) return null;
-                  }
-
-                  const isOvernight = end <= start;
-                  const effectiveStart = Math.max(VISIBLE_START_HOUR, start);
-                  const effectiveEnd = isOvernight
-                    ? VISIBLE_END_HOUR
-                    : Math.min(VISIBLE_END_HOUR, end);
-                  const duration = Math.max(0, effectiveEnd - effectiveStart);
-
-                  if (duration <= 0) return null;
-
-                  const blockHeight = getAdjustedBlockHeight(
-                    formatSlotTimeLabel(effectiveStart),
-                    formatSlotTimeLabel(effectiveEnd)
-                  );
-                  const topPosition = getAdjustedTopPosition(formatSlotTimeLabel(effectiveStart));
-
+                if (segment.isAnchor) {
                   return (
                     <TouchableOpacity
-                      key={event.id}
+                      key={segment.key}
                       style={[
                         styles.eventBlock,
                         styles.anchorBlock,
@@ -539,7 +567,7 @@ export function WeeklyTimeGrid({
                           borderColor: entryColors.primary,
                         }
                       ]}
-                      onPress={() => handleEventPress(event)}
+                      onPress={() => handleEventPress(segment.event)}
                     >
                       {blockHeight >= 30 ? (
                         <Ionicons name="infinite-outline" size={10} color={entryColors.primary} />
@@ -548,12 +576,9 @@ export function WeeklyTimeGrid({
                   );
                 }
 
-                const blockHeight = getAdjustedBlockHeight(event.startTime, event.endTime);
-                const topPosition = getAdjustedTopPosition(event.startTime);
-
                 return (
                   <TouchableOpacity
-                    key={event.id}
+                    key={segment.key}
                     style={[
                       styles.eventBlock,
                       {
@@ -565,10 +590,10 @@ export function WeeklyTimeGrid({
                         zIndex: 1,
                       }
                     ]}
-                    onPress={() => handleEventPress(event)}
+                    onPress={() => handleEventPress(segment.event)}
                   >
                     <ThemedText style={styles.eventTitle} numberOfLines={1}>
-                      {event.title}
+                      {segment.event.title}
                     </ThemedText>
                   </TouchableOpacity>
                 );
@@ -578,32 +603,24 @@ export function WeeklyTimeGrid({
 
           {/* Collapsed overnight band (spans all columns) */}
           {shouldRenderCollapsed && overnightCheck.anchor && (
-            <TouchableOpacity
+            <OvernightCollapsedBar
+              onPress={() => setOvernightExpanded(true)}
+              label={overnightCheck.anchor.title}
+              startLabel={overnightCheck.anchor.startTime}
+              endLabel={overnightCheck.anchor.endTime}
+              primaryColor={anchorColors.primary}
+              backgroundColor={anchorColors.background}
+              secondaryTextColor={anchorColors.badgeText}
               style={[
                 styles.collapsedBand,
                 {
                   left: TIME_COLUMN_WIDTH,
                   width: columnWidth * 7,
-                  top: getAdjustedTopPosition(formatSlotTimeLabel(Math.floor(overnightCheck.anchor.startHour))),
+                  top: getAdjustedTopPosition(OVERNIGHT_WINDOW_START),
                   height: COLLAPSED_HEIGHT,
-                  backgroundColor: anchorColors.background,
-                  borderLeftColor: anchorColors.primary,
                 },
               ]}
-              onPress={() => setOvernightExpanded(true)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="moon-outline" size={14} color={anchorColors.primary} />
-              <Text style={[styles.collapsedLabel, { color: anchorColors.primary }]}>
-                {overnightCheck.anchor.title}
-              </Text>
-              <Text style={[styles.collapsedTime, { color: anchorColors.badgeText }]}>
-                {formatHourLabel(Math.floor(overnightCheck.anchor.startHour))}
-                {' – '}
-                {formatHourLabel(Math.floor(overnightCheck.anchor.endHour))}
-              </Text>
-              <Ionicons name="chevron-down-outline" size={14} color={anchorColors.primary} />
-            </TouchableOpacity>
+            />
           )}
         </View>
         </ScrollView>
@@ -655,6 +672,12 @@ const styles = StyleSheet.create({
     height: 2,
     borderRadius: 1,
     opacity: 0.45,
+  },
+  uniformityHint: {
+    fontSize: 12,
+    paddingHorizontal: 8,
+    paddingTop: 2,
+    paddingBottom: 8,
   },
   scrollContent: {
     paddingBottom: 20,
@@ -728,19 +751,6 @@ const styles = StyleSheet.create({
   },
   collapsedBand: {
     position: 'absolute',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    borderLeftWidth: 3,
     zIndex: 100,
-  },
-  collapsedLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    flex: 1,
-  },
-  collapsedTime: {
-    fontSize: 11,
   },
 });

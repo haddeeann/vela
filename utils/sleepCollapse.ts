@@ -14,6 +14,14 @@ export interface OvernightAnchor {
   isOvernight: boolean
 }
 
+interface AnchorEventLike {
+  title: string
+  entryType?: string
+  recurrence?: string
+  startTime?: string
+  endTime?: string
+}
+
 const parseTimeToHours = (time: string): number => {
   if (!time || !time.trim()) return 0
   const cleaned = time.trim().toUpperCase()
@@ -62,55 +70,37 @@ export const findSleepAnchor = (
   }
 }
 
-const overlapsOvernightWindow = (
+const toDailyWindowSegments = (startHour: number, endHour: number): Array<{ start: number; end: number }> => {
+  if (endHour <= startHour) {
+    return [
+      { start: startHour, end: 24 },
+      { start: 0, end: endHour },
+    ]
+  }
+  return [{ start: startHour, end: endHour }]
+}
+
+const intersects = (
+  left: { start: number; end: number },
+  right: { start: number; end: number }
+): boolean => left.start < right.end && right.start < left.end
+
+const overlapsWindow = (
   startHour: number,
   endHour: number,
   windowStart: number,
   windowEnd: number
 ): boolean => {
-  const isOvernight = endHour < startHour;
-  
-  if (isOvernight) {
-    if (windowEnd < windowStart) {
-      return true;
-    }
-    return startHour <= windowStart || endHour >= windowEnd;
-  }
-  
-  if (windowEnd < windowStart) {
-    return (startHour >= windowStart || endHour <= windowEnd) &&
-           (startHour < endHour);
-  }
-  
-  return startHour < windowEnd && endHour > windowStart;
+  const eventSegments = toDailyWindowSegments(startHour, endHour)
+  const windowSegments = toDailyWindowSegments(windowStart, windowEnd)
+  return eventSegments.some(eventSeg => windowSegments.some(windowSeg => intersects(eventSeg, windowSeg)))
 }
 
-export const findOvernightAnchor = (
-  events: Array<{
-    title: string
-    entryType?: string
-    recurrence?: string
-    startTime?: string
-    endTime?: string
-  }>,
-  windowStart: number = 21,
-  windowEnd: number = 5
-): OvernightAnchor | null => {
-  const anchor = events.find(e => {
-    if (e.entryType !== 'anchor') return false;
-    if (!e.startTime || !e.endTime) return false;
-    
-    const startHour = parseTimeToHours(e.startTime);
-    const endHour = parseTimeToHours(e.endTime);
-    
-    return overlapsOvernightWindow(startHour, endHour, windowStart, windowEnd);
-  });
+const toOvernightAnchor = (anchor: AnchorEventLike): OvernightAnchor | null => {
+  if (!anchor.startTime || !anchor.endTime) return null
 
-  if (!anchor?.startTime || !anchor?.endTime) return null;
-
-  const startHour = parseTimeToHours(anchor.startTime);
-  const endHour = parseTimeToHours(anchor.endTime);
-
+  const startHour = parseTimeToHours(anchor.startTime)
+  const endHour = parseTimeToHours(anchor.endTime)
   return {
     title: anchor.title,
     startTime: anchor.startTime,
@@ -118,7 +108,31 @@ export const findOvernightAnchor = (
     startHour,
     endHour,
     isOvernight: endHour < startHour,
-  };
+  }
+}
+
+const anchorSignature = (anchor: OvernightAnchor): string =>
+  `${anchor.title}__${anchor.startTime}__${anchor.endTime}`
+
+export const getAnchorsOccupyingWindow = (
+  events: AnchorEventLike[],
+  windowStart: number = 21,
+  windowEnd: number = 5
+): OvernightAnchor[] => {
+  const anchors = events
+    .filter(event => event.entryType === 'anchor' && event.startTime && event.endTime)
+    .map(event => toOvernightAnchor(event))
+    .filter((anchor): anchor is OvernightAnchor => Boolean(anchor))
+    .filter(anchor => overlapsWindow(anchor.startHour, anchor.endHour, windowStart, windowEnd))
+
+  const deduped = new Map<string, OvernightAnchor>()
+  for (const anchor of anchors) {
+    deduped.set(anchorSignature(anchor), anchor)
+  }
+
+  return Array.from(deduped.values()).sort((left, right) =>
+    anchorSignature(left).localeCompare(anchorSignature(right))
+  )
 }
 
 export const isHourInSleepRange = (
@@ -136,57 +150,49 @@ export const isHourInSleepRange = (
 export interface WeeklyOvernightCheck {
   isUniform: boolean;
   anchor: OvernightAnchor | null;
+  anchors: OvernightAnchor[];
   reason?: string;
 }
 
 export const checkWeeklyOvernightUniformity = (
   weekDays: Date[],
-  getEventsForDay: (date: Date) => Array<{
-    title: string
-    entryType?: string
-    recurrence?: string
-    startTime?: string
-    endTime?: string
-  }>,
+  getEventsForDay: (date: Date) => AnchorEventLike[],
   windowStart: number = 21,
   windowEnd: number = 5
 ): WeeklyOvernightCheck => {
-  const dailyAnchors: Array<OvernightAnchor | null> = [];
-  
-  for (const day of weekDays) {
-    const dayEvents = getEventsForDay(day);
-    const anchor = findOvernightAnchor(dayEvents, windowStart, windowEnd);
-    dailyAnchors.push(anchor);
-  }
-  
-  const firstAnchor = dailyAnchors[0];
-  if (!firstAnchor) {
+  const signaturesByDay = weekDays.map(day =>
+    getAnchorsOccupyingWindow(getEventsForDay(day), windowStart, windowEnd)
+  )
+
+  const firstDayAnchors = signaturesByDay[0] ?? []
+  if (firstDayAnchors.length !== 1) {
     return {
       isUniform: false,
       anchor: null,
-      reason: 'No overnight anchor on first day',
-    };
+      anchors: [],
+      reason: firstDayAnchors.length === 0
+        ? 'No overnight anchor found for each day'
+        : 'Multiple anchors occupy the overnight window',
+    }
   }
-  
-  const allMatch = dailyAnchors.every(anchor => {
-    if (!anchor) return false;
-    return (
-      anchor.title === firstAnchor.title &&
-      anchor.startTime === firstAnchor.startTime &&
-      anchor.endTime === firstAnchor.endTime
-    );
-  });
-  
-  if (!allMatch) {
+
+  const firstSignature = anchorSignature(firstDayAnchors[0])
+  const isUniform = signaturesByDay.every(dayAnchors =>
+    dayAnchors.length === 1 && anchorSignature(dayAnchors[0]) === firstSignature
+  )
+
+  if (!isUniform) {
     return {
       isUniform: false,
-      anchor: firstAnchor,
-      reason: 'Overnight times vary across the week',
-    };
+      anchor: null,
+      anchors: [],
+      reason: 'Overnight anchors differ across days in this week',
+    }
   }
-  
+
   return {
     isUniform: true,
-    anchor: firstAnchor,
-  };
+    anchor: firstDayAnchors[0],
+    anchors: firstDayAnchors,
+  }
 }
