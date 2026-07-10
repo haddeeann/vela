@@ -361,6 +361,7 @@ export function DailyTimeline({
         const entryColors = getEntryColors(event.entryType || 'event', colorScheme);
         const isAnchor = event.entryType === 'anchor';
         const isCompleted = !!event.completedAt;
+        const hasNotes = !!event.notes?.trim();
 
         const topPosition = getPixelTopFromHours(start);
         const blockHeight = getPixelHeight(start, end);
@@ -417,19 +418,37 @@ export function DailyTimeline({
                     )}
                   </>
                 )}
+                {hasNotes ? (
+                  <Ionicons
+                    name="document-text-outline"
+                    size={10}
+                    color={entryColors.primary}
+                    style={styles.noteIconAnchor}
+                  />
+                ) : null}
               </>
             ) : (
-              <Text
-                style={[
-                  styles.eventBlockTitle,
-                  { color: '#FFFFFF' },
-                  isCompleted && { textDecorationLine: 'line-through' },
-                ]}
-                numberOfLines={2}
-                ellipsizeMode="tail"
-              >
-                {event.title}
-              </Text>
+              <>
+                <Text
+                  style={[
+                    styles.eventBlockTitle,
+                    { color: '#FFFFFF' },
+                    isCompleted && { textDecorationLine: 'line-through' },
+                  ]}
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                >
+                  {event.title}
+                </Text>
+                {hasNotes ? (
+                  <Ionicons
+                    name="document-text-outline"
+                    size={11}
+                    color="#FFFFFF"
+                    style={styles.noteIconEvent}
+                  />
+                ) : null}
+              </>
             )}
           </TouchableOpacity>
         );
@@ -660,5 +679,17 @@ const styles = StyleSheet.create({
     left: 4,
     fontSize: 10,
     opacity: 0.9,
+  },
+  noteIconAnchor: {
+    position: 'absolute',
+    top: 3,
+    right: 16,
+    opacity: 0.9,
+  },
+  noteIconEvent: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    opacity: 0.95,
   },
 });

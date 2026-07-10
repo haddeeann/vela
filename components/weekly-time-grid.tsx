@@ -25,6 +25,7 @@ interface Event {
   recurrence: RecurrenceType;
   entryType?: 'event' | 'task' | 'anchor' | 'custom';
   completedAt?: number | null;
+  notes?: string;
 }
 
 interface WeeklyTimeGridProps {
@@ -592,6 +593,14 @@ export function WeeklyTimeGrid({
                     ]}
                     onPress={() => handleEventPress(segment.event)}
                   >
+                    {segment.event.notes?.trim() ? (
+                      <Ionicons
+                        name="document-text-outline"
+                        size={10}
+                        color="#FFFFFF"
+                        style={styles.noteIcon}
+                      />
+                    ) : null}
                     <ThemedText style={styles.eventTitle} numberOfLines={1}>
                       {segment.event.title}
                     </ThemedText>
@@ -748,6 +757,14 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: '#FFF',
     fontWeight: 'bold',
+    paddingRight: 12,
+  },
+  noteIcon: {
+    position: 'absolute',
+    top: 3,
+    right: 2,
+    opacity: 0.95,
+    zIndex: 2,
   },
   collapsedBand: {
     position: 'absolute',

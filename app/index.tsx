@@ -53,6 +53,21 @@ type EditableEntry = {
   };
 };
 
+type EntryDetailForActions = {
+  id: string;
+  title: string;
+  entry_type: 'event' | 'task' | 'anchor';
+  date: string;
+  start_time?: string;
+  end_time?: string;
+  category: string;
+  notes?: string;
+  recurrence?: {
+    frequency: RecurrenceType;
+    end_date?: string;
+  };
+};
+
 export default function HomeScreen() {
   const router = useRouter();
   const { quickAddType, quickAddPlaceholder } = useLocalSearchParams<{
@@ -93,6 +108,7 @@ export default function HomeScreen() {
   const [selectedEntry, setSelectedEntry] = useState<CalendarEvent | null>(null);
   const [isEntryDetailVisible, setIsEntryDetailVisible] = useState(false);
   const [editingEntry, setEditingEntry] = useState<EditableEntry | null>(null);
+  const [pendingDuplicateEntry, setPendingDuplicateEntry] = useState<EntryDetailForActions | null>(null);
   const { showAnchorsOnDaily } = useCalendarSettings();
   const slideAnim = useRef(new Animated.Value(-Dimensions.get('window').width * 0.72)).current;
   const dropdownFadeAnim = useRef(new Animated.Value(0)).current;
@@ -408,6 +424,64 @@ export default function HomeScreen() {
     return entryDateTime.getTime();
   };
 
+  const createEntryFromEventPayload = useCallback(async (newEvent: {
+    title: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    categoryId: CategoryId;
+    recurrence: RecurrenceType;
+    reminder: ReminderType;
+    entryType: 'event' | 'task' | 'anchor';
+    priority?: 'low' | 'medium' | 'high';
+    notes?: string;
+  }, options?: {
+    withRecurrence?: boolean;
+    withReminder?: boolean;
+  }) => {
+    const withRecurrence = options?.withRecurrence ?? true;
+    const withReminder = options?.withReminder ?? true;
+
+    const { id } = await createEntry({
+      title: newEvent.title,
+      entry_type: newEvent.entryType,
+      date: newEvent.date,
+      start_time: newEvent.startTime || '',
+      end_time: newEvent.endTime || '',
+      category: newEvent.entryType === 'task' ? 'other' : newEvent.categoryId,
+      notes:
+        newEvent.entryType === 'task'
+          ? JSON.stringify({ priority: newEvent.priority })
+          : (newEvent.notes ?? ''),
+      is_completable: newEvent.entryType === 'task' ? 1 : 0
+    });
+
+    if (withRecurrence && newEvent.recurrence !== 'none') {
+      await createRecurrenceRule(id, newEvent.recurrence, null, null);
+    }
+
+    if (withReminder && newEvent.reminder !== 'none') {
+      const reminderOption = REMINDER_OPTIONS.find(r => r.id === newEvent.reminder);
+      if (reminderOption && reminderOption.minutesBefore !== null) {
+        const reminderId = await createReminder(id, reminderOption.minutesBefore);
+        const entryDateTimeMs = getEntryDateTimeMs(newEvent.date, newEvent.startTime);
+        const scheduledAt = entryDateTimeMs - reminderOption.minutesBefore * 60 * 1000;
+
+        const result = await scheduleReminderSequence({
+          reminderId,
+          entryId: id,
+          entryType: newEvent.entryType,
+          entryTitle: newEvent.title,
+          scheduledAt,
+        });
+
+        await saveNotificationIds(reminderId, result);
+      }
+    }
+
+    return id;
+  }, []);
+
   const handleAddEvent = async (newEvent: {
     title: string;
     date: string;
@@ -418,41 +492,10 @@ export default function HomeScreen() {
     reminder: ReminderType;
     entryType: 'event' | 'task' | 'anchor';
     priority?: 'low' | 'medium' | 'high';
+    notes?: string;
   }) => {
     try {
-      const { id } = await createEntry({
-        title: newEvent.title,
-        entry_type: newEvent.entryType,
-        date: newEvent.date,
-        start_time: newEvent.startTime || '',
-        end_time: newEvent.endTime || '',
-        category: newEvent.entryType === 'task' ? 'other' : newEvent.categoryId,
-        notes: newEvent.entryType === 'task' ? JSON.stringify({ priority: newEvent.priority }) : '',
-        is_completable: newEvent.entryType === 'task' ? 1 : 0
-      });
-
-      if (newEvent.recurrence !== 'none') {
-        await createRecurrenceRule(id, newEvent.recurrence, null, null);
-      }
-
-      if (newEvent.reminder !== 'none') {
-        const reminderOption = REMINDER_OPTIONS.find(r => r.id === newEvent.reminder);
-        if (reminderOption && reminderOption.minutesBefore !== null) {
-          const reminderId = await createReminder(id, reminderOption.minutesBefore);
-          const entryDateTimeMs = getEntryDateTimeMs(newEvent.date, newEvent.startTime);
-          const scheduledAt = entryDateTimeMs - reminderOption.minutesBefore * 60 * 1000;
-
-          const result = await scheduleReminderSequence({
-            reminderId,
-            entryId: id,
-            entryType: newEvent.entryType,
-            entryTitle: newEvent.title,
-            scheduledAt,
-          });
-
-          await saveNotificationIds(reminderId, result);
-        }
-      }
+      await createEntryFromEventPayload(newEvent);
 
       setIsModalVisible(false);
       setSelectedDate(newEvent.date);
@@ -469,6 +512,60 @@ export default function HomeScreen() {
       Alert.alert('Error', 'Failed to save event.');
     }
   };
+
+  const duplicateEvent = useCallback(async (entry: EntryDetailForActions, targetDate: string) => {
+    if (entry.entry_type !== 'event') return;
+
+    const startTime = entry.start_time || '';
+    const endTime = entry.end_time || '';
+    const categoryId = (entry.category || 'personal') as CategoryId;
+
+    const duplicateId = await createEntryFromEventPayload({
+      title: entry.title,
+      date: targetDate,
+      startTime,
+      endTime,
+      categoryId,
+      recurrence: 'none',
+      reminder: 'none',
+      entryType: 'event',
+      notes: entry.notes ?? '',
+    }, {
+      withRecurrence: false,
+      withReminder: false,
+    });
+
+    setSelectedDate(targetDate);
+    setViewMode('daily');
+    await fetchEvents();
+    setEditingEntry({
+      id: duplicateId,
+      title: entry.title,
+      entry_type: 'event',
+      date: targetDate,
+      start_time: startTime,
+      end_time: endTime,
+      category: categoryId,
+      notes: entry.notes,
+      recurrence: undefined,
+    });
+  }, [createEntryFromEventPayload, fetchEvents]);
+
+  const handleDuplicateSameDay = useCallback((entry: EntryDetailForActions) => {
+    duplicateEvent(entry, entry.date).catch((error) => {
+      console.error('Error duplicating event:', error);
+      Alert.alert('Error', 'Failed to duplicate event.');
+    });
+  }, [duplicateEvent]);
+
+  const handleDuplicateTo = useCallback((entry: EntryDetailForActions) => {
+    const pickerMonth = parseDateString(entry.date);
+    pickerMonth.setDate(1);
+    pickerMonth.setHours(0, 0, 0, 0);
+    setDayPickerMonthDate(pickerMonth);
+    setPendingDuplicateEntry(entry);
+    setIsDayPickerVisible(true);
+  }, []);
 
   const closeEntryDetail = useCallback(() => {
     setIsEntryDetailVisible(false);
@@ -784,9 +881,18 @@ export default function HomeScreen() {
         visible={isDayPickerVisible}
         transparent
         animationType="none"
-        onRequestClose={() => setIsDayPickerVisible(false)}
+        onRequestClose={() => {
+          setIsDayPickerVisible(false);
+          setPendingDuplicateEntry(null);
+        }}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setIsDayPickerVisible(false)}>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => {
+            setIsDayPickerVisible(false);
+            setPendingDuplicateEntry(null);
+          }}
+        >
           <Animated.View style={{ opacity: pickerFadeAnim, transform: [{ scale: pickerScaleAnim }] }}>
             <ThemedView
               style={[
@@ -825,7 +931,19 @@ export default function HomeScreen() {
                     <TouchableOpacity
                       key={date.toISOString()}
                       style={styles.dayCellWrap}
-                      onPress={() => handleDateSelect(formatDateString(date))}
+                      onPress={() => {
+                        const selectedDay = formatDateString(date);
+                        if (pendingDuplicateEntry) {
+                          setIsDayPickerVisible(false);
+                          setPendingDuplicateEntry(null);
+                          duplicateEvent(pendingDuplicateEntry, selectedDay).catch((error) => {
+                            console.error('Error duplicating event to selected date:', error);
+                            Alert.alert('Error', 'Failed to duplicate event.');
+                          });
+                          return;
+                        }
+                        handleDateSelect(selectedDay);
+                      }}
                     >
                       <View
                         style={[
@@ -1067,6 +1185,8 @@ export default function HomeScreen() {
         visible={isEntryDetailVisible}
         onClose={closeEntryDetail}
         onEditPressed={handleEditEntry}
+        onDuplicatePressed={handleDuplicateSameDay}
+        onDuplicateToPressed={handleDuplicateTo}
         onDeleted={() => {
           fetchEvents().catch(console.error)
         }}

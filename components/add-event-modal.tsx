@@ -42,6 +42,7 @@ interface AddEventModalProps {
     reminder: ReminderType;
     entryType: 'event' | 'task' | 'anchor';
     priority?: 'low' | 'medium' | 'high';
+    notes?: string;
   }) => void | Promise<void>;
   selectedDate: string;
   initialEntryType?: 'event' | 'task' | 'anchor';
@@ -116,6 +117,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [showDueTimePicker, setShowDueTimePicker] = useState(false);
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [notes, setNotes] = useState('');
   const [categoryId, setCategoryId] = useState<CategoryId>('personal');
   const [recurrence, setRecurrence] = useState<RecurrenceType>('none');
   const [reminder, setReminder] = useState<ReminderType>('none');
@@ -249,6 +251,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
         setTitle(existingEntry.title);
         setDate(existingEntry.date);
         setEntryType(existingEntry.entry_type);
+        setNotes(existingEntry.notes ?? '');
         setCategoryId(existingEntry.category || 'personal');
         setRecurrence(existingEntry.recurrence?.frequency || 'none');
 
@@ -264,6 +267,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
         setTitle(initialValues.title);
         setDate(initialValues.date);
         setEntryType(initialValues.entryType || 'event');
+        setNotes('');
         setCategoryId(initialValues.categoryId || 'personal');
         setRecurrence(initialValues.recurrence || 'none');
 
@@ -284,6 +288,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
 
         setEntryType(resolvedType);
         setTitle(prefilledTitle ?? '');
+        setNotes('');
         setStartTimeDate(defaultRange.start);
         setEndTimeDate(defaultRange.end);
         setDueTimeDate(null);
@@ -337,7 +342,7 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
           start_time: startTime,
           end_time: endTime,
           category: entryType === 'task' ? 'other' : categoryId,
-          notes: existingEntry.notes ?? '',
+          notes: notes,
           recurrence: recurrence === 'none'
             ? null
             : {
@@ -360,11 +365,13 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
         recurrence,
         reminder,
         entryType,
-        priority: entryType === 'task' ? priority : undefined
+        priority: entryType === 'task' ? priority : undefined,
+        notes: entryType === 'event' ? notes : undefined,
       }));
 
       setTitle('');
       setEntryType('event');
+      setNotes('');
       setDueTimeDate(null);
       setStartTimeDate(getNextRoundHour());
       setEndTimeDate(new Date(getNextRoundHour().getTime() + 60 * 60 * 1000));
@@ -705,6 +712,21 @@ export function AddEventModal({ isVisible, onClose, onSave, selectedDate, initia
                 </ThemedView>
               </>
             )}
+
+            {entryType === 'event' && (
+              <>
+                <ThemedText style={styles.label}>Notes</ThemedText>
+                <TextInput
+                  style={[styles.input, styles.notesInput, { color: theme.textPrimary, borderColor: theme.border }]}
+                  value={notes}
+                  onChangeText={setNotes}
+                  placeholder="Add notes"
+                  placeholderTextColor={theme.textSecondary}
+                  multiline
+                  textAlignVertical="top"
+                />
+              </>
+            )}
           </ScrollView>
 
           {existingEntry?.recurrence?.frequency && existingEntry.recurrence.frequency !== 'none' && (
@@ -887,6 +909,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
     marginBottom: 8,
+  },
+  notesInput: {
+    minHeight: 96,
   },
   endTimeRow: {
     flexDirection: 'row',

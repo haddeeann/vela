@@ -55,7 +55,7 @@ export default function EventsScreen() {
         category: eventData.categoryId,
         entry_type: eventData.entryType,
         is_completable: 0,
-        notes: '',
+        notes: eventData.notes ?? '',
       });
 
       if (eventData.recurrence && eventData.recurrence !== 'none') {

@@ -39,6 +39,8 @@ interface EntryDetailSheetProps {
   visible: boolean;
   onClose: () => void;
   onEditPressed: (entry: any) => void;
+  onDuplicatePressed?: (entry: EntryDetail) => void;
+  onDuplicateToPressed?: (entry: EntryDetail) => void;
   onDeleted: () => void;
   theme: ReturnType<typeof getTheme>;
 }
@@ -50,6 +52,8 @@ export const EntryDetailSheet: React.FC<EntryDetailSheetProps> = ({
   visible,
   onClose,
   onEditPressed,
+  onDuplicatePressed,
+  onDuplicateToPressed,
   onDeleted,
   theme,
 }) => {
@@ -116,6 +120,32 @@ export const EntryDetailSheet: React.FC<EntryDetailSheetProps> = ({
     if (!entry) return;
     onEditPressed(entry);
     onClose();
+  };
+
+  const handleDuplicateMenu = () => {
+    if (!entry || entry.entry_type !== 'event') return;
+
+    Alert.alert(
+      'Duplicate event',
+      undefined,
+      [
+        {
+          text: 'Duplicate',
+          onPress: () => {
+            onDuplicatePressed?.(entry);
+            onClose();
+          },
+        },
+        {
+          text: 'Duplicate to...',
+          onPress: () => {
+            onDuplicateToPressed?.(entry);
+            onClose();
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   return (
@@ -199,6 +229,16 @@ export const EntryDetailSheet: React.FC<EntryDetailSheetProps> = ({
                   >
                     <ThemedText style={[styles.deleteButtonText, { color: '#D94F3D' }]}>Delete</ThemedText>
                   </TouchableOpacity>
+
+                  {entry.entry_type === 'event' ? (
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.duplicateButton, { borderColor: theme.border }]}
+                      onPress={handleDuplicateMenu}
+                      activeOpacity={0.85}
+                    >
+                      <ThemedText style={[styles.duplicateButtonText, { color: theme.textPrimary }]}>Duplicate</ThemedText>
+                    </TouchableOpacity>
+                  ) : null}
 
                   <TouchableOpacity
                     style={[styles.actionButton, styles.editButton, { backgroundColor: theme.primary }]}
@@ -311,7 +351,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   editButton: {},
+  duplicateButton: {
+    borderWidth: 1,
+    backgroundColor: 'transparent',
+  },
   deleteButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  duplicateButtonText: {
     fontSize: 15,
     fontWeight: '600',
   },
